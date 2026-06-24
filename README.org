@@ -1,0 +1,83 @@
+#+TITLE: card-games -- Play card games in Emacs
+#+AUTHOR: Corwin Brust
+
+Card games for Emacs.
+
+Renders SVG by default when ~display-graphic-p~ is t and rsvg is
+available.  The default (UNICODE) symbols maybe customized by
+configuring ~card-game-symbols~.
+
+* Games
+- *500 (Bid)* -- the four-handed partnership trick-taking game, against
+  three computer opponents (=M-x cg-bid=).
+- *Gaps / Hell's Half-Acre* -- solitaire; sort each row into one suit
+  running 2..K (=M-x cg-gaps=).
+
+To launch the game-menu press =M-x card-game= or launch a game
+directly by calling it's launcher command.  Launcher commands take the
+form ~cg-GAME~ where ~GAME~ is one of
+- montana - Montana: <SHORT_RULES>
+- gap - Gap: <SHORT_RULES>
+- hha - Hells Half Acre: <SHORT_RULES>
+- bid - Bid, (or 500 Bid): <SHORT_RULES>
+
+* TODO
+- [ ] documentation
+- [ ] create ~card-game-symbols~ and obey it
+- [ ] refactor to allow games to subclass components (svg)
+- [ ] add manual-control silder for card size (svgfull)
+- [ ] mor games
+
+* Install
+** From the package tarball
+#+begin_src
+make package           # builds card-games-1.0.50.tar
+#+end_src
+Then in Emacs: ~M-x package-install-file RET card-games-1.0.50.tar~.
+
+** From a local ELPA archive
+#+begin_src
+make elpa              # builds dist/ (archive-contents + tar)
+#+end_src
+#+begin_src emacs-lisp
+(add-to-list 'package-archives '("cg" . "/path/to/dist/"))
+(package-refresh-contents)
+(package-install 'card-games)
+#+end_src
+
+** Manually
+Put the ~cg-*.el~ and ~card-games.el~ files on your ~load-path~ and
+~(require 'card-games)~.
+
+* Playing
+Both games work with the keyboard everywhere and with the mouse on a
+graphical display.
+
+- 500: ~b~ bid, ~p~ pass, arrows + ~RET~ to play (or click a card),
+  ~n~ next hand / new game, ~?~ help.
+- Gaps: arrows or ~hjkl~ to move, ~RET~ to fill a gap (or click it),
+  ~r~ redeal, ~u~ undo, ~n~ new, ~?~ help.
+
+* Customization
+~M-x customize-group RET cg-svg~ and ~RET card-games~:
+- ~cg-svg-theme-colors~ -- derive the highlight ring and card backs
+  from your theme (on by default).
+- ~cg-bid-felt-color~ -- the 500 table felt.
+- ~cg-svg-card-width~, ~cg-svg-card-height~, ~cg-svg-card-shadow~,
+  ~cg-svg-font-family~ -- card appearance.
+- ~cg-svg-card-back~ -- card-back pattern: dots, rings, or solid.
+- ~cg-bid-animate~, ~cg-bid-ai-delay~, ~cg-bid-trick-pause~ -- pace the
+  500 AI so play is watchable and completed tricks linger.
+- ~M-x card-games-set-theme~ -- apply a preset (classic, dark, contrast).
+
+* Development
+#+begin_src
+make compile     # byte-compile (should be warning-free)
+make test        # run the ERT suite
+make checkdoc    # documentation lint
+make release     # clean + test + package + source tarball
+#+end_src
+
+* License
+GPL-3.0-or-later.  See the file headers; add a COPYING file with the
+full GPLv3 text for distribution.

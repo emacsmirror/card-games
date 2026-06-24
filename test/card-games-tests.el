@@ -35,6 +35,40 @@
   (should (eq 'text (cg-render-resolve-treatment 'text)))
   (should (memq (cg-render-resolve-treatment 'auto) '(text svg))))
 
+;;;; Networking
+
+(defclass cgt-net-game (cg-game)
+  ((env :initarg :env :initform '(:counter 0)))
+  "Throwaway game whose only move adds to a counter.")
+
+(cl-defmethod cg-net-apply-move ((g cgt-net-game) _seat move)
+  (cg-put g :counter (+ (or (cg-get g :counter) 0) move))
+  t)
+
+(ert-deftest cgt-net-loopback ()
+  "Host-authoritative move sync over a loopback TCP socket."
+  ;; Skip gracefully where a TCP server cannot be opened.
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+         (srv (cg-net-host-start hgame 0))
+         (port (process-contact srv :service))
+         (cgame (make-instance 'cgt-net-game :env (list :counter 0))))
+    (unwind-protect
+        (progn
+          (cg-net-connect "127.0.0.1" port "Test" cgame)
+          (dotimes (_ 12) (accept-process-output nil 0.05))
+          (should (= 0 (cg-get cgame :counter)))
+          (cg-net-send-move 7)
+          (dotimes (_ 12) (accept-process-output nil 0.05))
+          (should (= 7 (cg-get hgame :counter)))
+          (should (= 7 (cg-get cgame :counter))))
+      (cg-net-disconnect)
+      (cg-net-host-stop))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

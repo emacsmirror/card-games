@@ -40,6 +40,7 @@
 
 (require 'cg-core)
 (require 'cg-render)
+(require 'cg-net)
 (require 'cg-gaps)
 (require 'cg-bid-ui)
 

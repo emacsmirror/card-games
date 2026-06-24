@@ -47,7 +47,6 @@
 
 (ert-deftest cgt-net-loopback ()
   "Host-authoritative move sync over a loopback TCP socket."
-  ;; Skip gracefully where a TCP server cannot be opened.
   (condition-case _
       (delete-process
        (make-network-process :name "cgt-probe" :server t :service 0
@@ -268,3 +267,68 @@
       (should-not (string-match-p "RET\\] play card" s))   ; key-help removed
       (should (string-match-p "Help" s))                    ; button row present
       (should-not (string-match-p "New" s)))))              ; no mid-hand new deal
+
+;;;; Live 500 (networking)
+
+(ert-deftest cgt-bid-net-filter ()
+  "Per-seat 500 state hides others' cards and rotates the viewer South."
+  (cl-flet ((ck (h) (sort (mapcar #'prin1-to-string h) #'string<)))
+    (let* ((cg-bid--human-seats '(0 1 2 3))
+           (g (cg-bid--deal (make-instance 'cg-bid-game) 3))
+           (st (cg-net-game-state g 1)))      ; West's viewpoint
+      ;; West sees its own ten cards rotated to index 0
+      (should (equal (ck (aref (plist-get st :hands) 0))
+                     (ck (cg-bid--hand g 1))))
+      ;; opponents are face-down counts only, not the real cards
+      (should (= 10 (length (aref (plist-get st :hands) 1))))
+      (should-not (equal (ck (aref (plist-get st :hands) 1))
+                         (ck (cg-bid--hand g 2))))
+      ;; the kitty stays hidden
+      (should-not (plist-get st :kitty))
+      ;; South (abs 0) bids first; in West's frame that is seat 3
+      (should (= 3 (plist-get st :bidder)))
+      (should (= 1 (plist-get st :you))))))   ; :you is the absolute seat
+
+(ert-deftest cgt-bid-net-apply ()
+  "The host applies only legal, in-turn moves."
+  (let* ((cg-bid--human-seats '(0 1 2 3))
+         (g (cg-bid--deal (make-instance 'cg-bid-game) 3)))
+    (should-not (cg-net-apply-move g 1 '(pass)))   ; not West's turn yet
+    (should (cg-net-apply-move g 0 '(pass)))       ; South may pass
+    (should (aref (cg-get g :passed) 0))
+    (should-not (cg-net-apply-move g 0 '(play (0 . 0)))) ; wrong phase
+    ))
+
+(ert-deftest cgt-bid-net-loopback ()
+  "A 500 move travels client -> host -> filtered broadcast over TCP."
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe2" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (cl-flet ((pump () (dotimes (_ 16) (accept-process-output nil 0.05))))
+    (let* ((cg-bid--human-seats '(0 1))
+           (hgame (cg-bid--deal (make-instance 'cg-bid-game) 3))
+           (srv (cg-net-host-start hgame 0))
+           (port (process-contact srv :service))
+           (cgame (make-instance 'cg-bid-game)))
+      (setf (cg-net-host-next-seat cg-net--host) 1) ; reserve South for host
+      (unwind-protect
+          (progn
+            (cg-net-connect "127.0.0.1" port "P1" cgame)
+            (pump)
+            ;; the client (seat 1) sees its own ten cards at index 0
+            (should (= 10 (length (aref (cg-get cgame :hands) 0))))
+            (should (equal
+                     (sort (mapcar #'prin1-to-string (aref (cg-get cgame :hands) 0)) #'string<)
+                     (sort (mapcar #'prin1-to-string (cg-bid--hand hgame 1)) #'string<)))
+            ;; make it the client's turn, then let it pass
+            (cg-put hgame :bidder 1)
+            (cg-net-host-broadcast)
+            (pump)
+            (should (= 0 (cg-get cgame :bidder)))  ; rotated: West sees itself bidding
+            (cg-net-send-move '(pass))
+            (pump)
+            (should (aref (cg-get hgame :passed) 1)))
+        (cg-net-disconnect)
+        (cg-net-host-stop)))))

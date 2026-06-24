@@ -43,6 +43,7 @@
 (require 'cg-net)
 (require 'cg-gaps)
 (require 'cg-bid-ui)
+(require 'cg-bid-net)
 
 (defvar card-games-list
   '(("500 (Bid)" cg-bid

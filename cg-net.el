@@ -64,17 +64,24 @@
   "Abnormal hook run on a client after the game state is updated.
 Each function is called with the client's game object.")
 
+(defvar cg-net-connect-functions nil
+  "Abnormal hook run on the host when a client connects.
+Each function is called with (HOST SEAT): the `cg-net-host' struct and
+the seat number just assigned to the new connection.")
+
 ;;;; Game integration points
 
 (cl-defgeneric cg-net-apply-move (game seat move)
   "Apply MOVE made by SEAT to GAME on the host.
 Return non-nil when the move was accepted (and state should broadcast).")
 
-(cl-defgeneric cg-net-game-state (game)
-  "Return a `read'able representation of GAME's shared state.")
+(cl-defgeneric cg-net-game-state (game &optional seat)
+  "Return a `read'able representation of GAME's shared state for SEAT.
+SEAT is the recipient's seat number, letting a game hide other players'
+private information; nil requests the full host view.")
 
-(cl-defmethod cg-net-game-state ((game cg-game))
-  "Default: return GAME's env plist as the shared state."
+(cl-defmethod cg-net-game-state ((game cg-game) &optional _seat)
+  "Default: return GAME's env plist (no per-seat filtering)."
   (oref game env))
 
 (cl-defgeneric cg-net-set-game-state (game state)
@@ -150,7 +157,8 @@ HANDLER is called with (PROC MSG)."
     (cg-net--send connection (list :type 'welcome :seat seat))
     (cg-net--send connection
                   (list :type 'state
-                        :state (cg-net-game-state (cg-net-host-game cg-net--host))))))
+                        :state (cg-net-game-state (cg-net-host-game cg-net--host) seat)))
+    (run-hook-with-args 'cg-net-connect-functions cg-net--host seat)))
 
 (defun cg-net--host-handle (proc msg)
   "Handle one message MSG from a client PROC on the host."
@@ -163,11 +171,13 @@ HANDLER is called with (PROC MSG)."
          (cg-net-host-broadcast))))))
 
 (defun cg-net-host-broadcast ()
-  "Send the current game state to every connected client."
+  "Send each connected client the game state filtered for its seat."
   (when cg-net--host
-    (let ((state (cg-net-game-state (cg-net-host-game cg-net--host))))
+    (let ((game (cg-net-host-game cg-net--host)))
       (dolist (c (cg-net-host-clients cg-net--host))
-        (cg-net--send c (list :type 'state :state state))))))
+        (cg-net--send c (list :type 'state
+                              :state (cg-net-game-state
+                                      game (process-get c 'cg-net-seat))))))))
 
 ;;;; Client
 

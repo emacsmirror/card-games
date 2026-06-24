@@ -7,7 +7,7 @@
 ;; Version: 1.0.50
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
-;; URL: https://github.com/corwin/card-games
+;; URL: https://code.bru.st/corwin/card-game.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@
   (if (null card)
       "·"
     (concat (aref cg-gaps-ranks (cdr card))
-            (aref cg-suits (car card)))))
+            (cg-suit-glyph (car card)))))
 
 
 ;;;; Games — an abstract base and two subclasses

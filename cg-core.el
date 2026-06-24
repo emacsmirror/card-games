@@ -7,7 +7,7 @@
 ;; Version: 1.0.50
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
-;; URL: https://github.com/corwin/card-games
+;; URL: https://code.bru.st/corwin/card-game.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -60,7 +60,9 @@ and SPC as an action key.  Takes effect the next time a game starts."
   ((name :initarg :name :initform "game" :type string
          :documentation "Human-readable game name.")
    (env  :initarg :env  :initform nil
-         :documentation "Mutable per-game data, stored as a plist."))
+         :documentation "Mutable per-game data, stored as a plist.")
+   (renderer :initarg :renderer :initform nil
+             :documentation "Current `cg-renderer', or nil for the default."))
   "Abstract base class for card games."
   :abstract t)
 
@@ -80,13 +82,78 @@ and SPC as an action key.  Takes effect the next time a game starts."
   value)
 
 
+;;;; Renderer "skins"
+
+;; A renderer (a "skin") is a display treatment: it knows how to draw a
+;; game and how to map a click back to a game action.  Treatments are
+;; EIEIO classes registered by name in `cg-renderers'; a game holds the
+;; one it is currently drawn with.  This lets a single game be shown as
+;; plain text, as SVG, or as a full-window SVG table without subclassing
+;; the game itself once per treatment.  Concrete treatments and the
+;; game-specific drawing methods live in cg-render.el and the games.
+
+(defclass cg-renderer ()
+  ((name :initarg :name :initform 'text :type symbol
+         :documentation "Symbol naming this treatment."))
+  "Abstract base class for a display treatment (a \"skin\")."
+  :abstract t)
+
+(cl-defgeneric cg-renderer-draw (renderer game)
+  "Draw GAME under RENDERER by inserting into the current buffer.")
+
+(cl-defgeneric cg-renderer-hit (renderer game position)
+  "Map POSITION under RENDERER to an action on GAME.
+Return non-nil when the click was handled.")
+
+(cl-defmethod cg-renderer-draw ((renderer cg-renderer) (game cg-game))
+  "Default method: report that no drawing method exists for this pair."
+  (error "No `cg-renderer-draw' for %s under the `%s' renderer"
+         (eieio-object-class-name game) (oref renderer name)))
+
+(cl-defmethod cg-renderer-hit ((_renderer cg-renderer) (_game cg-game) _position)
+  "Default method: treat the click as unhandled."
+  nil)
+
+(defvar cg-renderers nil
+  "Alist mapping a treatment name (a symbol) to a `cg-renderer' subclass.
+Populate it with `cg-register-renderer' and look entries up with
+`cg-make-renderer'.")
+
+(defun cg-register-renderer (name class)
+  "Register renderer CLASS (an EIEIO class) under the treatment NAME."
+  (setf (alist-get name cg-renderers) class))
+
+(defun cg-make-renderer (name)
+  "Return a fresh renderer instance for treatment NAME, or nil if unknown."
+  (let ((class (alist-get name cg-renderers)))
+    (and class (make-instance class :name name))))
+
+(defun cg-renderer-names ()
+  "Return the registered treatment names."
+  (mapcar #'car cg-renderers))
+
+
 ;;;; Cards and colours
 
-(defconst cg-suits ["♠" "♣" "♦" "♥"]
-  "Suit glyphs indexed 0..3: spades, clubs, diamonds, hearts.")
+(defcustom cg-symbols
+  '((0 . "♠") (1 . "♣") (2 . "♦") (3 . "♥") (joker . "★"))
+  "Glyphs used to draw suits, both as text and inside the SVG cards.
+The value is an alist mapping a suit index (0 spades, 1 clubs,
+2 diamonds, 3 hearts) or the symbol `joker' to the string drawn for it.
+Customize this to use alternative Unicode symbols, for example the
+outlined suits \"♤\" \"♧\" \"♢\" \"♡\"."
+  :type '(alist :key-type sexp :value-type string)
+  :group 'card-games)
 
 (defconst cg-suit-names ["Spades" "Clubs" "Diamonds" "Hearts"]
-  "Suit names indexed to match `cg-suits'.")
+  "Suit names indexed 0..3 to match the suit indices used throughout.")
+
+(defun cg-suit-glyph (suit)
+  "Return the glyph drawn for SUIT, a suit index 0-3 or the symbol `joker'.
+The glyphs are taken from `cg-symbols'."
+  (or (cdr (assoc suit cg-symbols))
+      (and (integerp suit) (aref cg-suit-names suit))
+      "?"))
 
 (defsubst cg-red-suit-p (suit)
   "Return non-nil when SUIT index denotes a red suit."

@@ -15,6 +15,26 @@
 (ert-deftest cgt-core-color-fallback ()
   (should (equal "#123456" (cg-color 'no-such-face-xyzzy :background "#123456"))))
 
+(ert-deftest cgt-core-suit-glyph ()
+  (let ((cg-symbols '((0 . "S") (1 . "C") (2 . "D") (3 . "H") (joker . "JK"))))
+    (should (equal "S" (cg-suit-glyph 0)))
+    (should (equal "JK" (cg-suit-glyph 'joker))))
+  (should (equal "♠" (cg-suit-glyph 0))))
+
+;;;; Renderer skins
+
+(ert-deftest cgt-render-registry ()
+  (should (memq 'text (cg-renderer-names)))
+  (should (memq 'svg (cg-renderer-names)))
+  (should (memq 'svg-fill (cg-renderer-names)))
+  (should (object-of-class-p (cg-make-renderer 'svg) 'cg-svg-renderer))
+  (should (object-of-class-p (cg-make-renderer 'svg-fill) 'cg-svg-renderer))
+  (should-not (cg-make-renderer 'no-such-treatment)))
+
+(ert-deftest cgt-render-resolve ()
+  (should (eq 'text (cg-render-resolve-treatment 'text)))
+  (should (memq (cg-render-resolve-treatment 'auto) '(text svg))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

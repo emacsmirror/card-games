@@ -3,7 +3,7 @@
   "Play card games in Emacs (console UNICODE and graphical SVG)."
   '((emacs "26.1"))
   :keywords '("games")
-  :url "https://github.com/corwin/card-games"
+  :url "https://code.bru.st/corwin/card-game.el"
   :authors '(("Corwin Brust" . "corwin@bru.st"))
   :maintainer '("Corwin Brust" . "corwin@bru.st"))
 ;;; card-games-pkg.el ends here

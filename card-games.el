@@ -7,7 +7,7 @@
 ;; Version: 1.0.50
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
-;; URL: https://github.com/corwin/card-games
+;; URL: https://code.bru.st/corwin/card-game.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 ;;; Code:
 
 (require 'cg-core)
+(require 'cg-render)
 (require 'cg-gaps)
 (require 'cg-bid-ui)
 

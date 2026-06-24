@@ -9,24 +9,28 @@ configuring ~card-game-symbols~.
 
 * Games
 - *500 (Bid)* -- the four-handed partnership trick-taking game, against
-  three computer opponents (=M-x cg-bid=).
+  three computer opponents (~M-x cg-bid~).
 - *Gaps / Hell's Half-Acre* -- solitaire; sort each row into one suit
-  running 2..K (=M-x cg-gaps=).
+  running 2..K (~M-x cg-gaps~).
 
-To launch the game-menu press =M-x card-game= or launch a game
-directly by calling it's launcher command.  Launcher commands take the
-form ~cg-GAME~ where ~GAME~ is one of
-- montana - Montana: <SHORT_RULES>
-- gap - Gap: <SHORT_RULES>
-- hha - Hells Half Acre: <SHORT_RULES>
-- bid - Bid, (or 500 Bid): <SHORT_RULES>
+To open the game menu type ~M-x card-game~, or start a game directly
+with its command:
+- ~cg-montana~ -- Montana (also called Gaps).  Each row is anchored by a
+  Two and built upward in one suit, 2 through King; slide cards into the
+  gaps until all four rows are sorted.
+- ~cg-gaps~ -- an alias for ~cg-montana~.
+- ~cg-hells-half-acre~ -- the build-down variant: each row is anchored by
+  a King and built downward, King through 2.
+- ~cg-bid~ -- 500 (Bid).  Win the auction, name the trump suit, then take
+  tricks with your partner to reach 500 points before the opposing pair.
 
 * TODO
-- [ ] documentation
-- [ ] create ~card-game-symbols~ and obey it
-- [ ] refactor to allow games to subclass components (svg)
-- [ ] add manual-control silder for card size (svgfull)
-- [ ] mor games
+- [X] make the suit symbols customizable (~cg-symbols~) and obey them
+- [ ] a Texinfo manual
+- [ ] renderer "skins": let games subclass the display components (text,
+  SVG, full-window SVG)
+- [ ] a manual card-size control for the full-window SVG UI
+- [ ] more games
 
 * Install
 ** From the package tarball
@@ -55,8 +59,11 @@ graphical display.
 
 - 500: ~b~ bid, ~p~ pass, arrows + ~RET~ to play (or click a card),
   ~n~ next hand / new game, ~?~ help.
-- Gaps: arrows or ~hjkl~ to move, ~RET~ to fill a gap (or click it),
-  ~r~ redeal, ~u~ undo, ~n~ new, ~?~ help.
+- Gaps: arrows to move (or ~hjkl~ when ~cg-keys~ is ~classic~), ~RET~ to
+  fill a gap (or click it), ~r~ redeal, ~u~ undo, ~n~ new, ~?~ help.
+
+On a graphical display, ~v~ toggles the full-window SVG table and
+~+~ / ~-~ / ~0~ (Emacs ~text-scale-adjust~) resize the cards.
 
 * Customization
 ~M-x customize-group RET cg-svg~ and ~RET card-games~:
@@ -66,6 +73,11 @@ graphical display.
 - ~cg-svg-card-width~, ~cg-svg-card-height~, ~cg-svg-card-shadow~,
   ~cg-svg-font-family~ -- card appearance.
 - ~cg-svg-card-back~ -- card-back pattern: dots, rings, or solid.
+- ~cg-symbols~ -- the Unicode suit glyphs (and the joker) drawn on cards.
+- ~cg-svg-four-color~ -- draw a four-colour deck (clubs green, diamonds
+  blue-purple).
+- ~cg-keys~ -- ~emacs~ (default) or ~classic~ (adds vi-style ~hjkl~ and
+  ~SPC~).
 - ~cg-bid-animate~, ~cg-bid-ai-delay~, ~cg-bid-trick-pause~ -- pace the
   500 AI so play is watchable and completed tricks linger.
 - ~M-x card-games-set-theme~ -- apply a preset (classic, dark, contrast).

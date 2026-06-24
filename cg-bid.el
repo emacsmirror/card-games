@@ -7,7 +7,7 @@
 ;; Version: 1.0.50
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
-;; URL: https://github.com/corwin/card-games
+;; URL: https://code.bru.st/corwin/card-game.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@
   (cond
    ((null card) "--")
    ((cg-bid-joker-p card) "Jk")
-   (t (concat (aref cg-bid-ranks (cdr card)) (aref cg-suits (car card))))))
+   (t (concat (aref cg-bid-ranks (cdr card)) (cg-suit-glyph (car card))))))
 
 (defun cg-bid--full-deck ()
   "Return the 45-card deck as a list of cards."

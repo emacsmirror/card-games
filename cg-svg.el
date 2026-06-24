@@ -7,7 +7,7 @@
 ;; Version: 1.0.50
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
-;; URL: https://github.com/corwin/card-games
+;; URL: https://code.bru.st/corwin/card-game.el
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -79,8 +79,9 @@
   :type 'string :group 'cg-svg)
 
 (defcustom cg-svg-theme-colors t
-  "When non-nil, derive the highlight ring and card back from the
-active Emacs theme (with the colour variables below as fallbacks)."
+  "Derive the highlight ring and card back from the active theme.
+When non-nil, colours are taken from the active Emacs theme, with the
+colour variables below as fallbacks."
   :type 'boolean :group 'cg-svg)
 
 (defcustom cg-svg-card-back 'dots
@@ -88,8 +89,9 @@ active Emacs theme (with the colour variables below as fallbacks)."
   :type '(choice (const dots) (const rings) (const solid)) :group 'cg-svg)
 
 (defcustom cg-svg-four-color nil
-  "When non-nil use a four-colour deck: clubs green, diamonds blue-purple
-\(spades stay black, hearts red)."
+  "Use a four-colour deck when non-nil.
+Clubs are drawn green and diamonds blue-purple; spades stay black and
+hearts red."
   :type 'boolean :group 'cg-svg)
 
 (defconst cg-svg-corner-radius 6
@@ -164,8 +166,9 @@ Pips with a Y fraction above 0.5 are drawn rotated 180 degrees.")
         (t cg-svg-black-color)))
 
 (defun cg-svg--suit-glyph (suit)
-  "Return the glyph for SUIT (0-3 or the symbol `joker')."
-  (if (eq suit 'joker) "★" (aref cg-suits suit)))
+  "Return the glyph for SUIT (0-3 or the symbol `joker').
+Defers to `cg-suit-glyph', so it honours `cg-symbols'."
+  (cg-suit-glyph suit))
 
 (defun cg-svg--text (svg str x y size color &optional bold transform)
   "Add centred text STR to SVG at X, Y with SIZE, COLOR, BOLD, TRANSFORM."
@@ -178,7 +181,8 @@ Pips with a Y fraction above 0.5 are drawn rotated 180 degrees.")
 
 (defun cg-svg--index (svg x y w h rank glyph color flip)
   "Draw a stacked RANK/GLYPH index in COLOR on SVG.
-Top-left normally; bottom-right and upside-down when FLIP is non-nil."
+X, Y and W, H give the card's top-left corner and size.  The index sits
+top-left normally, and bottom-right and upside-down when FLIP is non-nil."
   (let* ((rs (max 8 (round (* h 0.18))))
          (gs (max 7 (round (* h 0.15))))
          (ix (+ x (round (* w 0.16))))
@@ -207,14 +211,16 @@ Top-left normally; bottom-right and upside-down when FLIP is non-nil."
                    ps glyph color (> (cdr pos) 0.5)))))
 
 (defun cg-svg--draw-ace (svg x y w h glyph color)
-  "Draw a single large central pip (an ace) in COLOR on SVG."
+  "Draw a single large central pip (an ace) of GLYPH in COLOR on SVG.
+X, Y and W, H give the card's top-left corner and size."
   (cg-svg--pip svg (+ x (/ w 2.0)) (+ y (/ h 2.0)) (round (* h 0.42))
                glyph color nil))
 
 (defun cg-svg--draw-court (svg x y w h rank glyph color suit)
   "Draw a framed court card (RANK letter + GLYPH) of SUIT in COLOR on SVG.
-The inner panel has a quarter-circle scallop cut into each corner; the
-scallop radius is 8.5% of the panel height (17% diameter)."
+X, Y and W, H give the card's top-left corner and size.  The inner panel
+has a quarter-circle scallop cut into each corner; the scallop radius is
+8.5% of the panel height (17% diameter)."
   (let* ((mx (round (* w 0.15))) (my (round (* h 0.16)))
          (bx (+ x mx)) (by (+ y my))
          (bw (- w (* 2 mx))) (bh (- h (* 2 my)))
@@ -238,7 +244,8 @@ scallop radius is 8.5% of the panel height (17% diameter)."
     (cg-svg--text svg glyph (+ x (/ w 2.0)) (+ y (* h 0.76)) (* h 0.20) color)))
 
 (defun cg-svg--draw-joker (svg x y w h color)
-  "Draw the joker face in COLOR on SVG."
+  "Draw the joker face in COLOR on SVG.
+X, Y and W, H give the card's top-left corner and size."
   (cg-svg--text svg "★" (+ x (/ w 2.0)) (+ y (* h 0.52)) (* h 0.40) color)
   (cg-svg--text svg "JOKER" (+ x (/ w 2.0)) (+ y (* h 0.74)) (* h 0.135) color t))
 

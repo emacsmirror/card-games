@@ -3,7 +3,7 @@ EMACS   ?= emacs
 PKG      = card-games
 VERSION  = 1.0.50
 # Source files in dependency order (cg-core first).
-EL       = cg-core.el cg-svg.el cg-bid.el cg-gaps.el cg-bid-ui.el card-games.el
+EL       = cg-core.el cg-svg.el cg-render.el cg-bid.el cg-gaps.el cg-bid-ui.el card-games.el
 ELC      = $(EL:.el=.elc)
 PKGDESC  = $(PKG)-pkg.el
 TARDIR   = $(PKG)-$(VERSION)

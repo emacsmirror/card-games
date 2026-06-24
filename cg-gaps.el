@@ -49,6 +49,7 @@
 
 (require 'cg-core)
 (require 'cg-svg)
+(require 'cg-render)
 
 
 ;;;; Cards
@@ -419,23 +420,37 @@ buttons (the keyboard hint *is* the button)."
   (cg-gaps--key-button "?"   "help"   #'cg-gaps-help   "Show the rules and keys")
   (insert "\n"))
 
+(cl-defmethod cg-renderer-draw ((_renderer cg-text-renderer) (game cg-gaps-game))
+  "Draw the Gaps GAME as UNICODE text with the control line."
+  (insert (cg-render game))
+  (cg-gaps--insert-controls))
+
+(cl-defmethod cg-renderer-draw ((_renderer cg-svg-renderer) (game cg-gaps-game))
+  "Draw the Gaps GAME as an inline SVG board with the control line."
+  (cg-gaps--insert-graphical game)
+  (cg-gaps--insert-controls))
+
+(cl-defmethod cg-renderer-draw ((_renderer cg-svg-fill-renderer) (game cg-gaps-game))
+  "Draw the Gaps GAME as a full-window SVG table."
+  (cg-gaps--insert-svg-ui game))
+
+(defun cg-gaps--treatment ()
+  "Return the display treatment symbol for the current Gaps buffer.
+Honours `cg-gaps-svg-ui' and whether the display is graphical."
+  (cond ((and cg-gaps-svg-ui (display-graphic-p)) 'svg-fill)
+        ((display-graphic-p) 'svg)
+        (t 'text)))
+
 (defun cg-gaps--redisplay ()
-  "Redraw the current Gaps buffer.
-Full-buffer SVG when `cg-gaps-svg-ui'; otherwise an inline SVG board (or
-UNICODE text on a terminal), each followed by the single control line."
-  (let ((game cg-gaps--game)
-        (inhibit-read-only t))
+  "Redraw the current Gaps buffer through its renderer.
+The treatment is chosen by `cg-gaps--treatment' and dispatched with
+`cg-renderer-draw'."
+  (let* ((game cg-gaps--game)
+         (inhibit-read-only t)
+         (renderer (cg-render-set-treatment game (cg-gaps--treatment))))
     (setq-local mode-line-process (cg-gaps--mode-line game))
     (erase-buffer)
-    (cond
-     ((and cg-gaps-svg-ui (display-graphic-p))
-      (cg-gaps--insert-svg-ui game))
-     ((display-graphic-p)
-      (cg-gaps--insert-graphical game)
-      (cg-gaps--insert-controls))
-     (t
-      (insert (cg-render game))
-      (cg-gaps--insert-controls)))
+    (cg-renderer-draw renderer game)
     (if (display-graphic-p)
         (goto-char (point-min))
       (let ((cur (cg-get game :cursor)))

@@ -33,6 +33,7 @@
 (require 'cg-core)
 (require 'cg-bid)
 (require 'cg-svg)
+(require 'cg-render)
 (require 'svg)
 (require 'color)
 
@@ -388,17 +389,37 @@ Folds the controls into the single action-button row (see
   (cg-bid--button "[Help]" #'cg-bid-help "Show help")
   (insert "\n"))
 
+(cl-defmethod cg-renderer-draw ((_renderer cg-text-renderer) (game cg-bid-game))
+  "Draw the 500 GAME as UNICODE text with the action buttons."
+  (insert (cg-render game))
+  (cg-bid--insert-buttons game))
+
+(cl-defmethod cg-renderer-draw ((_renderer cg-svg-renderer) (game cg-bid-game))
+  "Draw the 500 GAME as an SVG table with the action buttons."
+  (cg-bid--insert-graphical game)
+  (cg-bid--insert-buttons game))
+
+(cl-defmethod cg-renderer-draw ((_renderer cg-svg-fill-renderer) (game cg-bid-game))
+  "Draw the 500 GAME as a frameless full-window SVG table."
+  (cg-bid--insert-svg-ui game))
+
+(defun cg-bid--treatment ()
+  "Return the display treatment symbol for the current 500 buffer.
+Honours `cg-bid-svg-ui' and whether the display is graphical."
+  (cond ((and cg-bid-svg-ui (display-graphic-p)) 'svg-fill)
+        ((display-graphic-p) 'svg)
+        (t 'text)))
+
 (defun cg-bid--redisplay ()
-  "Redraw the current 500 buffer (SVG table on a graphical display)."
-  (let ((inhibit-read-only t) (game cg-bid--game))
+  "Redraw the current 500 buffer through its renderer.
+The treatment is chosen by `cg-bid--treatment' and dispatched with
+`cg-renderer-draw'."
+  (let* ((inhibit-read-only t)
+         (game cg-bid--game)
+         (renderer (cg-render-set-treatment game (cg-bid--treatment))))
     (setq-local mode-line-process (cg-bid--mode-line game))
     (erase-buffer)
-    (if (and cg-bid-svg-ui (display-graphic-p))
-        (cg-bid--insert-svg-ui game)
-      (if (display-graphic-p)
-          (cg-bid--insert-graphical game)
-        (insert (cg-render game)))
-      (cg-bid--insert-buttons game))
+    (cg-renderer-draw renderer game)
     (goto-char (point-min))))
 
 (defun cg-bid--refresh ()

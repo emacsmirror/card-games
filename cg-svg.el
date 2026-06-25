@@ -221,9 +221,10 @@ X, Y and W, H give the card's top-left corner and size."
 X, Y and W, H give the card's top-left corner and size.  The inner panel
 has a quarter-circle scallop cut into each corner; the scallop radius is
 8.5% of the panel height (17% diameter)."
-  (let* ((mx (round (* w 0.15))) (my (round (* h 0.16)))
-         (bx (+ x mx)) (by (+ y my))
-         (bw (- w (* 2 mx))) (bh (- h (* 2 my)))
+  (let* ((bw (round (* (- w (* 2 (round (* w 0.15)))) 0.67)))
+         (bh (round (* (- h (* 2 (round (* h 0.16)))) 0.67)))
+         (bx (round (+ x (/ (- w bw) 2.0))))
+         (by (round (+ y (/ (- h bh) 2.0))))
          (rr (max 1 (round (* bh 0.085))))
          (d (format (concat "M %d %d L %d %d "
                             "A %d %d 0 0 0 %d %d L %d %d "
@@ -240,8 +241,8 @@ has a quarter-circle scallop cut into each corner; the scallop radius is
                     rr rr (+ bx rr) by)))
     (svg-node svg 'path :d d :fill (cg-svg--court-fill suit)
               :stroke color :stroke-width 1)
-    (cg-svg--text svg rank (+ x (/ w 2.0)) (+ y (* h 0.54)) (* h 0.34) color t)
-    (cg-svg--text svg glyph (+ x (/ w 2.0)) (+ y (* h 0.76)) (* h 0.20) color)))
+    (cg-svg--text svg rank (+ x (/ w 2.0)) (+ y (* h 0.65)) (* h 0.282) color t)
+    (cg-svg--text svg glyph (+ x (/ w 2.0)) (+ y (* h 0.82)) (* h 0.17) color)))
 
 (defun cg-svg--draw-joker (svg x y w h color)
   "Draw the joker face in COLOR on SVG.

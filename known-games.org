@@ -1,0 +1,1113 @@
+#+TITLE: Known Games — research collation for card-games.el
+#+AUTHOR: Corwin Brust (research compiled with Mentat)
+#+OPTIONS: toc:2 num:nil
+#+STARTUP: showall
+
+* About this file
+
+This is a *research collation*, not an order list.  It records card games
+we have looked into, what we learned about their rules, a rough level-of-
+effort (LoE) guess as a T-shirt size, and links to authoritative rules.
+
+We only consider *building* a game once its Rules section is filled in well
+enough that we believe we could implement it.  People will suggest games
+over time; before researching a new one, search this file for its ~name~ to
+see whether we have already looked at it and what we found.
+
+** Meta-table fields
+
+Each game is a top-level section containing a left-header table with:
+
+- *name* :: common name (section heading matches).
+- *package* :: ~NA~ if unbuilt, otherwise the launch command in
+  =card-games= (e.g. ~M-x cg-klondike~).
+- *players* :: supported player counts.
+- *LoE* :: T-shirt size — *S* easier · *M* normal · *H* clearly more work.
+- *engine* :: which shared engine/cluster it belongs to (see end).
+- *links* :: authoritative rules.
+- *added* / *updated* :: ISO dates.
+
+** T-shirt sizing key
+
+- *S* :: small — little new logic; mostly reuses an existing engine.
+- *M* :: medium — a normal game's worth of new rules/UI.
+- *H* :: hard — multi-deck, melding, or heavy scoring; clearly more work.
+
+* Beggar-My-Neighbour
+
+| name    | Beggar-My-Neighbour                        |
+| package | NA                                         |
+| players | 2 (3-4 variants)                           |
+| LoE     | S                                          |
+| engine  | shedding/auto                              |
+| links   | https://en.wikipedia.org/wiki/Beggar-my-neighbour |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Deal the whole 52-card deck out evenly, face down, one stack per player.
+Players do not look at their cards.  In turn, each player plays the top
+card of their stack face up to a central pile.  Play passes until someone
+plays a "penalty card" (an honour): Ace, King, Queen, or Jack.  The *next*
+player must then pay a forfeit by playing cards to the pile: 4 for an Ace,
+3 for a King, 2 for a Queen, 1 for a Jack.  If during a forfeit another
+honour appears, the forfeit cancels and the obligation flips to the
+following player.  If a forfeit is paid out with only number cards, the
+player who laid the last honour takes the whole central pile and places it
+face down under their stack, then leads again.  A player who runs out of
+cards is out; last player holding cards wins.
+
+** Notes
+
+Fully deterministic once dealt — *zero decisions*.  Ideal first "auto-play"
+demo: the engine just animates.  Famous for sometimes never terminating.
+
+* Briscola
+
+| name    | Briscola                                   |
+| package | NA                                         |
+| players | 2, 4 (partnership)                         |
+| LoE     | M                                          |
+| engine  | trick (no follow-suit)                     |
+| links   | https://en.wikipedia.org/wiki/Briscola · https://www.pagat.com/aceten/briscola.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+40-card Italian deck (or strip 8/9/10... — actually strip the 8s,9s,10s
+from a French deck to get 40, ranks A,3,K,Q,J,7,6,5,4,2).  Card-point
+values: Ace 11, Three 10, King 4, Queen/Horse 3, Jack/Knave 2, others 0
+(total 120).  Deal 3 cards each; turn the next card face up — its suit is
+the *briscola* (trump) for the hand — and place it half-under the stock.
+No requirement to follow suit.  Highest briscola wins; else highest card
+of the led suit.  Winner of each trick draws first from stock, then others,
+restoring hands to 3.  The last face-up trump is the final card drawn.
+Continue until the deck and hands are exhausted (20 tricks total in 2p).
+Score the card points captured; 61+ wins.
+
+** Notes
+
+No-follow-suit makes the trick resolver simpler than 500/Spades.  Shares
+the deck/trick/AI scaffolding of the trick cluster; good companion to Scopa
+for an "Italian games" set.
+
+* Canasta
+
+| name    | Canasta                                    |
+| package | NA                                         |
+| players | 4 (partnership); 2-3 variants              |
+| LoE     | H                                          |
+| engine  | rummy/meld (multi-deck)                    |
+| links   | https://en.wikipedia.org/wiki/Canasta · https://www.pagat.com/rummy/canasta.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Two 52-card decks + 4 jokers (108).  Deal 11 each.  Jokers and 2s are
+wild.  Players draw and discard, melding sets of 3+ equal ranks (no runs).
+A *canasta* is a meld of 7: *natural/clean* (no wilds, 500 bonus) or
+*mixed/dirty* (1-3 wilds, 300 bonus).  Red 3s are bonus cards laid aside
+(100 each; all four = 800).  Black 3s block the discard pile and can only
+be melded when going out.  Minimum first-meld point count rises with your
+team's cumulative score (e.g. 50/90/120).  The discard pile can be "frozen"
+and taken wholesale if you can meld its top card.  Going out requires at
+least one canasta; +100 bonus (+200 concealed).  Card values: jokers 50,
+2s & aces 20, K-8 10, 7-4 & black 3 5.
+
+** Notes
+
+The heavyweight of the meld family: wilds, frozen pile, escalating minimums,
+multi-deck.  Build *Hand and Foot* first (simpler cousin) to prove the meld
+engine, then extend.
+
+* Canfield
+
+| name    | Canfield                                   |
+| package | ~M-x cg-canfield~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | tableau-solitaire                          |
+| links   | https://en.wikipedia.org/wiki/Canfield_(solitaire) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 13 cards to a face-down *reserve* (demon) with the top
+turned up.  Deal one card to the first *foundation*; its rank sets the base
+rank for all four foundations (they build up in suit, wrapping K→A).  Deal
+4 cards face up as the *tableau*.  Remaining cards form the stock, dealt to
+waste 3 at a time with unlimited redeals.  Tableau builds down in alter-
+nating colour, wrapping A→K; groups move as units.  Empty tableau columns
+are filled from the reserve (when the reserve empties, from the waste).
+Win by building all four foundations up 13 cards.
+
+** Notes
+
+Same engine as Klondike/FreeCell plus a *reserve* pile and a *variable
+foundation base rank*.  Build Klondike first; Canfield is then mostly the
+reserve + base-rank wrinkle.  Famously hard (~8% win).
+
+* Casino
+
+| name    | Casino                                     |
+| package | NA                                         |
+| players | 2-4                                        |
+| LoE     | M                                          |
+| engine  | fishing                                    |
+| links   | https://en.wikipedia.org/wiki/Cassino_(card_game) · https://www.pagat.com/fishing/casino.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 2 to each player and 4 face up to the table (then 2 more
+to players, repeating until the deck is gone, 2 at a time).  On your turn
+play one card to: *capture* table cards of equal rank (face cards by rank
+only) or sets of number cards summing to your card's value (A=1); *build* a
+combination you can later capture; or *trail* (place a card on the table).
+A capture that clears the table is a *sweep* (+1).  Number cards count
+their pips for building.  Scoring at deck's end: most cards 3, most spades
+1, the 10♦ ("big casino") 2, the 2♠ ("little casino") 1, each Ace 1, each
+sweep 1.  Play to 21 over hands.
+
+** Notes
+
+Fishing engine, shared with Scopa.  Builds are the tricky part (track build
+value + owner).  Pair with Scopa for the capture-engine cluster.
+
+* Clock (solitaire)
+
+| name    | Clock                                      |
+| package | NA                                         |
+| players | 1 (solitaire)                              |
+| LoE     | S                                          |
+| engine  | pile-solitaire                             |
+| links   | https://en.wikipedia.org/wiki/Clock_(card_game) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Deal all 52 into 13 piles of 4 (12 in a clock-face ring + 1 in the centre
+= Kings).  Turn up the centre's top card, slide it face up under the pile
+of its rank (Ace=1 … J=11, Q=12, K=centre), and turn up that pile's top
+card; continue.  You win if all 13 piles are turned face up before the 4th
+King surfaces (which ends the game).  Pure chance — no decisions.
+
+** Notes
+
+Another zero-decision auto-demo, like Beggar-My-Neighbour.  Trivial state
+machine; nice for testing the renderer's "ring" layout.
+
+* Concentration (Memory)
+
+| name    | Concentration (Memory / Pairs)             |
+| package | NA                                         |
+| players | 1+                                         |
+| LoE     | S                                          |
+| engine  | grid-flip                                  |
+| links   | https://en.wikipedia.org/wiki/Concentration_(card_game) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Shuffle 52 face down in a grid.  On a turn, flip two cards; if they match
+in rank, keep them and go again; otherwise flip them back.  Most pairs
+wins.  Solo: minimise turns.
+
+** Notes
+
+Reuses the Gaps grid + cursor directly; only "face-down + reveal memory"
+is new.  Good cheap win that exercises the existing board renderer.
+
+* Crazy Eights
+
+| name    | Crazy Eights                               |
+| package | ~M-x cg-eights~ |
+| players | 2-5                                        |
+| LoE     | M                                          |
+| engine  | shedding                                   |
+| links   | https://en.wikipedia.org/wiki/Crazy_Eights · https://www.pagat.com/eights/crazy8s.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 5-7 each; flip one to start the discard pile; rest is
+stock.  On your turn play a card matching the top card's *rank or suit*.
+*Eights are wild* — play any time and name the next suit.  If you can't
+play, draw from stock (until playable or stock empty, per variant).  First
+to shed all cards wins; score opponents' remaining cards (8=50, faces 10,
+ace 1, else pip).  The ancestor of UNO.
+
+** Notes
+
+The canonical shedding game; AI is easy (play matching, save eights).
+Engine generalises to President-style climbing later.  Very popular.
+
+* Cribbage
+
+| name    | Cribbage                                   |
+| package | NA                                         |
+| players | 2 (3-4 variants)                           |
+| LoE     | M                                          |
+| engine  | cribbage (own scorer)                      |
+| links   | https://en.wikipedia.org/wiki/Rules_of_cribbage · https://www.pagat.com/adders/crib6.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52 + a cribbage board (121 holes).  Deal 6 each (2p); each player
+discards 2 to the dealer's *crib*.  Cut a *starter*; if it's a Jack, dealer
+pegs 2 ("his heels").  *The Play (pegging):* alternate laying cards, calling
+the running total (face=10, ace=1); never exceed 31.  Score during play:
+total 15 = 2; 31 = 2; pair = 2, pair-royal = 6, double-pair-royal = 12;
+runs of 3+ = length; last card ("go"/last) = 1.  Reset to 0 after 31 or a
+go.  *The Show:* count each hand then the crib (dealer last), with the
+starter, for: every combo summing to 15 = 2; pairs = 2; runs = length;
+flush = 4 (5 with starter; crib flush needs all 5); Jack of starter's suit
+in hand ("his nobs") = 1.  First to 121 wins.
+
+** Notes
+
+Unique scoring engine (the 15s/pairs/runs/flush counter is the whole game).
+No trump, no melds — its own cluster.  The combinatorial hand-scorer is the
+fun, testable core.  High wishlist value.
+
+* Euchre
+
+| name    | Euchre                                     |
+| package | NA                                         |
+| players | 4 (partnership); 2-3 variants              |
+| LoE     | M                                          |
+| engine  | trick (trump + bowers)                     |
+| links   | https://en.wikipedia.org/wiki/Euchre · https://www.pagat.com/euchre/euchre.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+24-card deck (9-A in four suits).  Deal 5 each; turn the next card up.
+Bidding: in turn, *order up* (accept the turned suit as trump, dealer takes
+the card) or pass; if all pass, a second round lets players *name* a
+different trump.  *Bowers:* Jack of trump = highest (right bower); Jack of
+same colour = second highest (left bower, counts as trump).  The maker's
+team must take 3+ of 5 tricks: 3-4 = 1 point, all 5 (march) = 2; *going
+alone* and taking all 5 = 4.  If the makers fail (*euchred*), defenders get
+2.  First to 10 points wins.
+
+** Notes
+
+Best second trick game after 500: small hand, the bower mechanic is the
+only real novelty over the 500/Spades trick resolver.  Hugely popular in
+the US Midwest.
+
+* Forty Thieves
+
+| name    | Forty Thieves                              |
+| package | ~M-x cg-forty-thieves~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | tableau-solitaire (2 decks)               |
+| links   | https://en.wikipedia.org/wiki/Forty_Thieves_(solitaire) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Two decks (104).  Deal 10 columns of 4 cards, all face up.  Eight
+foundations build up by suit A→K.  Tableau builds *down by suit*; move one
+card at a time (no group moves in the strict rules).  Stock dealt one at a
+time to a single waste, no redeal.  Empty columns take any card.  Win by
+filling all eight foundations.
+
+** Notes
+
+Two-deck tableau game — proves the engine scales to 104 cards and 8
+foundations.  Strict (down-by-suit, single-card) so move logic is simpler
+than Klondike, but very hard to win.
+
+* FreeCell
+
+| name    | FreeCell                                   |
+| package | ~M-x cg-freecell~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | tableau-solitaire                          |
+| links   | https://en.wikipedia.org/wiki/FreeCell · https://www.pagat.com/patience/freecell.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52, *all dealt face up*: 8 columns (first four of 7, last four of
+6).  Four *free cells* hold one card each.  Four foundations build up by
+suit A→K.  Tableau builds down in alternating colour.  Move one card at a
+time, but a "supermove" of N cards is allowed when (free cells + 1) ×
+2^(empty columns) ≥ N.  Nearly every deal is winnable.
+
+** Notes
+
+Same tableau/foundation engine as Klondike, minus the stock/waste, plus
+free cells and the supermove count.  No hidden cards → pure skill; great
+for a deterministic, fully testable solver-friendly game.  Very popular.
+
+* Gin Rummy
+
+| name    | Gin Rummy                                  |
+| package | NA                                         |
+| players | 2                                          |
+| LoE     | M                                          |
+| engine  | rummy/meld                                 |
+| links   | https://en.wikipedia.org/wiki/Gin_rummy · https://www.pagat.com/rummy/gin.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 10 each; flip one to start the discard.  Draw (stock or
+discard top) then discard.  Form melds: runs (3+ same suit in sequence) and
+sets (3-4 same rank).  *Knock* when unmatched ("deadwood") ≤ 10; *gin* when
+deadwood = 0 (+25 bonus).  After a knock, the opponent lays off cards onto
+the knocker's melds; difference in deadwood scores; if the opponent has ≤
+the knocker (*undercut*), they score the difference + 25.  Game to 100.
+
+** Notes
+
+The two-hand meld game.  The deadwood/meld-optimiser (find the best meld
+partition to minimise deadwood) is the reusable core for the whole rummy
+family.  Strong wishlist item.
+
+* Go Fish
+
+| name    | Go Fish                                     |
+| package | NA                                         |
+| players | 2-6                                         |
+| LoE     | S                                          |
+| engine  | ask/match                                  |
+| links   | https://en.wikipedia.org/wiki/Go_Fish · https://www.pagat.com/quartet/gofish.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 5-7 each; rest is the "pool".  On your turn ask a named
+player for a rank you hold; if they have any, they give all of them and you
+ask again; else "Go Fish" — draw from the pool (extra turn if you drew the
+rank asked).  Complete *books* (all 4 of a rank), lay them down; most books
+when cards run out wins.
+
+** Notes
+
+Simple AI (track who asked for what = basic memory).  Hidden-hand info game;
+the "ask a player" interaction is new but small.  Good kid-friendly title.
+
+* Golf (solitaire)
+
+| name    | Golf                                       |
+| package | ~M-x cg-golf~ |
+| players | 1 (solitaire)                              |
+| LoE     | S                                          |
+| engine  | pile-solitaire (waste-build)              |
+| links   | https://en.wikipedia.org/wiki/Golf_(patience) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 7 columns of 5 face up (35).  One card to the waste; the
+rest is stock.  Move an *exposed* tableau card to the waste if it is one
+rank higher or lower than the waste top (no wrap unless variant; suit
+ignored).  When stuck, deal the next stock card to the waste.  Clear all
+tableau cards to win; score = cards left when stock is exhausted.
+
+** Notes
+
+Tiny rule set, one legal-move test (±1 rank).  Shares its waste-build core
+with TriPeaks.  Fast, satisfying, very testable.
+
+* Hand and Foot
+
+| name    | Hand and Foot                              |
+| package | NA                                         |
+| players | 4 (partnership); 2-6 variants              |
+| LoE     | H                                          |
+| engine  | rummy/meld (multi-deck)                    |
+| links   | https://en.wikipedia.org/wiki/Hand_and_Foot_(card_game) · https://www.pagat.com/rummy/handfoot.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Typically 5-6 decks incl. jokers; deal each player a *hand* (11) and a
+*foot* (11) — you play the hand first, then pick up the foot.  Draw 2,
+discard 1.  Meld sets of same rank (no runs).  *Clean/red* canasta = 7 with
+no wilds (500); *dirty/black* = 7 with wilds (300).  2s and jokers wild;
+red 3s are bonus.  Going out needs a minimum number of clean + dirty
+canastas and you must finish the foot.  Per-round minimum first-meld counts
+rise each round.
+
+** Notes
+
+Simpler than full Canasta (sets only, no frozen-pile finesse) so it is the
+right *first* multi-deck meld build; Canasta then extends it.  On the
+original wishlist (3-player Hand and Foot).
+
+* Hearts
+
+| name    | Hearts                                     |
+| package | ~M-x cg-hearts~ |
+| players | 3-4 (4 classic)                            |
+| LoE     | M                                          |
+| engine  | trick (avoidance)                          |
+| links   | https://en.wikipedia.org/wiki/Hearts_(card_game) · https://www.pagat.com/reverse/hearts.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52, 4 players, deal 13 each.  Pass 3 cards (left/right/across/none
+rotating).  Holder of 2♣ leads it.  Follow suit if able; cannot lead hearts
+until "broken" (a heart or Q♠ discarded off-suit).  No trump.  Each heart =
+1 penalty, Q♠ = 13.  *Shooting the moon:* take all hearts + Q♠ → 0 to self,
+26 to everyone else.  Play until someone hits 100; lowest score wins.
+
+** Notes
+
+Same trick resolver as Spades/500 but *no trump* and *penalty* scoring
+(avoidance) + the passing phase + "hearts broken" lead rule.  Very popular;
+3-handed too (drop 2♦, deal 17).  Strong build target this wave.
+
+* Hell's Half-Acre
+
+| name    | Hell's Half-Acre (Gaps variant)            |
+| package | card-games (~M-x cg-hells-half-acre~)      |
+| players | 1 (solitaire)                              |
+| LoE     | S (done)                                    |
+| engine  | gaps-grid                                   |
+| links   | https://en.wikipedia.org/wiki/Gaps         |
+| added   | 2026-06-23                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+A Gaps/Montana variant built *downward* from Kings (anchor rank K, step
+-1).  Lay out 52 in a 4×13 grid, remove the four 2s leaving gaps; fill a
+gap with the card one rank lower than its left neighbour in the same suit.
+Limited redeals.  See Montana for the shared machinery.
+
+** Notes
+
+*Already implemented* as a subclass of ~cg-gaps-game~ (proves deriving a
+game from a shared base).  Differs from Montana only by head/step.
+
+* Klondike
+
+| name    | Klondike                                   |
+| package | ~M-x cg-klondike~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | tableau-solitaire                          |
+| links   | https://en.wikipedia.org/wiki/Klondike_(solitaire) · https://www.pagat.com/patience/klondike.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Seven columns of 1..7 cards, only the last of each face up.
+Four foundations build up by suit A→K.  Tableau builds down in alternating
+colour; only a King (or group headed by one) moves to an empty column.
+Turn a hidden card when it becomes the column's last.  Stock dealt to waste
+1 (or 3) at a time; redeals per variant.  Win by sending all 52 to
+foundations.  This is "Solitaire" as most people know it.
+
+** Notes
+
+*The* keystone solitaire — build first; FreeCell, Canfield, Yukon, Forty
+Thieves all reuse its tableau/foundation/stock-waste engine.  Top priority.
+
+* Knock Rummy
+
+| name    | Knock Rummy (Poker Rum)                     |
+| package | NA                                         |
+| players | 2-5                                        |
+| LoE     | M                                          |
+| engine  | rummy/meld                                 |
+| links   | https://en.wikipedia.org/wiki/Knock_rummy · https://www.pagat.com/rummy/knockrummy.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Like basic Rummy (draw/discard, melds of sets and runs) but a player may
+*knock* on any turn instead of melding as they go: lay down all cards
+grouped into melds + deadwood; lowest deadwood wins the difference from
+each opponent; knocking with 0 deadwood = rummy bonus.
+
+** Notes
+
+Essentially Gin generalised to 2-5 players; if Gin's meld-optimiser exists,
+this is an S add-on.  Listed M standalone.
+
+* Montana (Gaps)
+
+| name    | Montana (Gaps)                             |
+| package | card-games (~M-x cg-montana~, ~cg-gaps~)   |
+| players | 1 (solitaire)                              |
+| LoE     | S (done)                                    |
+| engine  | gaps-grid                                   |
+| links   | https://en.wikipedia.org/wiki/Gaps         |
+| added   | 2026-06-23                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Lay out 52 in a 4×13 grid; remove the four Aces leaving gaps.  Build each
+row upward in a single suit starting at 2 (anchor rank 2, step +1): a gap is
+filled by the card one rank higher than its left neighbour, same suit; a gap
+to the right of a King (or at row start) is dead.  Reshuffle stuck cards a
+limited number of times.  Win when each row is a single suit 2→K.
+
+** Notes
+
+*Already implemented* (~cg-gaps.el~) as the base ~cg-gaps-game~ with the
+Hell's-Half-Acre subclass.  The project's first solitaire.
+
+* Napoleon (Nap)
+
+| name    | Napoleon (Nap)                             |
+| package | NA                                         |
+| players | 2-6 (best 4-5)                             |
+| LoE     | M                                          |
+| engine  | trick (trump, bidding)                     |
+| links   | https://en.wikipedia.org/wiki/Napoleon_(card_game) · https://www.pagat.com/napoleon/nap.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52, deal 5 each.  One round of bidding: declare how many of 5
+tricks you will take (2, 3, 4, or "nap" = all 5); highest bid plays alone
+vs the rest, the bid suit's first led card... actually trump = the suit the
+declarer leads to the first trick.  Make your bid to score; fail and you
+are set.  Simple, fast gambling-style trick game.
+
+** Notes
+
+A compact solo-vs-field trick game; reuses the trick resolver with a tiny
+bidding layer.  Good "lightweight Euchre".
+
+* Oh Hell
+
+| name    | Oh Hell (Oh Pshaw / Blackout)              |
+| package | ~M-x cg-ohhell~ |
+| players | 3-7                                        |
+| LoE     | M                                          |
+| engine  | trick (exact-bid)                          |
+| links   | https://en.wikipedia.org/wiki/Oh_Hell · https://www.pagat.com/exact/ohhell.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Hand size changes each round (1,2,3,… up and/or back down).
+Deal that many; turn the next card for trump (none in the max round).  Each
+player bids exactly how many tricks they will take; the *hook* rule forbids
+the dealer from making total bids equal the number of tricks.  Follow suit;
+trump wins.  Score: making your bid exactly = 10 + bid (common variant);
+missing = 0 (or minus the miss).  Most points after all rounds wins.
+
+** Notes
+
+Exact-bid scoring is the twist on the trick engine; variable hand size needs
+a round driver.  Excellent with AI; scales 3-7 players.
+
+* Old Maid
+
+| name    | Old Maid                                   |
+| package | NA                                         |
+| players | 2-8                                        |
+| LoE     | S                                          |
+| engine  | pair-discard                               |
+| links   | https://en.wikipedia.org/wiki/Old_Maid · https://www.pagat.com/quartet/oldmaid.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Remove one Queen (leaving 51; three Queens form the "old maid").  Deal all
+out (uneven OK).  Everyone discards pairs from hand.  In turn, draw one
+(unseen) from the player on your left and discard any new pair.  Play until
+all pairs are down; whoever holds the odd Queen loses.
+
+** Notes
+
+On the original wishlist.  Pure mechanism, easy AI; the only state is hands
++ "draw from neighbour".  Quick, kid-friendly.
+
+* Pinochle
+
+| name    | Pinochle (single deck)                     |
+| package | NA                                         |
+| players | 2 (4 partnership)                          |
+| LoE     | H                                          |
+| engine  | trick + meld                               |
+| links   | https://en.wikipedia.org/wiki/Pinochle · https://www.pagat.com/marriage/pinmain.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+48-card pinochle deck (two each of 9,J,Q,K,10,A in four suits; ranking
+A,10,K,Q,J,9).  Phases: *bid*, *meld*, *trick*.  Deal 12 each (2p).  Bidding
+sets trump and a target.  *Meld* (declared, scored before play): run A-10-K-
+Q-J of trump 150; royal marriage (K-Q trump) 40, common marriage 20;
+pinochle (Q♠+J♦) 40, double 300; dix (9 of trump) 10; sets like four aces
+100, etc.  *Trick play:* must follow suit *and* head the trick if able
+(win if you can); trump if void.  Counters: each Ace/Ten/King = ... (A 11,
+10 10, K 4, Q 3, J 2 in common scoring; or the 4/3/2 simplified) plus 1 for
+last trick.  Add meld + trick points; reaching the target scores, else set.
+
+** Notes
+
+The hard trick game: requires both a meld scorer *and* the strict
+"must-win-if-able" trick rule + the special 48-card deck.  Defer until the
+trick engine and a meld scorer (from rummy) both exist.
+
+* Pitch (Setback)
+
+| name    | Pitch (Auction Pitch / Setback)            |
+| package | NA                                         |
+| players | 2-7 (best 4 partnership)                   |
+| LoE     | M                                          |
+| engine  | trick (point-trump)                        |
+| links   | https://en.wikipedia.org/wiki/Pitch_(card_game) · https://www.pagat.com/allfours/pitch.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52, deal 6 each (in 3+3).  Bid 1-4 (or pass); high bidder is the
+*pitcher* and leads — the suit led to the first trick becomes trump.
+Follow suit or trump (you may always trump; off-trump you must follow).
+Four points available: *High* (highest trump in play), *Low* (lowest trump
+in play, to whoever takes it), *Jack* (of trump, if in play, to its taker),
+*Game* (most card-points by value A=4,K=3,Q=2,J=1,10=10).  Pitcher must
+make the bid or be *set back* (subtract the bid).  First to 7 (or 11) wins.
+
+** Notes
+
+"Led suit becomes trump" + the High/Low/Jack/Game point tally are the new
+bits over the trick engine.  Classic Americana; partnership variant fits the
+4-seat scaffold.
+
+* President
+
+| name    | President (Scum)                           |
+| package | ~M-x cg-president~ |
+| players | 3-8 (best 4-6)                             |
+| LoE     | M                                          |
+| engine  | climbing/shedding                          |
+| links   | https://en.wikipedia.org/wiki/President_(card_game) · https://www.pagat.com/climbing/president.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal all out.  Rank high→low: 2,A,K,Q,J,10,…,3.  Leader plays
+1-4 of a kind; each player in turn must play the *same count* of a strictly
+higher rank or pass; once all but one pass (or someone matches a "complete"
+set per variant), the pile clears and the last player leads.  First out =
+President, last = Scum.  Next deal, Scum gives the President their two best
+cards and gets two free choices back (Vice ranks trade one).
+
+** Notes
+
+The climbing-game archetype (extends the Crazy-Eights shedding core with a
+"must beat the last play" comparator + role/exchange meta).  Lively with
+AI; build Crazy Eights first.
+
+* Pyramid
+
+| name    | Pyramid                                    |
+| package | ~M-x cg-pyramid~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | pile-solitaire (sum-13)                    |
+| links   | https://en.wikipedia.org/wiki/Pyramid_(solitaire) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 28 in a 7-row triangle (each card half-covered by two
+below).  Remove pairs of *exposed* cards summing to 13 (A=1, J=11, Q=12, K=
+13 removed alone).  Deal stock to waste; pair waste/exposed cards.  Redeals
+per variant.  Clear the pyramid to win.
+
+** Notes
+
+The "sum to N" matcher (cf. Gaps' rank logic) over a triangular exposure
+graph.  Distinct exposure model from Klondike; share the "sum-13" rule with
+nothing else, but the renderer's triangle is reusable for TriPeaks.
+
+* Rummy (Basic / 500 Rum)
+
+| name    | Rummy (Basic / 500 Rum)                    |
+| package | NA                                         |
+| players | 2-6                                        |
+| LoE     | M                                          |
+| engine  | rummy/meld                                 |
+| links   | https://en.wikipedia.org/wiki/Rummy · https://www.pagat.com/rummy/500rum.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 7 (2p) / 10 etc.  Draw (stock or discard) then discard.
+Meld runs (3+ same-suit sequence) and sets (3-4 same rank) to the table;
+*lay off* onto existing melds.  Basic: first to shed all wins, score
+opponents' cards.  *500 Rum:* melds score their card values (A=15 or 1, face
+10, pip face value); you may take *any* card from the discard pile if you
+immediately meld it (and everything above it joins your hand); play to 500.
+
+** Notes
+
+On the original wishlist (rummy 500).  Shares the meld model with Gin; 500
+Rum adds melds-score-points + deep-discard-take.  Core rummy build.
+
+* Scopa
+
+| name    | Scopa                                      |
+| package | NA                                         |
+| players | 2, 4 (partnership)                         |
+| LoE     | M                                          |
+| engine  | fishing                                    |
+| links   | https://en.wikipedia.org/wiki/Scopa · https://www.pagat.com/fishing/scopa.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+40-card deck (strip 8/9/10 from French deck; ranks A=1..7,J=8,Horse/Q=9,
+K=10 for capture).  Deal 3 each, 4 to the table.  Play a card to *capture*
+a table card of equal value, or a set summing to it; if both a single and a
+combo are possible, the single is forced.  Capturing all table cards = a
+*scopa* (+1).  Refill hands 3 at a time from stock.  End scoring: most cards
+1, most coins/diamonds 1, the *settebello* (7♦) 1, best *primiera* 1
+(per-suit best card: 7=21,6=18,A=16,5=15,4=14,3=13,2=12,face=10), plus each
+scopa.  Play to 11.
+
+** Notes
+
+Fishing engine shared with Casino; primiera scoring is the fiddly part.
+Pairs with Briscola for an Italian set.  Uses a 40-card deck — the engine
+already abstracts the deck.
+
+* Scorpion
+
+| name    | Scorpion                                   |
+| package | ~M-x cg-scorpion~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | tableau-solitaire                          |
+| links   | https://en.wikipedia.org/wiki/Scorpion_(solitaire) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Seven columns of 7 (top three rows of the first four columns
+face down).  Build *down by suit*; unlike Spider you may move a card *with
+everything on top of it* regardless of order.  Stock of 3 cards dealt to
+the column bottoms when stuck.  Goal: four K→A suit sequences.
+
+** Notes
+
+A "move the buried pile" twist on the tableau engine, kin to Spider but
+single-deck.  Good once Spider exists.
+
+* Snap
+
+| name    | Snap                                       |
+| package | NA                                         |
+| players | 2-4                                        |
+| LoE     | S                                          |
+| engine  | reflex/match                               |
+| links   | https://en.wikipedia.org/wiki/Snap_(card_game) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Deal all out face down.  Players in turn flip their top card to a personal
+face-up pile.  When two face-up tops show the same rank, the first to call
+"Snap!" takes both piles.  Collect all cards to win.
+
+** Notes
+
+Reflex game — needs a *timed* input (press key fastest).  AI "reaction
+time" is a tunable delay.  Tests the engine's real-time input path; small.
+
+* Spades
+
+| name    | Spades                                     |
+| package | ~M-x cg-spades~ |
+| players | 4 (partnership)                            |
+| LoE     | M                                          |
+| engine  | trick (trump, bid, partnership)            |
+| links   | https://en.wikipedia.org/wiki/Spades · https://www.pagat.com/auctionwhist/spades.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52, 4 players in 2 partnerships, deal 13 each.  Spades are *always
+trump*.  Each player bids the tricks they expect (0 = *nil*, with bonus/
+penalty).  Follow suit; cannot lead spades until "broken" (a spade played
+off-suit) unless only spades remain.  Score: making the team's combined bid
+= 10 × bid + 1 per overtrick ("bag"); 10 bags = -100; missing the bid = -10
+× bid; nil made = +100 (failed -100).  First to 500 wins.
+
+** Notes
+
+*Closest game to the already-built 500*: bidding + partnership + tricks +
+spades-always-trump (simpler than 500's complex trump/joker).  The cg-bid
+trick/partnership machinery is the most directly reusable here.  Top
+trick-game target this wave.  On the original wishlist (four-player spades).
+
+* Spider
+
+| name    | Spider                                     |
+| package | ~M-x cg-spider~ |
+| players | 1 (solitaire)                              |
+| LoE     | M                                          |
+| engine  | tableau-solitaire (2 decks)               |
+| links   | https://en.wikipedia.org/wiki/Spider_(solitaire) · https://www.pagat.com/patience/spider.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Two decks (104).  Ten columns (four of 6, six of 5; only the bottom card
+of each face up).  Build *down regardless of suit*, but you may only move a
+*run of the same suit* as a unit.  Complete a K→A same-suit run and it is
+removed.  Stock deals one card to every column at once (no empty columns
+allowed when dealing).  1/2/4-suit difficulty variants.  Win by removing
+all eight suit-runs.
+
+** Notes
+
+On the wishlist.  Two-deck tableau; the "same-suit run moves/clears" rule is
+the novelty.  Difficulty knob (suits) is a nice defcustom.  Build after
+Klondike; shares the column/foundation-removal engine.
+
+* Spit (Speed)
+
+| name    | Spit (Speed)                               |
+| package | NA                                         |
+| players | 2                                          |
+| LoE     | M                                          |
+| engine  | real-time tableau                          |
+| links   | https://en.wikipedia.org/wiki/Spit_(card_game) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Split the deck between two players.  Each lays a personal tableau (5
+stockpiles) and keeps a "spit" pile.  On "spit", both flip a centre card
+simultaneously; players *race* (no turns) to play tableau cards onto either
+centre pile, building up or down by one (wrapping).  When both stuck, spit
+again.  First to empty their cards wins the round; loser takes the smaller
+centre pile.
+
+** Notes
+
+Real-time, two-pile build ±1 with wrap.  Needs the timed-input loop (like
+Snap) plus a reactive AI.  Hardest of the "fast" games to make feel fair vs
+AI; M.
+
+* Spite and Malice
+
+| name    | Spite and Malice (Cat and Mouse)           |
+| package | NA                                         |
+| players | 2 (3+ variants)                            |
+| LoE     | M                                          |
+| engine  | stock-race / shedding                      |
+| links   | https://en.wikipedia.org/wiki/Spite_and_Malice · https://www.pagat.com/eights/spite.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Two decks + jokers.  Each player has a face-down *pay-off* (goal) pile;
+race to empty it.  Shared centre *build* piles go up A→Q (Kings wild);
+complete a pile (Q) and it is recycled.  On your turn play from hand,
+pay-off top, or four personal discard piles onto the centre; you must start
+each centre pile with an Ace.  End your turn by discarding to one of your
+four discard piles.  First to exhaust the pay-off pile wins.
+
+** Notes
+
+Solitaire-flavoured competitive build game; reuses foundation "build up"
+logic with wild Kings.  Good 2-player title that isn't a trick or rummy
+game.
+
+* TriPeaks
+
+| name    | TriPeaks                                   |
+| package | ~M-x cg-tripeaks~ |
+| players | 1 (solitaire)                              |
+| LoE     | S                                          |
+| engine  | pile-solitaire (waste-build)              |
+| links   | https://en.wikipedia.org/wiki/Tri_Peaks_(card_game) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Deal 18 cards as three overlapping peaks over a row of 10
+(28 on the board), rest is stock.  Move an *exposed* board card to the waste
+if it is ±1 rank from the waste top (wrap A-K-A); chain as far as you can.
+Deal from stock when stuck.  Clear the board to win; longer chains score
+more.
+
+** Notes
+
+Same ±1 waste-build as Golf, on a peaks layout (renderer shares Pyramid's
+triangle).  Combine Golf + TriPeaks behind one engine.
+
+* War
+
+| name    | War                                        |
+| package | NA                                         |
+| players | 2                                          |
+| LoE     | S                                          |
+| engine  | auto/compare                               |
+| links   | https://en.wikipedia.org/wiki/War_(card_game) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Split the deck in two face-down stacks.  Both flip the top card; higher
+rank takes both.  Tie = "war": each lays 3 face down + 1 up; higher up-card
+takes all (recurse on further ties).  Collect all 52 to win.
+
+** Notes
+
+Zero-decision auto-demo (like Beggar/Clock).  Trivial; nice for animation
+and as the very first "two-player" engine smoke test.
+
+* Whist
+
+| name    | Whist                                      |
+| package | ~M-x cg-whist~ |
+| players | 4 (partnership)                            |
+| LoE     | M                                          |
+| engine  | trick (trump, no bid)                       |
+| links   | https://en.wikipedia.org/wiki/Whist · https://www.pagat.com/whist/whist.html |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52, 4 players in 2 partnerships, deal 13 each; turn the dealer's
+last card up for trump (it joins their hand).  No bidding.  Follow suit;
+trump wins; highest of led suit otherwise.  Score 1 point per trick over 6
+("the book"); honours variants optional.  Game to 5 (short) or 9 (long).
+
+** Notes
+
+The purest trick game — the trick engine with *no bidding* and a fixed
+trump.  Easiest trick-game build; a good first proof of the shared trick
+resolver before Spades/Hearts add their twists.
+
+* Yukon
+
+| name    | Yukon                                      |
+| package | ~M-x cg-yukon~ |
+| players | 1 (solitaire)                              |
+| LoE     | S                                          |
+| engine  | tableau-solitaire                          |
+| links   | https://en.wikipedia.org/wiki/Yukon_(solitaire) |
+| added   | 2026-06-24                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Standard 52.  Like Klondike's seven columns, but *all* remaining cards are
+dealt face up onto the columns (no stock/waste).  Build foundations up by
+suit A→K.  Tableau builds down in alternating colour, but you may move *any*
+face-up card together with every card on top of it (the group need not be
+ordered).  Empty columns take Kings (+ their pile).
+
+** Notes
+
+Klondike layout with "grab-any-buried-group" moves and no stock — an *S*
+add-on once the Klondike tableau engine exists.
+
+* 500 (Bid)
+
+| name    | 500 (Bid)                                  |
+| package | card-games (~M-x cg-bid~)                  |
+| players | 4 (partnership); + live multiplayer        |
+| LoE     | H (done)                                    |
+| engine  | trick (trump+joker, bid, kitty)            |
+| links   | https://en.wikipedia.org/wiki/500_(card_game) · https://www.pagat.com/euchre/500.html |
+| added   | 2026-06-23                                 |
+| updated | 2026-06-24                                 |
+
+** Rules
+
+Implemented: 43/45-card variant, 5-card kitty, Avondale bidding (suits +
+NT + misère/open misère), joker > right/left bower trump order, 10 tricks,
+front-door win at 500 on a made contract, back-door loss at -500.  Networked
+host-authoritative live play (~M-x cg-bid-host~ / ~cg-bid-join~).
+
+** Notes
+
+*Already implemented* (~cg-bid.el~, ~cg-bid-ui.el~, ~cg-bid-net.el~) with
+smart AI and SVG table UI.  The reference trick implementation that Spades/
+Hearts/Euchre/Whist will factor a shared engine out of.
+
+* Shared engines / clusters (build-planning view)
+
+Games group by the engine they want, which drives the build order:
+
+- *gaps-grid* (DONE) :: Montana, Hell's Half-Acre.  Reusable for
+  Concentration (face-down grid).
+- *tableau-solitaire* :: Klondike → FreeCell, Canfield, Yukon, Forty
+  Thieves, Scorpion, Spider (2-deck).  One stock/waste/foundation/column
+  engine; biggest single payoff (≥7 games, all solo, no user input).
+- *pile-solitaire* :: Golf, TriPeaks (shared ±1 waste-build), Pyramid
+  (sum-13), Clock (auto).
+- *trick* :: 500 (DONE, reference) → Whist (no bid) → Spades, Hearts (bid/
+  penalty + partnership) → Euchre, Oh Hell, Pitch, Napoleon, Briscola →
+  Pinochle (adds meld).  Factor a ~cg-trick~ base from cg-bid.
+- *shedding/climbing* :: Crazy Eights → President.
+- *rummy/meld* :: Gin → Rummy/500 Rum, Knock Rummy → Hand and Foot →
+  Canasta.  One meld-finder/scorer reused throughout.
+- *fishing* :: Scopa, Casino (shared capture-by-value engine).
+- *auto (zero-decision)* :: War, Beggar-My-Neighbour, Clock, Snap (Snap
+  adds timed input).
+- *own scorer* :: Cribbage (15s/pairs/runs/flush counter).
+- *stock-race* :: Spite and Malice.
+
+** Build priorities (no user input needed · unlocks others · popular)
+
+1. *tableau-solitaire engine + Klondike, FreeCell, Spider* — solo, no
+   input, hugely popular, unlocks Canfield/Yukon/Forty Thieves/Scorpion.
+2. *trick engine + Spades and Hearts* — most popular trick games, reuse the
+   500 machinery, unlock Euchre/Whist/Oh Hell/Pitch.
+3. *Crazy Eights* — popular, self-contained, unlocks President.
+4. *pile-solitaire + Golf/TriPeaks*; *Cribbage*; then the rummy and fishing
+   clusters.
+

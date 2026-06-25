@@ -8,21 +8,57 @@ available.  The default (UNICODE) symbols maybe customized by
 configuring ~card-game-symbols~.
 
 * Games
-- *500 (Bid)* -- the four-handed partnership trick-taking game, against
-  three computer opponents (~M-x cg-bid~).
-- *Gaps / Hell's Half-Acre* -- solitaire; sort each row into one suit
-  running 2..K (~M-x cg-gaps~).
 
 To open the game menu type ~M-x card-game~, or start a game directly
-with its command:
+with its command.
+
+** Trick-taking
+- ~cg-bid~ -- 500 (Bid).  Win the auction, name the trump suit, then take
+  tricks with your partner to reach 500 points before the opposing pair.
+  Also playable live over the network (~M-x cg-bid-host~ / ~cg-bid-join~).
+- ~cg-hearts~ -- Hearts.  Avoid taking hearts and the Queen of Spades, or
+  take them all to "shoot the moon"; lowest score loses.
+- ~cg-spades~ -- Spades.  Partnership bidding to 500; spades are always
+  trump.  Make your side's combined bid, mind the bags, dare a nil.
+- ~cg-whist~ -- Whist.  Trump is the turned card, there is no bidding;
+  score one point for each trick past the book of six.
+- ~cg-ohhell~ -- Oh Hell.  The hand shrinks each round; bid the exact
+  number of tricks you will take, no more and no fewer.
+
+** Solitaire
 - ~cg-montana~ -- Montana (also called Gaps).  Each row is anchored by a
   Two and built upward in one suit, 2 through King; slide cards into the
   gaps until all four rows are sorted.
 - ~cg-gaps~ -- an alias for ~cg-montana~.
 - ~cg-hells-half-acre~ -- the build-down variant: each row is anchored by
   a King and built downward, King through 2.
-- ~cg-bid~ -- 500 (Bid).  Win the auction, name the trump suit, then take
-  tricks with your partner to reach 500 points before the opposing pair.
+- ~cg-klondike~ -- Klondike, the classic "Solitaire": build the four
+  foundations up by suit from the Ace.
+- ~cg-freecell~ -- FreeCell: every card in view, four free cells, a game
+  of nearly pure skill.
+- ~cg-spider~ -- Spider (two decks): build down regardless of suit, but
+  only same-suit runs move; clear eight King-to-Ace runs.
+- ~cg-yukon~ -- Yukon: Klondike's layout dealt mostly face up, with any
+  buried group movable and no stock.
+- ~cg-canfield~ -- Canfield: a 13-card reserve and a foundation base rank
+  set by the deal; foundations wrap King to Ace.
+- ~cg-forty-thieves~ -- Forty Thieves: two decks, ten columns, eight
+  foundations, build down by suit, and no second pass through the stock.
+- ~cg-scorpion~ -- Scorpion: build down by suit and free any buried group
+  to assemble four King-to-Ace runs.
+- ~cg-golf~ -- Golf: clear the layout by playing exposed cards one rank
+  above or below the waste top.
+- ~cg-tripeaks~ -- TriPeaks: the same, on three overlapping peaks, with
+  Ace-King wrapping for long chains.
+- ~cg-pyramid~ -- Pyramid: remove pairs of exposed cards whose ranks sum
+  to thirteen; Kings go alone.
+
+** Shedding and climbing
+- ~cg-eights~ -- Crazy Eights.  Match the suit or rank of the discard;
+  eights are wild and let you name the next suit.
+- ~cg-president~ -- President (Scum).  Climb: play one to four of a rank,
+  beat it or pass; first out rules, last out scrubs, and the roles trade
+  cards on the next deal.
 
 * TODO
 - [X] make the suit symbols customizable (~cg-symbols~) and obey them
@@ -35,9 +71,9 @@ with its command:
 * Install
 ** From the package tarball
 #+begin_src
-make package           # builds card-games-1.0.50.tar
+make package           # builds card-games-1.0.60.tar
 #+end_src
-Then in Emacs: ~M-x package-install-file RET card-games-1.0.50.tar~.
+Then in Emacs: ~M-x package-install-file RET card-games-1.0.60.tar~.
 
 ** From a local ELPA archive
 #+begin_src
@@ -61,6 +97,14 @@ graphical display.
   ~n~ next hand / new game, ~?~ help.
 - Gaps: arrows to move (or ~hjkl~ when ~cg-keys~ is ~classic~), ~RET~ to
   fill a gap (or click it), ~r~ redeal, ~u~ undo, ~n~ new, ~?~ help.
+- Klondike / FreeCell / Spider / Yukon: arrows move between piles, ~RET~
+  picks up a movable run and drops it, ~f~ sends a card to a foundation,
+  ~a~ auto-plays everything it can, ~u~ undo, ~n~ new, ~?~ help.  On the
+  stock pile, ~RET~ deals or recycles.
+- Hearts / Spades: arrows choose a card, ~RET~ plays it (in Hearts, ~RET~
+  marks a card to pass and ~p~ sends the three), ~n~ new match, ~?~ help.
+- Crazy Eights: arrows choose, ~RET~ plays, ~d~ draws, ~x~ passes, ~n~
+  new deal, ~?~ help.
 
 On a graphical display, ~v~ toggles the full-window SVG table and
 ~+~ / ~-~ / ~0~ (Emacs ~text-scale-adjust~) resize the cards.

@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.50
+;; Version: 1.0.60
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -44,6 +44,11 @@
 (require 'cg-gaps)
 (require 'cg-bid-ui)
 (require 'cg-bid-net)
+(require 'cg-solitaire)
+(require 'cg-trick)
+(require 'cg-eights)
+(require 'cg-patience)
+(require 'cg-president)
 
 (defvar card-games-list
   '(("500 (Bid)" cg-bid
@@ -51,7 +56,39 @@
     ("Gaps  (Montana)" cg-montana
      "Solitaire: a Two anchors each row; build up 2 through King.")
     ("Hell's Half-Acre" cg-hells-half-acre
-     "Solitaire: a King anchors each row; build down King through 2."))
+     "Solitaire: a King anchors each row; build down King through 2.")
+    ("Klondike" cg-klondike
+     "Solitaire: the classic; build the foundations up by suit from the Ace.")
+    ("FreeCell" cg-freecell
+     "Solitaire: every card in view, four free cells, a game of skill.")
+    ("Spider" cg-spider
+     "Solitaire: two decks; build down and clear eight same-suit runs.")
+    ("Yukon" cg-yukon
+     "Solitaire: Klondike's layout, all face up; move any buried group.")
+    ("Hearts" cg-hearts
+     "Trick-taking: dodge every heart and the Queen of Spades.")
+    ("Spades" cg-spades
+     "Trick-taking: partnership bidding to 500; spades are always trump.")
+    ("Crazy Eights" cg-eights
+     "Shedding: match the suit or rank; eights are wild.")
+    ("Canfield" cg-canfield
+     "Solitaire: a 13-card reserve and a shifting foundation base rank.")
+    ("Forty Thieves" cg-forty-thieves
+     "Solitaire: two decks, ten columns, eight foundations, no redeal.")
+    ("Scorpion" cg-scorpion
+     "Solitaire: build down by suit and free four buried King-to-Ace runs.")
+    ("Golf" cg-golf
+     "Solitaire: clear the layout one rank at a time onto the waste.")
+    ("TriPeaks" cg-tripeaks
+     "Solitaire: clear three peaks with Ace-King wrapping chains.")
+    ("Pyramid" cg-pyramid
+     "Solitaire: remove pairs of cards that sum to thirteen.")
+    ("Whist" cg-whist
+     "Trick-taking: fixed trump, no bidding, race past the book of six.")
+    ("Oh Hell" cg-ohhell
+     "Trick-taking: shrinking hands; bid the exact tricks you will take.")
+    ("President" cg-president
+     "Climbing: shed your hand; first out rules, last out scrubs."))
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 

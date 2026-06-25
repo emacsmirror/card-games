@@ -42,6 +42,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 ;;;; Cards
 
@@ -528,6 +529,24 @@
             (if bid (format "  bid %d" bid) "")
             (if won (format "  won %d" won) ""))))
 
+(defcustom cg-trick-svg-cards t
+  "When non-nil, draw cards as SVG images on a graphical display."
+  :type 'boolean :group 'card-games)
+
+(defun cg-trick--spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD."
+  (cons (aref cg-trick-ranks (cdr card)) (car card)))
+
+(cl-defun cg-trick--svg-row (cards &key cursor marks hints)
+  "Return a one-image SVG row for CARDS with CURSOR, MARKS, HINTS indices."
+  (propertize "*" 'display
+              (cg-svg-image
+               (cg-svg-hand-svg (mapcar #'cg-trick--spec cards)
+                                :cursor cursor :marks marks :hints hints
+                                :overlap (if (> (length cards) 11)
+                                             (max 0 (- cg-svg-card-width 24)) 0))
+               (cg-scale))))
+
 (cl-defmethod cg-render ((game cg-trick-game))
   "Return a propertized string depicting GAME for a text display."
   (let* ((out (list))
@@ -544,24 +563,37 @@
       (push (cg-trick--seat-line game s) out))
     ;; current trick
     (push "\n  Trick: " out)
-    (if (cg-get game :trick)
-        (dolist (play (reverse (cg-get game :trick)))
+    (cond
+     ((null (cg-get game :trick)) (push "(empty)" out))
+     ((and cg-trick-svg-cards (display-graphic-p))
+      (push (concat (mapconcat (lambda (p) (aref cg-trick-seat-names (car p)))
+                               (reverse (cg-get game :trick)) "  ") "   ")
+            out)
+      (push (cg-trick--svg-row (mapcar #'cdr (reverse (cg-get game :trick)))) out))
+     (t (dolist (play (reverse (cg-get game :trick)))
           (push (format "%s:%s  " (aref cg-trick-seat-names (car play))
                         (let ((cs (cg-trick-card-string (cdr play))))
                           (if (cg-trick-red-p (cdr play))
                               (propertize cs 'face 'cg-red-suit) cs)))
-                out))
-      (push "(empty)" out))
+                out))))
     (push "\n\n  Your hand (South):\n   " out)
-    (let ((i 0))
-      (dolist (c hand)
-        (let* ((cs (cg-trick-card-string c))
-               (faces nil))
-          (when (cg-trick-red-p c) (push 'cg-red-suit faces))
-          (when (member c marks) (push 'cg-hint faces))
-          (when (= i cursor) (push 'cg-cursor faces))
-          (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
-        (setq i (1+ i))))
+    (if (and cg-trick-svg-cards (display-graphic-p))
+        (let ((mi '()) (hi '()) (i 0)
+              (legalp (and (eq (cg-get game :phase) 'play) (= (cg-get game :turn) 0))))
+          (dolist (c hand)
+            (when (member c marks) (push i mi))
+            (when (and legalp (cg-trick--legal-p game 0 c)) (push i hi))
+            (setq i (1+ i)))
+          (push (cg-trick--svg-row hand :cursor cursor :marks mi :hints hi) out))
+      (let ((i 0))
+        (dolist (c hand)
+          (let* ((cs (cg-trick-card-string c))
+                 (faces nil))
+            (when (cg-trick-red-p c) (push 'cg-red-suit faces))
+            (when (member c marks) (push 'cg-hint faces))
+            (when (= i cursor) (push 'cg-cursor faces))
+            (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
+          (setq i (1+ i)))))
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 

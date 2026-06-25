@@ -46,6 +46,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 (defconst cg-bridge-ranks
   ["2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K" "A"]
@@ -481,6 +482,24 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
             out))
     (if out (mapconcat #'identity (nreverse out) "  ") "(no calls yet)")))
 
+(defcustom cg-bridge-svg-cards t
+  "When non-nil, draw cards as SVG images on a graphical display."
+  :type 'boolean :group 'card-games)
+
+(defun cg-bridge--spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD."
+  (cons (aref cg-bridge-ranks (cdr card)) (car card)))
+
+(cl-defun cg-bridge--svg-row (cards &key cursor hints)
+  "Return a one-image SVG row for CARDS with CURSOR and HINTS indices."
+  (propertize "*" 'display
+              (cg-svg-image
+               (cg-svg-hand-svg (mapcar #'cg-bridge--spec cards)
+                                :cursor cursor :hints hints
+                                :overlap (if (> (length cards) 11)
+                                             (max 0 (- cg-svg-card-width 26)) 0))
+               (cg-scale))))
+
 (cl-defmethod cg-render ((game cg-bridge-game))
   "Return a propertized depiction of the Bridge GAME."
   (let* ((out '()) (phase (cg-get game :phase)) (cursor (cg-get game :cursor)))
@@ -511,16 +530,22 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
                      (cg-get game :tricks))
              out)
        (when (and (cg-get game :exposed) (cg-get game :dummy))
-         (push (format "\n  Dummy (%s):\n%s"
-                       (aref cg-bridge-seat-names (cg-get game :dummy))
-                       (cg-bridge--hand-by-suit (cg-bridge--hand game (cg-get game :dummy))))
-               out))
+         (push (format "\n  Dummy (%s):\n   "
+                       (aref cg-bridge-seat-names (cg-get game :dummy))) out)
+         (if (and cg-bridge-svg-cards (display-graphic-p))
+             (push (cg-bridge--svg-row
+                    (cg-bridge--sort (cg-bridge--hand game (cg-get game :dummy)))) out)
+           (push (cg-bridge--hand-by-suit (cg-bridge--hand game (cg-get game :dummy))) out)))
        (push "\n  Trick: " out)
-       (if (cg-get game :trick)
-           (dolist (p (reverse (cg-get game :trick)))
+       (cond
+        ((null (cg-get game :trick)) (push "(empty)" out))
+        ((and cg-bridge-svg-cards (display-graphic-p))
+         (push (concat (mapconcat (lambda (p) (aref cg-bridge-seat-names (car p)))
+                                  (reverse (cg-get game :trick)) "  ") "   ") out)
+         (push (cg-bridge--svg-row (mapcar #'cdr (reverse (cg-get game :trick)))) out))
+        (t (dolist (p (reverse (cg-get game :trick)))
              (push (format "%s:%s  " (aref cg-bridge-seat-names (car p))
-                           (cg-bridge-card-string (cdr p))) out))
-         (push "(empty)" out))
+                           (cg-bridge-card-string (cdr p))) out))))
        (push "\n" out)))
     ;; the human's hand (South), or the seat being played from when it is dummy
     (let* ((act (if (and (eq phase 'play) (memq (cg-get game :turn)
@@ -533,17 +558,25 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
                           ((= act 0) " (you)")
                           (t " (dummy, you play)")))
             out)
-      (if (eq phase 'play)
-          (let ((i 0))
-            (dolist (c hand)
-              (let ((cs (cg-bridge-card-string c)) (faces nil))
-                (when (cg-red-suit-p (car c)) (push 'cg-red-suit faces))
-                (when (and (= (cg-get game :turn) act)
-                           (cg-bridge--legal-play-p game act c)) (push 'cg-hint faces))
-                (when (= i cursor) (push 'cg-cursor faces))
-                (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
-              (setq i (1+ i))))
-        (push (cg-bridge--hand-by-suit hand) out)))
+      (cond
+       ((and (eq phase 'play) cg-bridge-svg-cards (display-graphic-p))
+        (let ((hi '()) (i 0))
+          (dolist (c hand)
+            (when (and (= (cg-get game :turn) act) (cg-bridge--legal-play-p game act c))
+              (push i hi))
+            (setq i (1+ i)))
+          (push (cg-bridge--svg-row hand :cursor cursor :hints hi) out)))
+       ((eq phase 'play)
+        (let ((i 0))
+          (dolist (c hand)
+            (let ((cs (cg-bridge-card-string c)) (faces nil))
+              (when (cg-red-suit-p (car c)) (push 'cg-red-suit faces))
+              (when (and (= (cg-get game :turn) act)
+                         (cg-bridge--legal-play-p game act c)) (push 'cg-hint faces))
+              (when (= i cursor) (push 'cg-cursor faces))
+              (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
+            (setq i (1+ i)))))
+       (t (push (cg-bridge--hand-by-suit hand) out))))
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 

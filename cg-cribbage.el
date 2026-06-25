@@ -319,12 +319,19 @@ TOTAL is the running count after the play."
                         (mapconcat #'cg-rummy-card-string (cg-get game :crib) " ")) out))))
     (let* ((hand (if (eq phase 'play) (cg-crib--play game 0) (cg-crib--hand game 0))))
       (push (format "\n  Your %s:\n   " (if (eq phase 'play) "cards" "hand")) out)
-      (push (cg-rummy--render-cards hand cursor (cg-get game :marks)) out))
+      (push (cg-rummy--render-cards hand cursor (cg-get game :marks) nil 'hand) out))
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-cribbage-game) action)
+  "Apply a click ACTION on the hand to GAME G."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i))
+    (_ (cl-call-next-method))))
+
 (defun cg-crib--redisplay ()
   (let ((game cg-crib--game) (inhibit-read-only t))
+        (setq cg-current-game game cg-redisplay-function #'cg-crib--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -406,6 +413,11 @@ TOTAL is the running count after the play."
 
 (defvar cg-cribbage-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-crib-left)
     (define-key map (kbd "<right>") #'cg-crib-right)
     (define-key map (kbd "SPC") #'cg-crib-mark)

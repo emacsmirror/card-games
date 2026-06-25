@@ -306,14 +306,21 @@ Return non-nil if any meld was laid."
                     (format "  (score %d)" (aref scores 0))))
           out)
     (push (cg-rummy--render-cards hand cursor (cg-get game :marks)
-                                  (cg-tm--layoff-hint game))
+                                  (cg-tm--layoff-hint game) 'hand)
           out)
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-tablemeld-game) action)
+  "Apply a click ACTION on the hand to GAME G."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i))
+    (_ (cl-call-next-method))))
+
 (defun cg-tm--redisplay ()
   "Redraw the table-meld buffer."
   (let ((game cg-tm--game) (inhibit-read-only t))
+        (setq cg-current-game game cg-redisplay-function #'cg-tm--redisplay)
     (setq-local mode-line-process
                 (format " [%s]" (or (cg-get game :step) (cg-get game :phase))))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
@@ -443,6 +450,11 @@ Return non-nil if any meld was laid."
 
 (defvar cg-tm-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-tm-left)
     (define-key map (kbd "<right>") #'cg-tm-right)
     (define-key map (kbd "SPC") #'cg-tm-mark)

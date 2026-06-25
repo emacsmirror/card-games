@@ -366,13 +366,20 @@
                   (length (cg-get game :stock)))
           out)
     (push (format "  Your %s:\n   " (if (= (aref (cg-get game :stage) 0) 1) "foot" "hand")) out)
-    (push (cg-rummy--render-cards hand cursor (cg-get game :marks)) out)
+    (push (cg-rummy--render-cards hand cursor (cg-get game :marks) nil 'hand) out)
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
+
+(cl-defmethod cg-render-apply ((g cg-handfoot-game) action)
+  "Apply a click ACTION on the hand to GAME G."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i))
+    (_ (cl-call-next-method))))
 
 (defun cg-hf--redisplay ()
   "Redraw the Hand & Foot buffer."
   (let ((game cg-hf--game) (inhibit-read-only t))
+        (setq cg-current-game game cg-redisplay-function #'cg-hf--redisplay)
     (setq-local mode-line-process
                 (format " [%s]" (or (cg-get game :step) (cg-get game :phase))))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
@@ -495,6 +502,11 @@
 
 (defvar cg-handfoot-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-hf-left)
     (define-key map (kbd "<right>") #'cg-hf-right)
     (define-key map (kbd "SPC") #'cg-hf-mark)

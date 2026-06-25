@@ -44,6 +44,11 @@
   :group 'games
   :prefix "cg-")
 
+(defcustom cg-card-scale 1.0
+  "Card-size multiplier applied on top of any text scaling.
+Adjust with the card-size slider or the zoom keys (+/-/0)."
+  :type 'number :group 'card-games)
+
 
 ;;;; Engine base
 
@@ -127,9 +132,15 @@ Each region is (RECT . ACTION) with RECT (X Y W H) in image pixels."
 
 (cl-defgeneric cg-render-apply (game action)
   "Perform ACTION (returned by a renderer hit) on GAME.
-The default does nothing; games specialise this to make clicks act."
-  (ignore game action)
-  nil)
+Card-size actions (scale/zoom) are handled here; games specialise this
+for their own actions and delegate the rest with `cl-call-next-method'."
+  (ignore game)
+  (pcase action
+    (`(scale . ,v) (setq cg-card-scale v) t)
+    ('zoom-in  (setq cg-card-scale (min 3.0 (+ cg-card-scale 0.15))) t)
+    ('zoom-out (setq cg-card-scale (max 0.4 (- cg-card-scale 0.15))) t)
+    ('zoom-reset (setq cg-card-scale 1.0) t)
+    (_ nil)))
 
 (defvar cg-renderers nil
   "Alist mapping a treatment name (a symbol) to a `cg-renderer' subclass.
@@ -217,10 +228,53 @@ or batch), so callers always get a drawable colour string."
 
 (defun cg-scale ()
   "Return the SVG card scale factor for the current buffer.
-Tracks `text-scale-increase'/`text-scale-decrease' via the buffer-local
-`text-scale-mode-amount', so enlarging the text enlarges the cards."
+Combines `cg-card-scale' with `text-scale-mode-amount', so both the
+size slider and `text-scale-increase' enlarge the cards."
   (let ((amt (if (boundp 'text-scale-mode-amount) text-scale-mode-amount 0)))
-    (max 0.4 (min 4.0 (expt 1.15 amt)))))
+    (max 0.3 (min 4.0 (* cg-card-scale (expt 1.15 amt))))))
+
+(defvar-local cg-current-game nil
+  "The `cg-game' shown in the current buffer (for shared mouse/zoom).")
+
+(defvar-local cg-redisplay-function #'ignore
+  "Buffer-local function that redraws the current game's buffer.")
+
+(defun cg-card-refresh ()
+  "Redraw the current game buffer via `cg-redisplay-function'."
+  (funcall cg-redisplay-function))
+
+(defun cg-mouse-action (event)
+  "Return the action under mouse EVENT from the clicked image's region map.
+The clicked display string must carry a `cg-regions' text property."
+  (let* ((posn (event-start event)) (pt (posn-point posn))
+         (regions (and pt (get-text-property pt 'cg-regions))))
+    (when regions
+      (let ((xy (posn-object-x-y posn)) (sc (cg-scale)))
+        (and xy (cg-regions-hit regions
+                                (round (/ (car xy) sc)) (round (/ (cdr xy) sc))))))))
+
+(defun cg-card-click (event)
+  "Dispatch a mouse click on a card or control to the current game."
+  (interactive "e")
+  (let ((action (cg-mouse-action event)))
+    (when (and action cg-current-game)
+      (cg-render-apply cg-current-game action)
+      (cg-card-refresh))))
+
+(defun cg-card-zoom-in ()
+  "Make the cards larger."
+  (interactive)
+  (setq cg-card-scale (min 3.0 (+ cg-card-scale 0.15))) (cg-card-refresh))
+
+(defun cg-card-zoom-out ()
+  "Make the cards smaller."
+  (interactive)
+  (setq cg-card-scale (max 0.4 (- cg-card-scale 0.15))) (cg-card-refresh))
+
+(defun cg-card-zoom-reset ()
+  "Reset the card size."
+  (interactive)
+  (setq cg-card-scale 1.0) (cg-card-refresh))
 
 (provide 'cg-core)
 ;;; cg-core.el ends here

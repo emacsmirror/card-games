@@ -235,12 +235,20 @@ Only subsets of two or more cards are considered.  Return nil if none."
             "(empty)")
           out)
     (push "\n\n  Your hand:\n   " out)
-    (push (cg-rummy--render-cards (cg-fish--hand game 0) cursor nil) out)
+    (push (cg-rummy--render-cards (cg-fish--hand game 0) cursor nil nil 'hand) out)
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-fish-game) action)
+  "Apply a click ACTION on the hand to GAME G."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i)
+      (cg-fish-play))
+    (_ (cl-call-next-method))))
+
 (defun cg-fish--redisplay ()
   (let ((game cg-fish--game) (inhibit-read-only t))
+        (setq cg-current-game game cg-redisplay-function #'cg-fish--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -287,6 +295,11 @@ Only subsets of two or more cards are considered.  Return nil if none."
 
 (defvar cg-fish-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-fish-left)
     (define-key map (kbd "<right>") #'cg-fish-right)
     (define-key map (kbd "RET") #'cg-fish-play)

@@ -404,5 +404,36 @@ indices to ring as playable and as marked; OVERLAP fans the cards."
       (setq x (+ x step) i (1+ i)))
     svg))
 
+(defcustom cg-svg-slider-stops '(0.6 0.8 1.0 1.25 1.5 1.8 2.2)
+  "Card-size slider stops, as scale multipliers."
+  :type '(repeat number) :group 'card-games)
+
+(defun cg-svg-slider-width ()
+  "Return the pixel width of the card-size slider."
+  (+ 36 (* (length cg-svg-slider-stops) 24) 8))
+
+(defun cg-svg-slider-height ()
+  "Return the pixel height of the card-size slider."
+  24)
+
+(defun cg-svg-slider-draw (svg x y current)
+  "Draw a card-size slider into SVG at X, Y knobbed at CURRENT.
+Return its click regions as a list of (RECT . (scale . VALUE))."
+  (let* ((stops cg-svg-slider-stops) (segw 24) (regions '()) (i 0)
+         (cy (+ y 10)) (tx (+ x 36)))
+    (svg-text svg "size" :x x :y (+ y 14) :font-size 9 :fill "gray55"
+              :font-family cg-svg-font-family)
+    (svg-line svg tx cy (+ tx (* (length stops) segw)) cy
+              :stroke "gray60" :stroke-width 2)
+    (dolist (v stops)
+      (let* ((px (+ tx (* i segw) (/ segw 2)))
+             (near (< (abs (- v current)) 0.08)))
+        (svg-circle svg px cy (if near 7 4)
+                    :fill (if near (cg-svg--highlight) "white")
+                    :stroke "gray50" :stroke-width 1)
+        (push (cons (list (+ tx (* i segw)) y segw 22) (cons 'scale v)) regions))
+      (setq i (1+ i)))
+    (nreverse regions)))
+
 (provide 'cg-svg)
 ;;; cg-svg.el ends here

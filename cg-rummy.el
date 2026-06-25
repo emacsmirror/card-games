@@ -289,8 +289,10 @@ Set to nil to force the plain-text card row everywhere."
   (if (cg-rummy-joker-p card) (cons "" 'joker)
     (cons (aref cg-rummy-ranks (cdr card)) (car card))))
 
-(defun cg-rummy--svg-row (cards cursor marks hint-fn)
-  "Return a one-image SVG row for CARDS with CURSOR, MARKS and HINT-FN."
+(defun cg-rummy--svg-row (cards cursor marks hint-fn &optional region-tag)
+  "Return a one-image SVG row for CARDS.
+When REGION-TAG is non-nil, attach a `cg-regions' click map (each card as
+\(REGION-TAG . INDEX)) and draw a card-size slider beneath the row."
   (let* ((specs (mapcar #'cg-rummy--card-spec cards))
          (hints (when hint-fn
                   (let ((hs '()) (i 0))
@@ -298,18 +300,41 @@ Set to nil to force the plain-text card row everywhere."
                             (setq i (1+ i)))
                     hs)))
          (cur (and (integerp cursor) (>= cursor 0) cursor))
-         (overlap (if (> (length cards) 11) (max 0 (- cg-svg-card-width 24)) 0))
-         (svg (cg-svg-hand-svg specs :cursor cur :hints hints
-                               :marks marks :overlap overlap)))
-    (propertize "*" 'display (cg-svg-image svg (cg-scale)))))
+         (overlap (if (> (length cards) 11) (max 0 (- cg-svg-card-width 24)) 0)))
+    (if (not region-tag)
+        (propertize "*" 'display
+                    (cg-svg-image (cg-svg-hand-svg specs :cursor cur :hints hints
+                                                   :marks marks :overlap overlap)
+                                  (cg-scale)))
+      (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 8)
+             (step (max 1 (- (+ w cg-svg-card-gap) overlap)))
+             (n (length cards))
+             (cardw (if (> n 0) (+ (* (1- n) step) w) w))
+             (sh (cg-svg-slider-height))
+             (width (+ (* 2 pad) (max cardw (cg-svg-slider-width))))
+             (height (+ (* 2 pad) h 8 sh))
+             (svg (svg-create width height)) (regions '()) (x pad) (i 0))
+        (dolist (spec specs)
+          (cg-svg--draw-spec svg x pad spec (eql i cur) (and (memq i hints) t))
+          (when (memq i marks)
+            (svg-rectangle svg (- x 3) (- pad 3) (+ w 6) (+ h 6)
+                           :rx 7 :fill "none" :stroke "#4a90d9" :stroke-width 3))
+          (push (cons (list x pad w h) (cons region-tag i)) regions)
+          (setq x (+ x step) i (1+ i)))
+        (setq regions (append (nreverse regions)
+                              (cg-svg-slider-draw svg pad (+ pad h 8) cg-card-scale)))
+        (propertize "*" 'display (cg-svg-image svg (cg-scale))
+                    'cg-regions regions)))))
 
-(defun cg-rummy--render-cards (cards cursor marks &optional hint-fn)
+(defun cg-rummy--render-cards (cards cursor marks &optional hint-fn region-tag)
   "Return a propertized row of CARDS.
 CURSOR is the highlighted index, MARKS a list of marked indices, and
-HINT-FN an optional predicate marking playable cards.  Draws SVG cards on
-a graphical display (see `cg-rummy-svg-cards'), else a plain-text row."
+HINT-FN an optional predicate marking playable cards.  When REGION-TAG is
+non-nil the SVG row is clickable (each card mapped to (REGION-TAG . INDEX))
+and carries a card-size slider.  Draws SVG cards on a graphical display
+\(see `cg-rummy-svg-cards'), else a plain-text row."
   (if (and cg-rummy-svg-cards (display-graphic-p))
-      (cg-rummy--svg-row cards cursor marks hint-fn)
+      (cg-rummy--svg-row cards cursor marks hint-fn region-tag)
   (let ((i 0) (out '()))
     (dolist (c cards)
       (let ((cs (cg-rummy-card-string c)) (faces nil))
@@ -485,7 +510,7 @@ a graphical display (see `cg-rummy-svg-cards'), else a plain-text row."
           out)
     (push (format "  Your hand (deadwood %d, score %d):\n   "
                   (cg-gin--deadwood hand) (aref scores 0)) out)
-    (push (cg-rummy--render-cards hand cursor nil) out)
+    (push (cg-rummy--render-cards hand cursor nil nil 'hand) out)
     (when reveal
       (let ((p (cg-rummy-best-partition hand)))
         (push (format "\n    melds: %s\n    deadwood: %s"
@@ -495,9 +520,16 @@ a graphical display (see `cg-rummy-svg-cards'), else a plain-text row."
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-gin-game) action)
+  "Apply a click ACTION on the hand to GAME G."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i))
+    (_ (cl-call-next-method))))
+
 (defun cg-gin--redisplay ()
   "Redraw the Gin Rummy buffer."
   (let ((game cg-gin--game) (inhibit-read-only t))
+        (setq cg-current-game game cg-redisplay-function #'cg-gin--redisplay)
     (setq-local mode-line-process
                 (format " [%s]" (or (cg-get game :step) (cg-get game :phase))))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
@@ -610,6 +642,11 @@ a graphical display (see `cg-rummy-svg-cards'), else a plain-text row."
 
 (defvar cg-gin-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-gin-left)
     (define-key map (kbd "<right>") #'cg-gin-right)
     (define-key map "s" #'cg-gin-draw-stock)

@@ -1085,3 +1085,19 @@
     (should (> (buffer-size) 0))
     (cg-render-apply cg-sol--game '(col . 5))
     (should (= 11 (cg-get cg-sol--game :cursor)))))   ; spot index of (col . 5)
+;;;; Hand-cluster click regions + card-size slider
+
+(ert-deftest cgt-hand-regions ()
+  (let* ((cards '((0 . 0) (0 . 1) (1 . 5)))
+         (str (cg-rummy--svg-row cards 0 nil nil 'hand))
+         (regs (get-text-property 0 'cg-regions str)))
+    (should (= (+ 3 (length cg-svg-slider-stops)) (length regs)))   ; 3 cards + stops
+    (should (equal '(hand . 0) (cdr (car regs))))
+    (should (cl-find-if (lambda (r) (eq (car-safe (cdr r)) 'scale)) regs)))
+  (let ((g (cg-gin--deal (cg-gin-game))) (cg-card-scale 1.0))
+    (cg-render-apply g '(hand . 2))
+    (should (= 2 (cg-get g :cursor)))
+    (cg-render-apply g '(scale . 1.5))         ; base method handles scale
+    (should (= 1.5 cg-card-scale))
+    (cg-render-apply g 'zoom-reset)
+    (should (= 1.0 cg-card-scale))))

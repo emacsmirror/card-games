@@ -208,12 +208,19 @@ Return non-nil when S can ask."
     (push (format "\n  Stock: %d        Your books: %d\n\n"
                   (length (cg-get game :stock)) (cg-gf--books game 0)) out)
     (push "  Your hand:\n   " out)
-    (push (cg-rummy--render-cards hand cursor nil) out)
+    (push (cg-rummy--render-cards hand cursor nil nil 'hand) out)
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-go-fish-game) action)
+  "Apply a click ACTION on the hand to GAME G."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i))
+    (_ (cl-call-next-method))))
+
 (defun cg-gf--redisplay ()
   (let ((game cg-gf--game) (inhibit-read-only t))
+        (setq cg-current-game game cg-redisplay-function #'cg-gf--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -257,6 +264,11 @@ Return non-nil when S can ask."
 
 (defvar cg-go-fish-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-gf-left)
     (define-key map (kbd "<right>") #'cg-gf-right)
     (dolist (k '("1" "2" "3" "4")) (define-key map k #'cg-gf-ask))

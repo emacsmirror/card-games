@@ -384,5 +384,24 @@ targets.  PAD is the margin around the grid."
     (svg-print svg)
     (buffer-string)))
 
+(cl-defun cg-svg-hand-svg (specs &key cursor hints marks (overlap 0) (pad 8))
+  "Return an svg drawing SPECS as a left-to-right hand.
+CURSOR is the index to ring as the cursor; HINTS and MARKS are lists of
+indices to ring as playable and as marked; OVERLAP fans the cards."
+  (let* ((w cg-svg-card-width) (h cg-svg-card-height)
+         (step (max 1 (- (+ w cg-svg-card-gap) overlap)))
+         (n (length specs))
+         (width (+ (* 2 pad) (if (> n 0) (+ (* (1- n) step) w) w)))
+         (height (+ (* 2 pad) h))
+         (svg (svg-create width height))
+         (x pad) (i 0))
+    (dolist (spec specs)
+      (cg-svg--draw-spec svg x pad spec (eql i cursor) (and (memq i hints) t))
+      (when (memq i marks)
+        (svg-rectangle svg (- x 3) (- pad 3) (+ w 6) (+ h 6)
+                       :rx 7 :fill "none" :stroke "#4a90d9" :stroke-width 3))
+      (setq x (+ x step) i (1+ i)))
+    svg))
+
 (provide 'cg-svg)
 ;;; cg-svg.el ends here

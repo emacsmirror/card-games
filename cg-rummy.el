@@ -48,6 +48,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 (defconst cg-rummy-ranks
   ["A" "2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K"]
@@ -278,10 +279,37 @@ NDECKS defaults to 1 and JOKERS to 0."
                 (sb (if (cg-rummy-joker-p b) 99 (car b))))
             (if (= sa sb) (< (cdr a) (cdr b)) (< sa sb))))))
 
+(defcustom cg-rummy-svg-cards t
+  "When non-nil, draw cards as SVG images on a graphical display.
+Set to nil to force the plain-text card row everywhere."
+  :type 'boolean :group 'card-games)
+
+(defun cg-rummy--card-spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD."
+  (if (cg-rummy-joker-p card) (cons "" 'joker)
+    (cons (aref cg-rummy-ranks (cdr card)) (car card))))
+
+(defun cg-rummy--svg-row (cards cursor marks hint-fn)
+  "Return a one-image SVG row for CARDS with CURSOR, MARKS and HINT-FN."
+  (let* ((specs (mapcar #'cg-rummy--card-spec cards))
+         (hints (when hint-fn
+                  (let ((hs '()) (i 0))
+                    (dolist (c cards) (when (funcall hint-fn c) (push i hs))
+                            (setq i (1+ i)))
+                    hs)))
+         (cur (and (integerp cursor) (>= cursor 0) cursor))
+         (overlap (if (> (length cards) 11) (max 0 (- cg-svg-card-width 24)) 0))
+         (svg (cg-svg-hand-svg specs :cursor cur :hints hints
+                               :marks marks :overlap overlap)))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale)))))
+
 (defun cg-rummy--render-cards (cards cursor marks &optional hint-fn)
   "Return a propertized row of CARDS.
 CURSOR is the highlighted index, MARKS a list of marked indices, and
-HINT-FN an optional predicate marking playable cards."
+HINT-FN an optional predicate marking playable cards.  Draws SVG cards on
+a graphical display (see `cg-rummy-svg-cards'), else a plain-text row."
+  (if (and cg-rummy-svg-cards (display-graphic-p))
+      (cg-rummy--svg-row cards cursor marks hint-fn)
   (let ((i 0) (out '()))
     (dolist (c cards)
       (let ((cs (cg-rummy-card-string c)) (faces nil))
@@ -292,7 +320,7 @@ HINT-FN an optional predicate marking playable cards."
         (when (eql i cursor) (push 'cg-cursor faces))
         (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
       (setq i (1+ i)))
-    (apply #'concat (nreverse out))))
+    (apply #'concat (nreverse out)))))
 
 (defun cg-rummy--melds-string (melds)
   "Return a one-line depiction of MELDS (a list of card-lists)."

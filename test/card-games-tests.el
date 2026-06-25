@@ -1024,3 +1024,42 @@
       (cl-incf turns) (cg-spite--ai-turn g (cg-get g :turn)))
     (should (eq (cg-get g :phase) 'game-over))
     (should (stringp (cg-render g)))))
+;;;; Bridge
+
+(ert-deftest cgt-bridge-score ()
+  (cl-flet ((b (l s d v tk) (plist-get (cg-bridge--deal-score l s d v tk) :below))
+            (a (l s d v tk) (plist-get (cg-bridge--deal-score l s d v tk) :datk))
+            (f (l s d v tk) (plist-get (cg-bridge--deal-score l s d v tk) :defend)))
+    (should (= 100 (b 3 4 0 nil 9)))     ; 3NT made
+    (should (= 120 (b 4 3 0 nil 10)))    ; 4 spades made
+    (should (= 180 (b 6 2 0 nil 12)))    ; 6 hearts made
+    (should (= 500 (a 6 2 0 nil 12)))    ; small slam bonus
+    (should (= 50  (a 1 4 1 nil 7)))     ; 1NT doubled, insult
+    (should (= 100 (f 4 3 0 nil 8)))     ; down two undoubled
+    (should (= 500 (f 4 3 1 t 8))))      ; down two doubled vulnerable
+  (should (= 1 (cg-bridge--trick-winner
+                '((0 . (0 . 12)) (1 . (3 . 0)) (2 . (0 . 2)) (3 . (0 . 5))) 3))))
+
+(ert-deftest cgt-bridge-full ()
+  (let ((scored 0) (passed 0))
+    (dotimes (i 12)
+      (let ((g (cg-bridge-game)) (guard 0))
+        (cg-put g :dealer (mod i 4))
+        (cg-bridge--deal g)
+        (while (and (eq (cg-get g :phase) 'auction) (< guard 60))
+          (cl-incf guard)
+          (let* ((s (cg-get g :bidder)) (call (cg-bridge--ai-call g s)))
+            (unless (cg-bridge--legal-call-p g call) (setq call 'pass))
+            (cg-bridge--apply-call g s call)
+            (cg-bridge--auction-done-p g)))
+        (if (eq (cg-get g :phase) 'passed-out) (cl-incf passed)
+          (let ((p 0))
+            (while (and (eq (cg-get g :phase) 'play) (< p 60))
+              (cl-incf p)
+              (cg-bridge--play-card g (cg-get g :turn) (cg-bridge--ai-play g (cg-get g :turn)))))
+          (when (eq (cg-get g :phase) 'scored)
+            (cl-incf scored)
+            (should (cl-every #'null (append (cg-get g :hands) nil)))))
+        (should (memq (cg-get g :phase) '(scored passed-out)))
+        (should (stringp (cg-render g)))))
+    (should (> scored 0))))

@@ -57,6 +57,7 @@
 (require 'cg-scopa)
 (require 'cg-trick-ext)
 (require 'cg-spite)
+(require 'cg-bridge)
 
 (defvar card-games-list
   '(("500 (Bid)" cg-bid
@@ -122,7 +123,9 @@
     ("Briscola" cg-briscola
      "Trick-taking: fixed trump, no follow; capture the points to 61.")
     ("Spite & Malice" cg-spite
-     "Climbing patience: race to empty your goal pile; Kings are wild."))
+     "Climbing patience: race to empty your goal pile; Kings are wild.")
+    ("Bridge" cg-bridge
+     "Trick-taking: the auction, the dummy, and rubber scoring, to 121."))
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 

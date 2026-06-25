@@ -105,6 +105,12 @@ with its command.
 - ~cg-spite~ -- Spite & Malice.  Race the computer to empty your goal
   pile onto shared centre piles that build Ace to Queen; Kings are wild.
 
+** Bridge
+- ~cg-bridge~ -- Contract Bridge.  A full auction (bids, pass, double,
+  redouble), play with the dummy exposed, and classic rubber scoring with
+  vulnerability.  You are South; when you declare you play the dummy too.
+  The bidding AI is a small natural system, sensible but no expert.
+
 * TODO
 - [X] make the suit symbols customizable (~cg-symbols~) and obey them
 - [ ] a Texinfo manual

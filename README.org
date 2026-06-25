@@ -60,6 +60,20 @@ with its command.
   beat it or pass; first out rules, last out scrubs, and the roles trade
   cards on the next deal.
 
+** Rummy
+- ~cg-gin~ -- Gin Rummy.  A two-handed duel: draw or take the discard,
+  build sets and runs, and knock once your deadwood is ten or less, or go
+  gin with none; your opponent then lays off and may undercut you.  First
+  to 100 wins.
+- ~cg-rummy-basic~ -- Rummy.  Meld sets and runs onto the table and lay
+  cards off onto them; empty your hand to go out and score the cards left
+  in the other hands.
+- ~cg-rum500~ -- Rummy 500.  As above, but you score the cards you lay
+  down and lose the cards left in your hand; first past 500 wins.
+- ~cg-handfoot~ -- Hand & Foot.  A partnership Canasta cousin: play a hand
+  and then a foot, build books of a rank with Twos and Jokers wild, and go
+  out once your side has completed two of them.
+
 * TODO
 - [X] make the suit symbols customizable (~cg-symbols~) and obey them
 - [ ] a Texinfo manual

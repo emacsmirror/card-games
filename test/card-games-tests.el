@@ -828,3 +828,83 @@
 
 (ert-deftest cgt-pres-render ()
   (let ((g (cg-pres--deal (cg-president-game)))) (should (stringp (cg-render g)))))
+;;;; Rummy family
+
+(ert-deftest cgt-rummy-set-run ()
+  (should (cg-rummy-set-p '((0 . 5) (1 . 5) (2 . 5)) :distinct-suits t))
+  (should-not (cg-rummy-set-p '((0 . 5) (0 . 5) (2 . 5)) :distinct-suits t))
+  (should (cg-rummy-run-p '((0 . 3) (0 . 4) (0 . 5))))
+  (should-not (cg-rummy-run-p '((0 . 3) (1 . 4) (0 . 5))))
+  (should (cg-rummy-run-p '((0 . 10) (0 . 11) (0 . 12) (0 . 0)) :ace-high t))
+  (should-not (cg-rummy-run-p '((0 . 11) (0 . 12) (0 . 0))))
+  (should (cg-rummy-run-p '((0 . 0) (0 . 1) (0 . 2)))))
+
+(ert-deftest cgt-rummy-best-partition ()
+  (let* ((hand '((0 . 2)(0 . 3)(0 . 4) (0 . 6)(1 . 6)(2 . 6)
+                 (3 . 8)(3 . 9)(3 . 10) (3 . 12)))
+         (p (cg-rummy-best-partition hand)))
+    (should (= 3 (length (plist-get p :melds))))
+    (should (= 10 (plist-get p :count))))
+  (should (= 0 (cg-rummy-deadwood
+                '((0 . 0)(0 . 1)(0 . 2) (1 . 4)(1 . 5)(1 . 6)
+                  (2 . 8)(2 . 9)(2 . 10)(2 . 11))))))
+
+(ert-deftest cgt-rummy-layoff ()
+  (should (cg-rummy-layoff-p '(3 . 11) '(((3 . 8)(3 . 9)(3 . 10)))))
+  (should-not (cg-rummy-layoff-p '(0 . 4) '(((3 . 8)(3 . 9)(3 . 10))))))
+
+(ert-deftest cgt-gin-full-game ()
+  (let ((g (cg-gin-game)) (turns 0))
+    (cg-gin--deal g)
+    (while (and (not (eq (cg-get g :phase) 'game-over)) (< turns 100000))
+      (if (eq (cg-get g :phase) 'hand-over)
+          (progn (cg-put g :reveal nil) (cg-gin--deal g))
+        (cg-gin--ai-turn g (cg-get g :turn)) (cl-incf turns)))
+    (should (eq (cg-get g :phase) 'game-over))
+    (should (>= (apply #'max (append (cg-get g :scores) nil)) cg-gin-target))))
+
+(ert-deftest cgt-gin-render () (let ((g (cg-gin--deal (cg-gin-game))))
+                                 (should (stringp (cg-render g)))))
+
+(ert-deftest cgt-tablemeld-games ()
+  (dolist (mk (list (lambda () (cg-rummy-basic-game :nplayers 3 :hand-size 7))
+                    (lambda () (cg-rum500-game :nplayers 3 :hand-size 7))))
+    (let ((g (funcall mk)) (turns 0))
+      (cg-tm--deal g)
+      (while (and (not (eq (cg-get g :phase) 'game-over)) (< turns 200000))
+        (if (eq (cg-get g :phase) 'hand-over)
+            (progn (cg-put g :reveal nil) (cg-tm--deal g))
+          (cg-tm--ai-turn g (cg-get g :turn)) (cl-incf turns)))
+      (should (eq (cg-get g :phase) 'game-over))
+      (should (stringp (cg-render g))))))
+
+(ert-deftest cgt-tablemeld-conservation ()
+  (let ((g (cg-rum500-game :nplayers 3 :hand-size 7)))
+    (cg-tm--deal g)
+    (dotimes (_ 30) (when (eq (cg-get g :phase) 'play)
+                      (cg-tm--ai-turn g (cg-get g :turn))))
+    (let ((tot (+ (length (cg-get g :stock)) (length (cg-get g :discard))
+                  (apply #'+ (mapcar (lambda (r) (length (cdr r))) (cg-get g :table))))))
+      (dotimes (s 3) (setq tot (+ tot (length (cg-rummy--hand g s)))))
+      (should (= tot 52)))))
+
+(ert-deftest cgt-handfoot-book ()
+  (should (cg-hf--book-valid-p '((0 . 7)(1 . 7)(2 . 7))))
+  (should (cg-hf--book-valid-p '((0 . 7)(1 . 7)(joker . 0))))      ; dirty
+  (should-not (cg-hf--book-valid-p '((0 . 7)(joker . 0)(joker . 0)))) ; wilds > nats
+  (should-not (cg-hf--book-valid-p '((0 . 2)(1 . 2)(2 . 2))))      ; threes
+  (should (cg-hf--book-complete-p '(a b c d e f g)))
+  (should (cg-hf--book-clean-p '((0 . 7)(1 . 7)(2 . 7))))
+  (should-not (cg-hf--book-clean-p '((0 . 7)(1 . 7)(joker . 0)))))
+
+(ert-deftest cgt-handfoot-full-game ()
+  (let ((g (cg-handfoot-game)) (rounds 0) (turns 0) (expect (* 5 54)))
+    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
+    (cg-hf--deal g)
+    (while (and (not (eq (cg-get g :phase) 'game-over)) (< rounds 60))
+      (cond ((eq (cg-get g :phase) 'round-over)
+             (cg-put g :reveal nil) (cg-hf--deal g) (cl-incf rounds))
+            (t (cg-hf--ai-turn g (cg-get g :turn)) (cl-incf turns)
+               (when (> turns 500000) (error "runaway")))))
+    (should (eq (cg-get g :phase) 'game-over))
+    (should (stringp (cg-render g)))))

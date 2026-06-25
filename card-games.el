@@ -49,6 +49,9 @@
 (require 'cg-eights)
 (require 'cg-patience)
 (require 'cg-president)
+(require 'cg-rummy)
+(require 'cg-rum500)
+(require 'cg-handfoot)
 
 (defvar card-games-list
   '(("500 (Bid)" cg-bid
@@ -88,7 +91,15 @@
     ("Oh Hell" cg-ohhell
      "Trick-taking: shrinking hands; bid the exact tricks you will take.")
     ("President" cg-president
-     "Climbing: shed your hand; first out rules, last out scrubs."))
+     "Climbing: shed your hand; first out rules, last out scrubs.")
+    ("Gin Rummy" cg-gin
+     "Rummy: form melds, knock with little deadwood; head to head to 100.")
+    ("Rummy" cg-rummy-basic
+     "Rummy: meld your whole hand to the table to go out.")
+    ("Rummy 500" cg-rum500
+     "Rummy: score the cards you lay down; race past 500.")
+    ("Hand & Foot" cg-handfoot
+     "Rummy: partnership Canasta cousin; build books from hand and foot."))
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 

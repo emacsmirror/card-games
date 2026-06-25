@@ -49,6 +49,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 ;;;; Cards
 
@@ -600,8 +601,92 @@ With prefix COUNT, pick up exactly COUNT cards from a column."
     (when cursor (push 'cg-cursor faces))
     (propertize (format "%3s " s) 'face (or faces 'default))))
 
+(defcustom cg-sol-svg-cards t
+  "When non-nil, draw the solitaire board as SVG on a graphical display."
+  :type 'boolean :group 'card-games)
+
+(defun cg-sol--spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD, or nil."
+  (and card (cons (aref cg-sol-ranks (cdr card)) (car card))))
+
+(defun cg-sol--svg (game)
+  "Return a propertized one-image SVG board for solitaire GAME."
+  (let* ((w cg-svg-card-width) (h cg-svg-card-height)
+         (pad 12) (gap cg-svg-card-gap) (colgap 8) (vdown 12) (vup 26)
+         (ncols (oref game ncols))
+         (cur-spot (cg-sol--cur-spot game))
+         (sel (cg-get game :sel)) (sel-n (or (cg-get game :sel-n) 0))
+         (lc (cg-color 'shadow :foreground "gray40"))
+         (slots '()))
+    (when (oref game has-stock)
+      (push (list (format "Stock(%d)" (length (cg-get game :stock)))
+                  nil (and (cg-get game :stock) t) (equal cur-spot '(stock . 0))) slots))
+    (when (oref game has-waste)
+      (push (list "Waste" (cg-sol--spec (car (last (cg-get game :waste)))) nil
+                  (equal cur-spot '(waste . 0))) slots))
+    (when (oref game has-reserve)
+      (push (list (format "Resv(%d)" (length (cg-get game :reserve)))
+                  (cg-sol--spec (car (last (cg-get game :reserve)))) nil
+                  (equal cur-spot '(reserve . 0))) slots))
+    (dotimes (i (oref game nfree))
+      (push (list (format "F%d" (1+ i)) (cg-sol--spec (aref (cg-get game :free) i)) nil
+                  (equal cur-spot (cons 'free i))) slots))
+    (dotimes (i (oref game nfound))
+      (push (list (format "%d" (1+ i))
+                  (cg-sol--spec (car (last (aref (cg-get game :found) i)))) nil
+                  (equal cur-spot (cons 'found i))) slots))
+    (setq slots (nreverse slots))
+    (let* ((ntop (length slots))
+           (topw (+ (* 2 pad) (* ntop (+ w gap))))
+           (colsw (+ (* 2 pad) (* ncols (+ w colgap))))
+           (width (max topw colsw))
+           (top-y (+ pad 14)) (col-label-y (+ top-y h 18)) (col-y (+ col-label-y 6))
+           (tab (cg-get game :tableau))
+           (maxext (let ((m h))
+                     (dotimes (c ncols)
+                       (let* ((col (aref tab c)) (d (cg-sol--down game c))
+                              (nu (- (length col) d))
+                              (ext (+ (* d vdown) (* (max 0 (1- nu)) vup) h)))
+                         (setq m (max m ext))))
+                     m))
+           (height (+ col-y maxext pad))
+           (svg (svg-create width height)))
+      (let ((x pad))
+        (dolist (sl slots)
+          (cl-destructuring-bind (label spec downp cursorp) sl
+            (svg-text svg label :x (+ x 1) :y (- top-y 3) :font-size 11 :fill lc
+                      :font-family cg-svg-font-family)
+            (cond (downp (cg-svg-card svg x top-y :down t :highlight cursorp))
+                  (spec (cg-svg-card svg x top-y :rank (car spec) :suit (cdr spec)
+                                     :highlight cursorp))
+                  (t (cg-svg-card svg x top-y :gap t :highlight cursorp))))
+          (setq x (+ x w gap))))
+      (dotimes (c ncols)
+        (let* ((x (+ pad (* c (+ w colgap)))) (col (aref tab c)) (len (length col))
+               (d (cg-sol--down game c)) (y col-y) (r 0)
+               (cursorp (equal cur-spot (cons 'col c))))
+          (svg-text svg (format "%d" (1+ c)) :x (+ x 1) :y col-label-y
+                    :font-size 11 :fill lc :font-family cg-svg-font-family)
+          (if (= len 0)
+              (cg-svg-card svg x y :gap t :highlight cursorp)
+            (dolist (card col)
+              (let* ((downp (< r d)) (top-card (= r (1- len)))
+                     (selp (and (equal sel (cons 'col c)) (>= r (- len sel-n)))))
+                (if downp (cg-svg-card svg x y :down t)
+                  (cg-svg-card svg x y :rank (car (cg-sol--spec card))
+                               :suit (cdr (cg-sol--spec card))
+                               :highlight (and top-card cursorp) :hint selp))
+                (setq y (+ y (if downp vdown vup)) r (1+ r)))))))
+      (propertize "*" 'display (cg-svg-image svg (cg-scale))))))
+
 (cl-defmethod cg-render ((game cg-solitaire-game))
-  "Return a propertized string depicting GAME for a text display."
+  "Return a propertized depiction of GAME (SVG on a graphical display)."
+  (if (and cg-sol-svg-cards (display-graphic-p))
+      (cg-sol--svg game)
+    (cg-sol--render-text game)))
+
+(defun cg-sol--render-text (game)
+  "Return a plain-text depiction of solitaire GAME."
   (let* ((spots (cg-sol--spots game))
          (cur (cg-get game :cursor))
          (cur-spot (nth cur spots))

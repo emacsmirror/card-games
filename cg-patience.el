@@ -44,6 +44,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 (defconst cg-pat-ranks
   ["A" "2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K"]
@@ -302,8 +303,59 @@
     (when cursor (push 'cg-cursor faces))
     (propertize (format "%4s" s) 'face (or faces 'default))))
 
+(defcustom cg-pat-svg-cards t
+  "When non-nil, draw the patience board as SVG on a graphical display."
+  :type 'boolean :group 'card-games)
+
+(defun cg-pat--spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD, or nil."
+  (and card (cons (aref cg-pat-ranks (cdr card)) (car card))))
+
+(defun cg-pat--svg (game)
+  "Return a propertized one-image SVG board for patience GAME."
+  (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 12) (gap cg-svg-card-gap)
+         (rowstep 30) (rows (cg-get game :rows)) (cur (cg-pat--cur-spot game))
+         (marks (cg-get game :marks)) (lc (cg-color 'shadow :foreground "gray40"))
+         (maxlen (apply #'max 1 (mapcar #'length rows))) (nrows (length rows))
+         (width (+ (* 2 pad) (* maxlen (+ w gap))))
+         (boardh (+ (* (1- nrows) rowstep) h)) (bottom-y (+ pad boardh 26))
+         (height (+ bottom-y h pad)) (svg (svg-create width height)) (r 0))
+    (dolist (row rows)
+      (let* ((len (length row)) (x0 (/ (- width (* len (+ w gap))) 2))
+             (y (+ pad (* r rowstep))) (c 0))
+        (dolist (i row)
+          (let* ((card (aref (cg-get game :cards) i)) (x (+ x0 (* c (+ w gap)))))
+            (when card
+              (cg-svg-card svg x y :rank (car (cg-pat--spec card))
+                           :suit (cdr (cg-pat--spec card))
+                           :highlight (equal cur (cons 'slot i))
+                           :hint (and (member (cons 'slot i) marks) t))))
+          (setq c (1+ c))))
+      (setq r (1+ r)))
+    (svg-text svg "Waste" :x pad :y (- bottom-y 3) :font-size 11 :fill lc
+              :font-family cg-svg-font-family)
+    (let ((wt (cg-pat--waste-top game)))
+      (if wt (cg-svg-card svg pad bottom-y :rank (car (cg-pat--spec wt))
+                          :suit (cdr (cg-pat--spec wt))
+                          :highlight (equal cur '(waste . 0))
+                          :hint (and (member '(waste . 0) marks) t))
+        (cg-svg-card svg pad bottom-y :gap t :highlight (equal cur '(waste . 0)))))
+    (svg-text svg (format "Stock(%d)" (length (cg-get game :stock)))
+              :x (+ pad w gap) :y (- bottom-y 3) :font-size 11 :fill lc
+              :font-family cg-svg-font-family)
+    (if (cg-get game :stock)
+        (cg-svg-card svg (+ pad w gap) bottom-y :down t :highlight (equal cur '(stock . 0)))
+      (cg-svg-card svg (+ pad w gap) bottom-y :gap t :highlight (equal cur '(stock . 0))))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale)))))
+
 (cl-defmethod cg-render ((game cg-patience-game))
-  "Return a propertized string depicting GAME for a text display."
+  "Return a propertized depiction of GAME (SVG on a graphical display)."
+  (if (and cg-pat-svg-cards (display-graphic-p))
+      (cg-pat--svg game)
+    (cg-pat--render-text game)))
+
+(defun cg-pat--render-text (game)
+  "Return a plain-text depiction of patience GAME."
   (let* ((cur (cg-pat--cur-spot game)) (marks (cg-get game :marks)) (out (list)))
     (push (format "  %s   Moves: %d\n\n" (oref game vname) (cg-get game :moves)) out)
     (dolist (row (cg-get game :rows))

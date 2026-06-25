@@ -39,6 +39,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 (defconst cg-eights-ranks
   ["2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K" "A"]
@@ -204,6 +205,14 @@ Return the drawn card, or nil when none is available."
 
 (defvar-local cg-eights--game nil "The Crazy Eights game in the current buffer.")
 
+(defcustom cg-eights-svg-cards t
+  "When non-nil, draw the hand as SVG on a graphical display."
+  :type 'boolean :group 'card-games)
+
+(defun cg-eights--spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD."
+  (cons (aref cg-eights-ranks (cdr card)) (car card)))
+
 (cl-defmethod cg-render ((game cg-eights-game))
   "Return a propertized string depicting GAME for a text display."
   (let* ((out (list)) (top (cg-eights--top game))
@@ -221,14 +230,25 @@ Return the drawn card, or nil when none is available."
                   (length (cg-get game :stock)))
           out)
     (push (format "  Your hand (score %d):\n   " (aref (cg-get game :scores) 0)) out)
-    (let ((i 0))
-      (dolist (c hand)
-        (let ((cs (cg-eights-card-string c)) (faces nil))
-          (when (cg-eights-red-p c) (push 'cg-red-suit faces))
-          (when (cg-eights--legal-p game c) (push 'cg-hint faces))
-          (when (= i cursor) (push 'cg-cursor faces))
-          (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
-        (setq i (1+ i))))
+    (if (and cg-eights-svg-cards (display-graphic-p))
+        (let ((hi '()) (i 0))
+          (dolist (c hand) (when (cg-eights--legal-p game c) (push i hi)) (setq i (1+ i)))
+          (push (propertize "*" 'display
+                            (cg-svg-image
+                             (cg-svg-hand-svg (mapcar #'cg-eights--spec hand)
+                                              :cursor cursor :hints hi
+                                              :overlap (if (> (length hand) 11)
+                                                           (max 0 (- cg-svg-card-width 24)) 0))
+                             (cg-scale)))
+                out))
+      (let ((i 0))
+        (dolist (c hand)
+          (let ((cs (cg-eights-card-string c)) (faces nil))
+            (when (cg-eights-red-p c) (push 'cg-red-suit faces))
+            (when (cg-eights--legal-p game c) (push 'cg-hint faces))
+            (when (= i cursor) (push 'cg-cursor faces))
+            (push (propertize (format "%4s" cs) 'face (or faces 'default)) out))
+          (setq i (1+ i)))))
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 

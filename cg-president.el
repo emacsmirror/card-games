@@ -40,6 +40,7 @@
 (require 'cl-lib)
 (require 'eieio)
 (require 'cg-core)
+(require 'cg-svg)
 
 (defconst cg-pres-ranks
   ["2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K" "A"]
@@ -311,6 +312,28 @@
 (defun cg-pres-help () "Controls." (interactive)
   (message "Arrows: choose rank  RET: play (C-u N to lead N)  p: pass  n: new  g: redraw"))
 
+(defcustom cg-pres-svg-cards t
+  "When non-nil, draw the hand as SVG on a graphical display."
+  :type 'boolean :group 'card-games)
+
+(defun cg-pres--svg (game)
+  "Return a propertized SVG row of the hand, one card per rank with a count."
+  (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 10)
+         (gap (+ cg-svg-card-gap 8)) (ranks (cg-pres--hand-ranks game))
+         (cur (cg-get game :cursor)) (hand (cg-pres--hand game 0))
+         (n (length ranks)) (lc (cg-color 'shadow :foreground "gray40"))
+         (width (+ (* 2 pad) (max (+ w gap) (* n (+ w gap)))))
+         (height (+ pad h 20 pad)) (svg (svg-create width height)) (x pad) (i 0))
+    (dolist (r ranks)
+      (let* ((cnt (cl-count r (mapcar #'cdr hand)))
+             (suit (car (cl-find r hand :key #'cdr))))
+        (cg-svg-card svg x pad :rank (aref cg-pres-ranks r) :suit suit
+                     :highlight (= i cur))
+        (svg-text svg (format "x%d" cnt) :x (+ x 3) :y (+ pad h 15)
+                  :font-size 13 :fill lc :font-family cg-svg-font-family))
+      (setq x (+ x w gap) i (1+ i)))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale)))))
+
 (cl-defmethod cg-render ((game cg-president-game))
   "Return a propertized string depicting GAME for a text display."
   (let* ((out (list)) (ranks (cg-pres--hand-ranks game))
@@ -328,14 +351,16 @@
                     "empty -- your lead"))
           out)
     (push "  Your hand (by rank):\n   " out)
-    (let ((i 0))
-      (dolist (r ranks)
-        (let* ((cnt (cl-count r (mapcar #'cdr (cg-pres--hand game 0))))
-               (str (format "%s×%d" (aref cg-pres-ranks r) cnt))
-               (faces nil))
-          (when (= i cur) (push 'cg-cursor faces))
-          (push (propertize (format "%6s" str) 'face (or faces 'default)) out))
-        (cl-incf i)))
+    (if (and cg-pres-svg-cards (display-graphic-p))
+        (push (cg-pres--svg game) out)
+      (let ((i 0))
+        (dolist (r ranks)
+          (let* ((cnt (cl-count r (mapcar #'cdr (cg-pres--hand game 0))))
+                 (str (format "%s×%d" (aref cg-pres-ranks r) cnt))
+                 (faces nil))
+            (when (= i cur) (push 'cg-cursor faces))
+            (push (propertize (format "%6s" str) 'face (or faces 'default)) out))
+          (cl-incf i))))
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 

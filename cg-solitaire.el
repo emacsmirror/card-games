@@ -50,6 +50,7 @@
 (require 'eieio)
 (require 'cg-core)
 (require 'cg-svg)
+(require 'cg-render)
 
 ;;;; Cards
 
@@ -610,31 +611,34 @@ With prefix COUNT, pick up exactly COUNT cards from a column."
   (and card (cons (aref cg-sol-ranks (cdr card)) (car card))))
 
 (defun cg-sol--svg (game)
-  "Return a propertized one-image SVG board for solitaire GAME."
+  "Return (DISPLAY . REGIONS) for an SVG board of solitaire GAME.
+DISPLAY is a propertized one-image string; REGIONS is a click map of
+\(RECT . SPOT) entries, RECT being (X Y W H) in unscaled image pixels."
   (let* ((w cg-svg-card-width) (h cg-svg-card-height)
          (pad 12) (gap cg-svg-card-gap) (colgap 8) (vdown 12) (vup 26)
          (ncols (oref game ncols))
          (cur-spot (cg-sol--cur-spot game))
          (sel (cg-get game :sel)) (sel-n (or (cg-get game :sel-n) 0))
          (lc (cg-color 'shadow :foreground "gray40"))
-         (slots '()))
+         (regions '()) (slots '()))
     (when (oref game has-stock)
       (push (list (format "Stock(%d)" (length (cg-get game :stock)))
-                  nil (and (cg-get game :stock) t) (equal cur-spot '(stock . 0))) slots))
+                  nil (and (cg-get game :stock) t) (equal cur-spot '(stock . 0))
+                  '(stock . 0)) slots))
     (when (oref game has-waste)
       (push (list "Waste" (cg-sol--spec (car (last (cg-get game :waste)))) nil
-                  (equal cur-spot '(waste . 0))) slots))
+                  (equal cur-spot '(waste . 0)) '(waste . 0)) slots))
     (when (oref game has-reserve)
       (push (list (format "Resv(%d)" (length (cg-get game :reserve)))
                   (cg-sol--spec (car (last (cg-get game :reserve)))) nil
-                  (equal cur-spot '(reserve . 0))) slots))
+                  (equal cur-spot '(reserve . 0)) '(reserve . 0)) slots))
     (dotimes (i (oref game nfree))
       (push (list (format "F%d" (1+ i)) (cg-sol--spec (aref (cg-get game :free) i)) nil
-                  (equal cur-spot (cons 'free i))) slots))
+                  (equal cur-spot (cons 'free i)) (cons 'free i)) slots))
     (dotimes (i (oref game nfound))
       (push (list (format "%d" (1+ i))
                   (cg-sol--spec (car (last (aref (cg-get game :found) i)))) nil
-                  (equal cur-spot (cons 'found i))) slots))
+                  (equal cur-spot (cons 'found i)) (cons 'found i)) slots))
     (setq slots (nreverse slots))
     (let* ((ntop (length slots))
            (topw (+ (* 2 pad) (* ntop (+ w gap))))
@@ -653,13 +657,14 @@ With prefix COUNT, pick up exactly COUNT cards from a column."
            (svg (svg-create width height)))
       (let ((x pad))
         (dolist (sl slots)
-          (cl-destructuring-bind (label spec downp cursorp) sl
+          (cl-destructuring-bind (label spec downp cursorp spot) sl
             (svg-text svg label :x (+ x 1) :y (- top-y 3) :font-size 11 :fill lc
                       :font-family cg-svg-font-family)
             (cond (downp (cg-svg-card svg x top-y :down t :highlight cursorp))
                   (spec (cg-svg-card svg x top-y :rank (car spec) :suit (cdr spec)
                                      :highlight cursorp))
-                  (t (cg-svg-card svg x top-y :gap t :highlight cursorp))))
+                  (t (cg-svg-card svg x top-y :gap t :highlight cursorp)))
+            (push (cons (list x top-y w h) spot) regions))
           (setq x (+ x w gap))))
       (dotimes (c ncols)
         (let* ((x (+ pad (* c (+ w colgap)))) (col (aref tab c)) (len (length col))
@@ -667,6 +672,7 @@ With prefix COUNT, pick up exactly COUNT cards from a column."
                (cursorp (equal cur-spot (cons 'col c))))
           (svg-text svg (format "%d" (1+ c)) :x (+ x 1) :y col-label-y
                     :font-size 11 :fill lc :font-family cg-svg-font-family)
+          (push (cons (list x col-y w maxext) (cons 'col c)) regions)
           (if (= len 0)
               (cg-svg-card svg x y :gap t :highlight cursorp)
             (dolist (card col)
@@ -677,13 +683,26 @@ With prefix COUNT, pick up exactly COUNT cards from a column."
                                :suit (cdr (cg-sol--spec card))
                                :highlight (and top-card cursorp) :hint selp))
                 (setq y (+ y (if downp vdown vup)) r (1+ r)))))))
-      (propertize "*" 'display (cg-svg-image svg (cg-scale))))))
+      (cons (propertize "*" 'display (cg-svg-image svg (cg-scale)))
+            (nreverse regions)))))
 
 (cl-defmethod cg-render ((game cg-solitaire-game))
   "Return a propertized depiction of GAME (SVG on a graphical display)."
   (if (and cg-sol-svg-cards (display-graphic-p))
-      (cg-sol--svg game)
+      (car (cg-sol--svg game))
     (cg-sol--render-text game)))
+
+(cl-defmethod cg-render-text ((game cg-solitaire-game))
+  (cg-sol--render-text game))
+
+(cl-defmethod cg-render-svg ((game cg-solitaire-game))
+  (if cg-sol-svg-cards (cg-sol--svg game)
+    (cons (cg-sol--render-text game) nil)))
+
+(cl-defmethod cg-render-apply ((game cg-solitaire-game) action)
+  "Apply a click ACTION (a cursor spot) by selecting it and acting."
+  (let ((idx (cl-position action (cg-sol--spots game) :test #'equal)))
+    (when idx (cg-put game :cursor idx) (cg-sol-act))))
 
 (defun cg-sol--render-text (game)
   "Return a plain-text depiction of solitaire GAME."
@@ -763,13 +782,22 @@ With prefix COUNT, pick up exactly COUNT cards from a column."
                                   (let ((s (cg-get game :sel)))
                                     (if s "carrying" "playing")))))
     (erase-buffer)
-    (insert (cg-render game))
+    (cg-render-game game)
     (goto-char (point-min))))
 
 ;;;; Mode and commands
 
+(defun cg-sol-mouse (event)
+  "Handle a mouse click on the solitaire board: select that pile and act."
+  (interactive "e")
+  (let* ((game cg-sol--game)
+         (r (and game (oref game renderer)))
+         (action (and r (cg-renderer-hit r game (event-start event)))))
+    (when action (cg-render-apply game action))))
+
 (defvar cg-sol-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-sol-mouse)
     (define-key map (kbd "<left>")  #'cg-sol-left)
     (define-key map (kbd "<right>") #'cg-sol-right)
     (define-key map (kbd "<up>")    #'cg-sol-up)

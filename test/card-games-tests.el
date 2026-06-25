@@ -1063,3 +1063,25 @@
         (should (memq (cg-get g :phase) '(scored passed-out)))
         (should (stringp (cg-render g)))))
     (should (> scored 0))))
+;;;; Renderer registry / region keystone
+
+(ert-deftest cgt-keystone-regions ()
+  (let* ((g (cg-sol--deal (make-instance 'cg-klondike-game)))
+         (res (cg-render-svg g)))
+    (should (stringp (car res)))
+    (should (>= (length (cdr res)) 13))           ; 6 top slots + 7 columns
+    (let* ((reg (cl-find '(col . 3) (cdr res) :key #'cdr :test #'equal))
+           (rect (car reg)))
+      (should reg)
+      (should (equal '(col . 3)
+                     (cg-regions-hit (cdr res)
+                                     (+ (nth 0 rect) (/ (nth 2 rect) 2))
+                                     (+ (nth 1 rect) 10)))))
+    (should (null (cg-regions-hit (cdr res) -5 -5))))
+  (with-temp-buffer
+    (setq cg-sol--game (cg-sol--deal (make-instance 'cg-klondike-game)))
+    (cg-render-game cg-sol--game)
+    (should (oref cg-sol--game renderer))
+    (should (> (buffer-size) 0))
+    (cg-render-apply cg-sol--game '(col . 5))
+    (should (= 11 (cg-get cg-sol--game :cursor)))))   ; spot index of (col . 5)

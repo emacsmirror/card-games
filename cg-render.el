@@ -94,5 +94,33 @@ The default treatment comes from `cg-render-resolve-treatment'."
   "Switch GAME to the treatment NAME and return its new renderer."
   (oset game renderer (cg-make-renderer name)))
 
+(cl-defgeneric cg-render-text (game)
+  "Return the plain-text display string for GAME.
+The default falls back to the game's `cg-render' method."
+  (cg-render game))
+
+(cl-defgeneric cg-render-svg (game)
+  "Return (DISPLAY-STRING . REGIONS) for GAME's SVG treatment.
+The default falls back to the `cg-render' string with no click regions."
+  (cons (cg-render game) nil))
+
+(cl-defmethod cg-renderer-draw ((r cg-text-renderer) (game cg-game))
+  "Draw GAME as plain text, clearing any click regions."
+  (oset r regions nil)
+  (insert (cg-render-text game)))
+
+(cl-defmethod cg-renderer-draw ((r cg-svg-renderer) (game cg-game))
+  "Draw GAME as SVG and record its click regions on R."
+  (let ((res (cg-render-svg game)))
+    (oset r regions (cdr res))
+    (insert (car res))))
+
+(cl-defmethod cg-renderer-hit ((r cg-svg-renderer) (game cg-game) position)
+  "Map POSITION to a game action via the regions recorded at the last draw."
+  (ignore game)
+  (let ((xy (posn-object-x-y position)) (sc (cg-scale)))
+    (and xy (cg-regions-hit (oref r regions)
+                            (round (/ (car xy) sc)) (round (/ (cdr xy) sc))))))
+
 (provide 'cg-render)
 ;;; cg-render.el ends here

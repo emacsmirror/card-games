@@ -94,7 +94,10 @@ and SPC as an action key.  Takes effect the next time a game starts."
 
 (defclass cg-renderer ()
   ((name :initarg :name :initform 'text :type symbol
-         :documentation "Symbol naming this treatment."))
+         :documentation "Symbol naming this treatment.")
+   (regions :initarg :regions :initform nil
+            :documentation "Click map from the last draw: list of (RECT . ACTION),
+RECT being (X Y W H) in unscaled image pixels."))
   "Abstract base class for a display treatment (a \"skin\")."
   :abstract t)
 
@@ -112,6 +115,20 @@ Return non-nil when the click was handled.")
 
 (cl-defmethod cg-renderer-hit ((_renderer cg-renderer) (_game cg-game) _position)
   "Default method: treat the click as unhandled."
+  nil)
+
+(defun cg-regions-hit (regions px py)
+  "Return the ACTION of the first region in REGIONS containing PX, PY.
+Each region is (RECT . ACTION) with RECT (X Y W H) in image pixels."
+  (cl-loop for (rect . action) in regions
+           for (x y w h) = rect
+           when (and (>= px x) (< px (+ x w)) (>= py y) (< py (+ y h)))
+           return action))
+
+(cl-defgeneric cg-render-apply (game action)
+  "Perform ACTION (returned by a renderer hit) on GAME.
+The default does nothing; games specialise this to make clicks act."
+  (ignore game action)
   nil)
 
 (defvar cg-renderers nil

@@ -74,6 +74,37 @@ with its command.
   and then a foot, build books of a rank with Twos and Jokers wild, and go
   out once your side has completed two of them.
 
+** Matching
+- ~cg-go-fish~ -- Go Fish.  Ask another player for a rank you hold;
+  collect all four to lay down a book, and make the most books.
+- ~cg-old-maid~ -- Old Maid.  One Queen is set aside; discard pairs and
+  draw blind from your neighbour, and do not be left with the odd Queen.
+
+** Pegging
+- ~cg-cribbage~ -- Cribbage.  Lay two cards to the crib, cut a starter,
+  peg toward 31, then count fifteens, pairs, runs, flushes, and his nobs.
+  Two-handed to 121.
+
+** Capturing
+- ~cg-scopa~ -- Scopa.  A 40-card deck; capture table cards by value and
+  sweep the board for a scopa.  Score cards, coins, the sette bello, and
+  primiera to 11.
+- ~cg-casino~ -- Casino.  The full deck; capture by pairs and sums and
+  score cards, spades, the casinos, and aces to 21.
+
+** More trick-taking
+- ~cg-euchre~ -- Euchre.  A 24-card deck with the two bowers; order up or
+  call trump and take three of five tricks.  Partnership to 10.
+- ~cg-pitch~ -- Auction Pitch.  Bid for the pitch; your first lead sets
+  trump.  Score High, Low, Jack, and Game; first to 7.
+- ~cg-briscola~ -- Briscola.  A fixed trump turned from the deal and no
+  obligation to follow suit; capture the Aces and Threes.  Partnership to
+  61 of the 120 points.
+
+** Climbing patience
+- ~cg-spite~ -- Spite & Malice.  Race the computer to empty your goal
+  pile onto shared centre piles that build Ace to Queen; Kings are wild.
+
 * TODO
 - [X] make the suit symbols customizable (~cg-symbols~) and obey them
 - [ ] a Texinfo manual

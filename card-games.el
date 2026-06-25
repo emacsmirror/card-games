@@ -52,6 +52,11 @@
 (require 'cg-rummy)
 (require 'cg-rum500)
 (require 'cg-handfoot)
+(require 'cg-match)
+(require 'cg-cribbage)
+(require 'cg-scopa)
+(require 'cg-trick-ext)
+(require 'cg-spite)
 
 (defvar card-games-list
   '(("500 (Bid)" cg-bid
@@ -99,7 +104,25 @@
     ("Rummy 500" cg-rum500
      "Rummy: score the cards you lay down; race past 500.")
     ("Hand & Foot" cg-handfoot
-     "Rummy: partnership Canasta cousin; build books from hand and foot."))
+     "Rummy: partnership Canasta cousin; build books from hand and foot.")
+    ("Go Fish" cg-go-fish
+     "Matching: ask for ranks and collect books of four.")
+    ("Old Maid" cg-old-maid
+     "Matching: shed pairs and avoid the leftover Queen.")
+    ("Cribbage" cg-cribbage
+     "Pegging and the show: fifteens, pairs, runs, and his nobs to 121.")
+    ("Scopa" cg-scopa
+     "Capturing: take table cards by value; sweep for a scopa.")
+    ("Casino" cg-casino
+     "Capturing: pairs and sums; big and little casino, aces, sweeps.")
+    ("Euchre" cg-euchre
+     "Trick-taking: 24 cards, bowers, order up; partnership to 10.")
+    ("Pitch" cg-pitch
+     "Trick-taking: bid, pitch to set trump, score High-Low-Jack-Game.")
+    ("Briscola" cg-briscola
+     "Trick-taking: fixed trump, no follow; capture the points to 61.")
+    ("Spite & Malice" cg-spite
+     "Climbing patience: race to empty your goal pile; Kings are wild."))
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 

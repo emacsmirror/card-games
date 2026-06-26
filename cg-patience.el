@@ -291,7 +291,7 @@
   (cg-pat--deal cg-pat--game) (cg-pat--redisplay))
 (defun cg-pat-redraw () "Redraw." (interactive) (cg-pat--redisplay))
 (defun cg-pat-help () "Controls." (interactive)
-  (message "Arrows: move  RET: play/mark/deal  u: undo  n: new  g: redraw"))
+  (message "Arrows or click: move/play  RET: play/mark/deal  u: undo  +/-: size  n: new"))
 
 ;;;; Rendering
 
@@ -312,14 +312,19 @@
   (and card (cons (aref cg-pat-ranks (cdr card)) (car card))))
 
 (defun cg-pat--svg (game)
-  "Return a propertized one-image SVG board for patience GAME."
+  "Return a propertized, clickable one-image SVG board for patience GAME.
+Exposed slots, the waste, and the stock each carry a click region (the
+matching spot); a card-size slider sits below."
   (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 12) (gap cg-svg-card-gap)
          (rowstep 30) (rows (cg-get game :rows)) (cur (cg-pat--cur-spot game))
          (marks (cg-get game :marks)) (lc (cg-color 'shadow :foreground "gray40"))
          (maxlen (apply #'max 1 (mapcar #'length rows))) (nrows (length rows))
-         (width (+ (* 2 pad) (* maxlen (+ w gap))))
+         (sh (cg-svg-slider-height))
+         (width (+ (* 2 pad) (max (* maxlen (+ w gap)) (cg-svg-slider-width))))
          (boardh (+ (* (1- nrows) rowstep) h)) (bottom-y (+ pad boardh 26))
-         (height (+ bottom-y h pad)) (svg (svg-create width height)) (r 0))
+         (slider-y (+ bottom-y h 10))
+         (height (+ slider-y sh pad)) (svg (svg-create width height))
+         (r 0) (regions '()))
     (dolist (row rows)
       (let* ((len (length row)) (x0 (/ (- width (* len (+ w gap))) 2))
              (y (+ pad (* r rowstep))) (c 0))
@@ -329,7 +334,9 @@
               (cg-svg-card svg x y :rank (car (cg-pat--spec card))
                            :suit (cdr (cg-pat--spec card))
                            :highlight (equal cur (cons 'slot i))
-                           :hint (and (member (cons 'slot i) marks) t))))
+                           :hint (and (member (cons 'slot i) marks) t))
+              (when (cg-pat--exposed-p game i)
+                (push (cons (list x y w h) (cons 'slot i)) regions))))
           (setq c (1+ c))))
       (setq r (1+ r)))
     (svg-text svg "Waste" :x pad :y (- bottom-y 3) :font-size 11 :fill lc
@@ -340,13 +347,25 @@
                           :highlight (equal cur '(waste . 0))
                           :hint (and (member '(waste . 0) marks) t))
         (cg-svg-card svg pad bottom-y :gap t :highlight (equal cur '(waste . 0)))))
+    (push (cons (list pad bottom-y w h) (cons 'waste 0)) regions)
     (svg-text svg (format "Stock(%d)" (length (cg-get game :stock)))
               :x (+ pad w gap) :y (- bottom-y 3) :font-size 11 :fill lc
               :font-family cg-svg-font-family)
     (if (cg-get game :stock)
         (cg-svg-card svg (+ pad w gap) bottom-y :down t :highlight (equal cur '(stock . 0)))
       (cg-svg-card svg (+ pad w gap) bottom-y :gap t :highlight (equal cur '(stock . 0))))
-    (propertize "*" 'display (cg-svg-image svg (cg-scale)))))
+    (push (cons (list (+ pad w gap) bottom-y w h) (cons 'stock 0)) regions)
+    (setq regions (append (nreverse regions)
+                          (cg-svg-slider-draw svg pad slider-y cg-card-scale)))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale)) 'cg-regions regions)))
+
+(cl-defmethod cg-render-apply ((g cg-patience-game) action)
+  "Apply a click ACTION (a board spot) to GAME G: select that spot and play."
+  (pcase action
+    ((or `(slot . ,_) `(waste . ,_) `(stock . ,_))
+     (let ((idx (cl-position action (cg-pat--spots g) :test #'equal)))
+       (when idx (cg-put g :cursor idx) (cg-pat-act))))
+    (_ (cl-call-next-method))))
 
 (cl-defmethod cg-render ((game cg-patience-game))
   "Return a propertized depiction of GAME (SVG on a graphical display)."
@@ -380,6 +399,7 @@
 
 (defun cg-pat--redisplay ()
   (let ((game cg-pat--game) (inhibit-read-only t))
+    (setq cg-current-game game cg-redisplay-function #'cg-pat--redisplay)
     (setq-local mode-line-process (format " [%s]" (if (cg-won-p game) "solved" "playing")))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -387,6 +407,11 @@
 
 (defvar cg-pat-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>") #'cg-pat-left)
     (define-key map (kbd "<right>") #'cg-pat-right)
     (define-key map (kbd "<up>") #'cg-pat-left)

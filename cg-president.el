@@ -310,29 +310,35 @@
   (cg-pres--deal cg-pres--game) (cg-pres--run cg-pres--game) (cg-pres--redisplay))
 (defun cg-pres-redraw () "Redraw." (interactive) (cg-pres--redisplay))
 (defun cg-pres-help () "Controls." (interactive)
-  (message "Arrows: choose rank  RET: play (C-u N to lead N)  p: pass  n: new  g: redraw"))
+  (message "Arrows or click: choose/play  RET: play (C-u N to lead N)  p: pass  +/-: size  n: new"))
 
 (defcustom cg-pres-svg-cards t
   "When non-nil, draw the hand as SVG on a graphical display."
   :type 'boolean :group 'card-games)
 
 (defun cg-pres--svg (game)
-  "Return a propertized SVG row of the hand, one card per rank with a count."
+  "Return a propertized, clickable SVG row of the hand: one card per rank.
+Each rank maps to a (hand . INDEX) region and a card-size slider sits below."
   (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 10)
          (gap (+ cg-svg-card-gap 8)) (ranks (cg-pres--hand-ranks game))
          (cur (cg-get game :cursor)) (hand (cg-pres--hand game 0))
          (n (length ranks)) (lc (cg-color 'shadow :foreground "gray40"))
-         (width (+ (* 2 pad) (max (+ w gap) (* n (+ w gap)))))
-         (height (+ pad h 20 pad)) (svg (svg-create width height)) (x pad) (i 0))
+         (sh (cg-svg-slider-height)) (slider-y (+ pad h 22))
+         (width (+ (* 2 pad) (max (+ w gap) (* n (+ w gap)) (cg-svg-slider-width))))
+         (height (+ slider-y sh pad)) (svg (svg-create width height))
+         (x pad) (i 0) (regions '()))
     (dolist (r ranks)
       (let* ((cnt (cl-count r (mapcar #'cdr hand)))
              (suit (car (cl-find r hand :key #'cdr))))
         (cg-svg-card svg x pad :rank (aref cg-pres-ranks r) :suit suit
                      :highlight (= i cur))
         (svg-text svg (format "x%d" cnt) :x (+ x 3) :y (+ pad h 15)
-                  :font-size 13 :fill lc :font-family cg-svg-font-family))
+                  :font-size 13 :fill lc :font-family cg-svg-font-family)
+        (push (cons (list x pad w h) (cons 'hand i)) regions))
       (setq x (+ x w gap) i (1+ i)))
-    (propertize "*" 'display (cg-svg-image svg (cg-scale)))))
+    (setq regions (append (nreverse regions)
+                          (cg-svg-slider-draw svg pad slider-y cg-card-scale)))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale)) 'cg-regions regions)))
 
 (cl-defmethod cg-render ((game cg-president-game))
   "Return a propertized string depicting GAME for a text display."
@@ -364,13 +370,28 @@
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-president-game) action)
+  "Apply a click ACTION on the rank row to GAME G (a click also plays)."
+  (pcase action
+    (`(hand . ,i)
+     (cg-put g :cursor i)
+     (when (and (eq (cg-get g :phase) 'play) (= (cg-get g :turn) 0))
+       (cg-pres-act)))
+    (_ (cl-call-next-method))))
+
 (defun cg-pres--redisplay ()
   (let ((game cg-pres--game) (inhibit-read-only t))
+    (setq cg-current-game game cg-redisplay-function #'cg-pres--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
 (defvar cg-pres-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>") #'cg-pres-left)
     (define-key map (kbd "<right>") #'cg-pres-right)
     (define-key map (kbd "RET") #'cg-pres-act)

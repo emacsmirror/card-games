@@ -233,13 +233,11 @@ Return the drawn card, or nil when none is available."
     (if (and cg-eights-svg-cards (display-graphic-p))
         (let ((hi '()) (i 0))
           (dolist (c hand) (when (cg-eights--legal-p game c) (push i hi)) (setq i (1+ i)))
-          (push (propertize "*" 'display
-                            (cg-svg-image
-                             (cg-svg-hand-svg (mapcar #'cg-eights--spec hand)
-                                              :cursor cursor :hints hi
-                                              :overlap (if (> (length hand) 11)
-                                                           (max 0 (- cg-svg-card-width 24)) 0))
-                             (cg-scale)))
+          (push (cg-svg-hand-image (mapcar #'cg-eights--spec hand)
+                                   :cursor cursor :hints hi
+                                   :overlap (if (> (length hand) 11)
+                                                (max 0 (- cg-svg-card-width 24)) 0)
+                                   :region-tag 'hand)
                 out))
       (let ((i 0))
         (dolist (c hand)
@@ -252,9 +250,19 @@ Return the drawn card, or nil when none is available."
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-eights-game) action)
+  "Apply a click ACTION on the hand to GAME G (a click also plays)."
+  (pcase action
+    (`(hand . ,i)
+     (cg-put g :cursor i)
+     (when (and (eq (cg-get g :phase) 'play) (= (cg-get g :turn) 0))
+       (cg-eights-act)))
+    (_ (cl-call-next-method))))
+
 (defun cg-eights--redisplay ()
   "Redraw the Crazy Eights buffer."
   (let ((game cg-eights--game) (inhibit-read-only t))
+    (setq cg-current-game game cg-redisplay-function #'cg-eights--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -335,10 +343,15 @@ Return the drawn card, or nil when none is available."
 (defun cg-eights-help ()
   "Describe the controls."
   (interactive)
-  (message "Arrows: choose  RET: play  d: draw  x: pass  n: new deal  g: redraw"))
+  (message "Arrows or click: choose/play  RET: play  d: draw  x: pass  +/-: size  n: new  g: redraw"))
 
 (defvar cg-eights-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-eights-left)
     (define-key map (kbd "<right>") #'cg-eights-right)
     (define-key map (kbd "RET") #'cg-eights-act)

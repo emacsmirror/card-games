@@ -1165,3 +1165,28 @@
       (should (cg-hf--book-valid-p (car (cg-hf--books g 0))))
       (should (= 4 (length (cg-rummy--hand g 0))))
       (should-not (cg-get g :discard)))))
+
+;;;; Mouse click-region wiring for eights, president, and the patience boards
+
+(ert-deftest cgt-mouse-regions ()
+  "The newly clickable games attach a `cg-regions' map to their SVG."
+  (let* ((g (cg-pat--deal (cg-golf-game)))
+         (regs (get-text-property 0 'cg-regions (cg-pat--svg g))))
+    (should regs)
+    (should (cl-find '(waste . 0) (mapcar #'cdr regs) :test #'equal))
+    (should (cl-find '(stock . 0) (mapcar #'cdr regs) :test #'equal))
+    (should (cl-find-if (lambda (a) (eq (car a) 'slot)) (mapcar #'cdr regs))))
+  (let ((g (cg-president-game)))
+    (cg-put g :games 0) (cg-pres--deal g)
+    (let ((regs (get-text-property 0 'cg-regions (cg-pres--svg g))))
+      (should regs)
+      (should (cl-find-if (lambda (a) (and (consp a) (eq (car a) 'hand)))
+                          (mapcar #'cdr regs)))))
+  (let ((g (cg-eights-game)))
+    (cg-put g :scores (make-vector 3 0)) (cg-eights--deal g)
+    (let* ((img (cg-svg-hand-image (mapcar #'cg-eights--spec (cg-eights--hand g 0))
+                                   :region-tag 'hand))
+           (regs (get-text-property 0 'cg-regions img)))
+      (should regs)
+      (should (cl-find-if (lambda (a) (and (consp a) (eq (car a) 'hand)))
+                          (mapcar #'cdr regs))))))

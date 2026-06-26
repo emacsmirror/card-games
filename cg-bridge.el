@@ -490,15 +490,13 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
   "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD."
   (cons (aref cg-bridge-ranks (cdr card)) (car card)))
 
-(cl-defun cg-bridge--svg-row (cards &key cursor hints)
-  "Return a one-image SVG row for CARDS with CURSOR and HINTS indices."
-  (propertize "*" 'display
-              (cg-svg-image
-               (cg-svg-hand-svg (mapcar #'cg-bridge--spec cards)
-                                :cursor cursor :hints hints
-                                :overlap (if (> (length cards) 11)
-                                             (max 0 (- cg-svg-card-width 26)) 0))
-               (cg-scale))))
+(cl-defun cg-bridge--svg-row (cards &key cursor hints region-tag)
+  "Return a one-image SVG row for CARDS (clickable + sliderful when REGION-TAG)."
+  (cg-svg-hand-image (mapcar #'cg-bridge--spec cards)
+                     :cursor cursor :hints hints
+                     :overlap (if (> (length cards) 11)
+                                  (max 0 (- cg-svg-card-width 26)) 0)
+                     :region-tag region-tag))
 
 (cl-defmethod cg-render ((game cg-bridge-game))
   "Return a propertized depiction of the Bridge GAME."
@@ -565,7 +563,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
             (when (and (= (cg-get game :turn) act) (cg-bridge--legal-play-p game act c))
               (push i hi))
             (setq i (1+ i)))
-          (push (cg-bridge--svg-row hand :cursor cursor :hints hi) out)))
+          (push (cg-bridge--svg-row hand :cursor cursor :hints hi :region-tag 'hand) out)))
        ((eq phase 'play)
         (let ((i 0))
           (dolist (c hand)
@@ -580,8 +578,15 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-bridge-game) action)
+  "Apply a click ACTION on the hand: select that card and play it."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i) (cg-bridge-play))
+    (_ (cl-call-next-method))))
+
 (defun cg-bridge--redisplay ()
   (let ((game cg-bridge--game) (inhibit-read-only t))
+    (setq cg-current-game game cg-redisplay-function #'cg-bridge--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -728,6 +733,11 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
 
 (defvar cg-bridge-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-bridge-left)
     (define-key map (kbd "<right>") #'cg-bridge-right)
     (define-key map (kbd "<up>")    #'cg-bridge-up)

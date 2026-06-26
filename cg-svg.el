@@ -435,5 +435,34 @@ Return its click regions as a list of (RECT . (scale . VALUE))."
       (setq i (1+ i)))
     (nreverse regions)))
 
+(cl-defun cg-svg-hand-image (specs &key cursor marks hints (overlap 0) region-tag)
+  "Return a propertized one-image string for a hand of card SPECS.
+CURSOR is the highlighted index; MARKS and HINTS are index lists.  With
+REGION-TAG non-nil, the image carries a `cg-regions' click map (each card
+as (REGION-TAG . INDEX)) and a card-size slider beneath the row."
+  (if (not region-tag)
+      (propertize "*" 'display
+                  (cg-svg-image (cg-svg-hand-svg specs :cursor cursor :hints hints
+                                                 :marks marks :overlap overlap)
+                                (cg-scale)))
+    (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 8)
+           (step (max 1 (- (+ w cg-svg-card-gap) overlap)))
+           (n (length specs))
+           (cardw (if (> n 0) (+ (* (1- n) step) w) w))
+           (sh (cg-svg-slider-height))
+           (width (+ (* 2 pad) (max cardw (cg-svg-slider-width))))
+           (height (+ (* 2 pad) h 8 sh))
+           (svg (svg-create width height)) (regions '()) (x pad) (i 0))
+      (dolist (spec specs)
+        (cg-svg--draw-spec svg x pad spec (eql i cursor) (and (memq i hints) t))
+        (when (memq i marks)
+          (svg-rectangle svg (- x 3) (- pad 3) (+ w 6) (+ h 6)
+                         :rx 7 :fill "none" :stroke "#4a90d9" :stroke-width 3))
+        (push (cons (list x pad w h) (cons region-tag i)) regions)
+        (setq x (+ x step) i (1+ i)))
+      (setq regions (append (nreverse regions)
+                            (cg-svg-slider-draw svg pad (+ pad h 8) cg-card-scale)))
+      (propertize "*" 'display (cg-svg-image svg (cg-scale)) 'cg-regions regions))))
+
 (provide 'cg-svg)
 ;;; cg-svg.el ends here

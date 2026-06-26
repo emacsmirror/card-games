@@ -290,41 +290,19 @@ Set to nil to force the plain-text card row everywhere."
     (cons (aref cg-rummy-ranks (cdr card)) (car card))))
 
 (defun cg-rummy--svg-row (cards cursor marks hint-fn &optional region-tag)
-  "Return a one-image SVG row for CARDS.
-When REGION-TAG is non-nil, attach a `cg-regions' click map (each card as
-\(REGION-TAG . INDEX)) and draw a card-size slider beneath the row."
-  (let* ((specs (mapcar #'cg-rummy--card-spec cards))
-         (hints (when hint-fn
-                  (let ((hs '()) (i 0))
-                    (dolist (c cards) (when (funcall hint-fn c) (push i hs))
-                            (setq i (1+ i)))
-                    hs)))
-         (cur (and (integerp cursor) (>= cursor 0) cursor))
-         (overlap (if (> (length cards) 11) (max 0 (- cg-svg-card-width 24)) 0)))
-    (if (not region-tag)
-        (propertize "*" 'display
-                    (cg-svg-image (cg-svg-hand-svg specs :cursor cur :hints hints
-                                                   :marks marks :overlap overlap)
-                                  (cg-scale)))
-      (let* ((w cg-svg-card-width) (h cg-svg-card-height) (pad 8)
-             (step (max 1 (- (+ w cg-svg-card-gap) overlap)))
-             (n (length cards))
-             (cardw (if (> n 0) (+ (* (1- n) step) w) w))
-             (sh (cg-svg-slider-height))
-             (width (+ (* 2 pad) (max cardw (cg-svg-slider-width))))
-             (height (+ (* 2 pad) h 8 sh))
-             (svg (svg-create width height)) (regions '()) (x pad) (i 0))
-        (dolist (spec specs)
-          (cg-svg--draw-spec svg x pad spec (eql i cur) (and (memq i hints) t))
-          (when (memq i marks)
-            (svg-rectangle svg (- x 3) (- pad 3) (+ w 6) (+ h 6)
-                           :rx 7 :fill "none" :stroke "#4a90d9" :stroke-width 3))
-          (push (cons (list x pad w h) (cons region-tag i)) regions)
-          (setq x (+ x step) i (1+ i)))
-        (setq regions (append (nreverse regions)
-                              (cg-svg-slider-draw svg pad (+ pad h 8) cg-card-scale)))
-        (propertize "*" 'display (cg-svg-image svg (cg-scale))
-                    'cg-regions regions)))))
+  "Return a one-image SVG row for CARDS (clickable + sliderful when REGION-TAG).
+HINT-FN is an optional predicate marking playable cards."
+  (let ((hints (when hint-fn
+                 (let ((hs '()) (i 0))
+                   (dolist (c cards) (when (funcall hint-fn c) (push i hs))
+                           (setq i (1+ i)))
+                   hs))))
+    (cg-svg-hand-image (mapcar #'cg-rummy--card-spec cards)
+                       :cursor (and (integerp cursor) (>= cursor 0) cursor)
+                       :marks marks :hints hints
+                       :overlap (if (> (length cards) 11)
+                                    (max 0 (- cg-svg-card-width 24)) 0)
+                       :region-tag region-tag)))
 
 (defun cg-rummy--render-cards (cards cursor marks &optional hint-fn region-tag)
   "Return a propertized row of CARDS.

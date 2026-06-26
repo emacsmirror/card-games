@@ -537,15 +537,13 @@
   "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD."
   (cons (aref cg-trick-ranks (cdr card)) (car card)))
 
-(cl-defun cg-trick--svg-row (cards &key cursor marks hints)
-  "Return a one-image SVG row for CARDS with CURSOR, MARKS, HINTS indices."
-  (propertize "*" 'display
-              (cg-svg-image
-               (cg-svg-hand-svg (mapcar #'cg-trick--spec cards)
-                                :cursor cursor :marks marks :hints hints
-                                :overlap (if (> (length cards) 11)
-                                             (max 0 (- cg-svg-card-width 24)) 0))
-               (cg-scale))))
+(cl-defun cg-trick--svg-row (cards &key cursor marks hints region-tag)
+  "Return a one-image SVG row for CARDS (clickable + sliderful when REGION-TAG)."
+  (cg-svg-hand-image (mapcar #'cg-trick--spec cards)
+                     :cursor cursor :marks marks :hints hints
+                     :overlap (if (> (length cards) 11)
+                                  (max 0 (- cg-svg-card-width 24)) 0)
+                     :region-tag region-tag))
 
 (cl-defmethod cg-render ((game cg-trick-game))
   "Return a propertized string depicting GAME for a text display."
@@ -584,7 +582,8 @@
             (when (member c marks) (push i mi))
             (when (and legalp (cg-trick--legal-p game 0 c)) (push i hi))
             (setq i (1+ i)))
-          (push (cg-trick--svg-row hand :cursor cursor :marks mi :hints hi) out))
+          (push (cg-trick--svg-row hand :cursor cursor :marks mi :hints hi
+                                  :region-tag 'hand) out))
       (let ((i 0))
         (dolist (c hand)
           (let* ((cs (cg-trick-card-string c))
@@ -597,9 +596,16 @@
     (push (format "\n\n  %s\n" (cg-get game :message)) out)
     (apply #'concat (nreverse out))))
 
+(cl-defmethod cg-render-apply ((g cg-trick-game) action)
+  "Apply a click ACTION on the hand: select that card and play it."
+  (pcase action
+    (`(hand . ,i) (cg-put g :cursor i) (cg-trick-act))
+    (_ (cl-call-next-method))))
+
 (defun cg-trick--redisplay ()
   "Redraw the current trick-game buffer."
   (let ((game cg-trick--game) (inhibit-read-only t))
+    (setq cg-current-game game cg-redisplay-function #'cg-trick--redisplay)
     (setq-local mode-line-process
                 (format " [%s]" (or (cg-get game :phase) "play")))
     (erase-buffer)
@@ -675,6 +681,11 @@
 
 (defvar cg-trick-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-trick-left)
     (define-key map (kbd "<right>") #'cg-trick-right)
     (define-key map (kbd "RET") #'cg-trick-act)

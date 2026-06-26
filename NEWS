@@ -1,0 +1,50 @@
+card-games NEWS  -- user-visible changes
+========================================
+
+* Version 1.0.90 (pre-test snapshot)
+
+This release grows the package from the five-game 1.0.60 candidate to a
+full collection of 30 games, all of which now draw SVG card faces on a
+graphical display (with a plain-text fallback in the terminal) and accept
+the mouse as well as the keyboard.
+
+** New games (since 1.0.60)
+  - Solitaire: Klondike, FreeCell, Spider, Yukon, Forty Thieves,
+    Scorpion, Canfield; Golf, TriPeaks, Pyramid.
+  - Trick-taking: Hearts, Spades, Whist, Oh Hell, Euchre, Pitch,
+    Briscola, and Contract Bridge (auction, dummy, rubber scoring).
+  - Rummy family: Gin Rummy, Rummy, Rummy 500, Hand & Foot.
+  - Matching: Go Fish, Old Maid.
+  - Shedding and climbing: Crazy Eights, President.
+  - Pegging: Cribbage.   Capturing: Scopa, Casino.   Spite & Malice.
+  (These join Gaps/Montana, Hell's Half-Acre, and 500 from 1.0.60.)
+
+** Graphics and input
+  - SVG card faces for every game, behind per-game ~cg-*-svg-cards~
+    toggles, with a plain-text fallback off a graphical display.
+  - Mouse support everywhere: click cards to select or play, click board
+    slots and buttons, and use an on-screen card-size slider plus the
+    ~+~ / ~-~ / ~0~ zoom keys.
+
+** Rummy-family rules completed
+  - Rummy 500: take a card from anywhere in the discard pile (key ~T~) --
+    you take it plus every card above it, and meld the chosen card at once.
+  - Hand & Foot: pick up the discard pile (~p~) by melding its top card
+    with two natural cards; red threes score as bonus cards; and each
+    round opens with a rising go-down minimum (50, 90, 120, 150).
+
+** 500 full-SVG UI
+  - The kitty exchange is fully mouse-driven: a Discard button, a five-card
+    selection cap, an on-table guidance banner, legal-play dimming during
+    play, and a clickable ~? Help / Rules~ overlay.
+  - A card-size slider scales the South hand; layout fixes to the
+    "Next hand" button and the hand fan.
+  - Live multiplayer 500 over TCP (~M-x cg-bid-host~ / ~M-x cg-bid-join~).
+
+* Version 1.0.60
+  - First multi-game release candidate: Montana/Gaps, Hell's Half-Acre,
+    500 (with live multiplayer).  SVG rendering foundation and the
+    renderer-strategy registry.
+
+* Version 1.0.50
+  - Initial ELPA-suitable packaging of the engine, Gaps, and 500.

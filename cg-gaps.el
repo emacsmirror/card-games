@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -829,7 +829,7 @@ The board scales to fill the area beside a proportional left panel."
 
 (define-derived-mode cg-gaps-mode special-mode "Gaps"
   "Major mode for playing the gaps family of solitaires."
-  (setq-local cursor-type 'box)
+  (setq-local cursor-type cg-cursor-type)
   (setq-local truncate-lines t)
   (add-hook 'window-configuration-change-hook #'cg-gaps--fit nil t)
   (when (eq cg-keys 'classic)

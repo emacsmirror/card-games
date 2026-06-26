@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -48,6 +48,18 @@
   "Card-size multiplier applied on top of any text scaling.
 Adjust with the card-size slider or the zoom keys (+/-/0)."
   :type 'number :group 'card-games)
+
+(defcustom cg-cursor-type nil
+  "Cursor shape in card-game buffers.
+Card-game buffers are display surfaces -- you act on the highlighted
+card or board cell, not on the text cursor -- so the text cursor is
+hidden by default (nil), which also stops it blinking without touching
+the global `blink-cursor-mode'.  Set to a value such as `box' or `bar'
+to show a cursor instead."
+  :type '(choice (const :tag "Hidden (no blink)" nil)
+                 (const :tag "Box" box) (const :tag "Bar" bar)
+                 (const :tag "Frame default" t))
+  :group 'card-games)
 
 
 ;;;; Engine base
@@ -114,7 +126,7 @@ RECT being (X Y W H) in unscaled image pixels."))
 Return non-nil when the click was handled.")
 
 (cl-defmethod cg-renderer-draw ((renderer cg-renderer) (game cg-game))
-  "Default method: report that no drawing method exists for this pair."
+  "Default method: signal that RENDERER cannot draw GAME."
   (error "No `cg-renderer-draw' for %s under the `%s' renderer"
          (eieio-object-class-name game) (oref renderer name)))
 
@@ -254,7 +266,7 @@ The clicked display string must carry a `cg-regions' text property."
                                 (round (/ (car xy) sc)) (round (/ (cdr xy) sc))))))))
 
 (defun cg-card-click (event)
-  "Dispatch a mouse click on a card or control to the current game."
+  "Dispatch mouse EVENT on a card or control to the current game."
   (interactive "e")
   (let ((action (cg-mouse-action event)))
     (when (and action cg-current-game)

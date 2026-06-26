@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -105,7 +105,7 @@ The default falls back to the `cg-render' string with no click regions."
   (cons (cg-render game) nil))
 
 (cl-defmethod cg-renderer-draw ((r cg-text-renderer) (game cg-game))
-  "Draw GAME as plain text, clearing any click regions."
+  "Draw GAME as plain text on renderer R, clearing any click regions."
   (oset r regions nil)
   (insert (cg-render-text game)))
 
@@ -116,7 +116,7 @@ The default falls back to the `cg-render' string with no click regions."
     (insert (car res))))
 
 (cl-defmethod cg-renderer-hit ((r cg-svg-renderer) (game cg-game) position)
-  "Map POSITION to a game action via the regions recorded at the last draw."
+  "Map POSITION to a GAME action via R regions from the last draw."
   (ignore game)
   (let ((xy (posn-object-x-y position)) (sc (cg-scale)))
     (and xy (cg-regions-hit (oref r regions)

@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -639,7 +639,8 @@ and carries a card-size slider.  Draws SVG cards on a graphical display
 
 (define-derived-mode cg-gin-mode special-mode "Gin"
   "Major mode for Gin Rummy."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun cg-gin ()

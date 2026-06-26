@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -311,7 +311,8 @@ Only subsets of two or more cards are considered.  Return nil if none."
 
 (define-derived-mode cg-fish-mode special-mode "Fish"
   "Major mode for the capturing games Scopa and Casino."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 (defun cg-fish--start (game buffer-name)
   "Start GAME in a buffer named BUFFER-NAME."

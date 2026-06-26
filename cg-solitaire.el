@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -825,6 +825,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
 (define-derived-mode cg-sol-mode special-mode "Solitaire"
   "Major mode for the tableau solitaires."
   (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type)
   (when (eq cg-keys 'classic)
     (use-local-map (cg-sol--classic-keymap))))
 

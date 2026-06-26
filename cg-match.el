@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -280,7 +280,8 @@ Return non-nil when S can ask."
 
 (define-derived-mode cg-go-fish-mode special-mode "GoFish"
   "Major mode for Go Fish."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun cg-go-fish ()
@@ -475,7 +476,8 @@ Return non-nil when S can ask."
 
 (define-derived-mode cg-old-maid-mode special-mode "OldMaid"
   "Major mode for Old Maid."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun cg-old-maid ()

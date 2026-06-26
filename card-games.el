@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -147,7 +147,7 @@ Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 
 (define-derived-mode card-game-mode special-mode "Card-Games"
   "Major mode for the `card-game' chooser."
-  (setq-local cursor-type nil))
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun card-game ()

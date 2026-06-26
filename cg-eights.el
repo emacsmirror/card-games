@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -366,7 +366,8 @@ Return the drawn card, or nil when none is available."
 
 (define-derived-mode cg-eights-mode special-mode "Crazy8"
   "Major mode for Crazy Eights."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun cg-eights ()

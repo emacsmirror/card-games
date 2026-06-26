@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -388,7 +388,8 @@ targets.  PAD is the margin around the grid."
 (cl-defun cg-svg-hand-svg (specs &key cursor hints marks (overlap 0) (pad 8))
   "Return an svg drawing SPECS as a left-to-right hand.
 CURSOR is the index to ring as the cursor; HINTS and MARKS are lists of
-indices to ring as playable and as marked; OVERLAP fans the cards."
+indices to ring as playable and as marked; OVERLAP fans the cards and
+PAD insets the row."
   (let* ((w cg-svg-card-width) (h cg-svg-card-height)
          (step (max 1 (- (+ w cg-svg-card-gap) overlap)))
          (n (length specs))
@@ -437,9 +438,10 @@ Return its click regions as a list of (RECT . (scale . VALUE))."
 
 (cl-defun cg-svg-hand-image (specs &key cursor marks hints (overlap 0) region-tag)
   "Return a propertized one-image string for a hand of card SPECS.
-CURSOR is the highlighted index; MARKS and HINTS are index lists.  With
-REGION-TAG non-nil, the image carries a `cg-regions' click map (each card
-as (REGION-TAG . INDEX)) and a card-size slider beneath the row."
+CURSOR is the highlighted index; MARKS and HINTS are index lists and
+OVERLAP fans the cards.  With REGION-TAG non-nil, the image carries a
+`cg-regions' click map (each card as (REGION-TAG . INDEX)) and a
+card-size slider beneath the row."
   (if (not region-tag)
       (propertize "*" 'display
                   (cg-svg-image (cg-svg-hand-svg specs :cursor cursor :hints hints

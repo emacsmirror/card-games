@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -405,7 +405,8 @@ Each rank maps to a (hand . INDEX) region and a card-size slider sits below."
 
 (define-derived-mode cg-pres-mode special-mode "President"
   "Major mode for President."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun cg-president ()

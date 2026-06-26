@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -753,7 +753,8 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
 
 (define-derived-mode cg-bridge-mode special-mode "Bridge"
   "Major mode for contract Bridge."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 ;;;###autoload
 (defun cg-bridge ()

@@ -1190,3 +1190,46 @@
       (should regs)
       (should (cl-find-if (lambda (a) (and (consp a) (eq (car a) 'hand)))
                           (mapcar #'cdr regs))))))
+
+;;;; 500 SVG-UI: kitty discard cap and on-screen controls
+
+(ert-deftest cgt-bid-kitty-cap ()
+  "Kitty marking never exceeds five cards, and the UI exposes the controls."
+  (let ((g (cg-bid-game)) (cg-bid--human-seats '(0)))
+    (cg-bid--deal g 3)
+    (cg-put g :phase 'kitty) (cg-put g :contractor 0)
+    (cg-put g :contract (nth 0 cg-bid-schedule))
+    (let ((hand (cg-bid-sort-display (cg-bid--hand g 0) nil)))
+      (cg-put g :sorted-hand hand)
+      (cg-put g :marks (cl-subseq hand 0 5))            ; already five
+      (cg-put g :cursor 5)                              ; a sixth, unmarked
+      (with-temp-buffer
+        (setq-local cg-bid--game g)
+        (cg-bid-select)                                 ; must refuse the sixth
+        (should (= 5 (length (cg-get g :marks))))
+        ;; unmark a card that is actually marked (redisplay may have re-sorted
+        ;; the hand by trump, so cursor 0 is not necessarily a marked card)
+        (let* ((sh (cg-get g :sorted-hand)) (mk (cg-get g :marks))
+               (idx (cl-position-if (lambda (c) (member c mk)) sh)))
+          (cg-put g :cursor idx)
+          (cg-bid-select)
+          (should (= 4 (length (cg-get g :marks)))))))
+    ;; the full-SVG kitty panel exposes a Discard region and a card-size slider
+    (let* ((cg-bid-svg-ui t) (cg-bid-svg-fill t)
+           (rg (cdr (cg-bid--ui-svg g 1100 700))))
+      (should (plist-get rg :discard))
+      (should (plist-get rg :sizer)))))
+
+(ert-deftest cgt-bid-svg-controls ()
+  "The full-SVG UI exposes Help and, when open, the overlay's buttons."
+  (let ((g (cg-bid-game)) (cg-bid-svg-ui t) (cg-bid-svg-fill t))
+    (cg-bid--deal g 3)
+    (cg-put g :phase 'auction) (cg-put g :bidder 0)
+    (let ((rg (cdr (cg-bid--ui-svg g 1100 700))))
+      (should (plist-get rg :help))
+      (should-not (plist-get rg :help-close)))
+    (cg-put g :help-open t)
+    (let ((rg (cdr (cg-bid--ui-svg g 1100 700))))
+      (should (plist-get rg :help-close))
+      (should (plist-get rg :help-classic))
+      (should (plist-get rg :help-quit)))))

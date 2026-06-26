@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -573,7 +573,8 @@ melded or laid off at once, the rest go into your hand."
 
 (define-derived-mode cg-tm-mode special-mode "Rummy"
   "Major mode for the table-meld rummy games."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 (defun cg-tm--start (game buffer-name)
   "Start GAME in a buffer named BUFFER-NAME."

@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -699,7 +699,8 @@
 
 (define-derived-mode cg-trick-mode special-mode "Trick"
   "Major mode for the four-handed trick-taking games."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 (defun cg-trick--play-game (class)
   "Start a trick game of CLASS in its own buffer."

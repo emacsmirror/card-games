@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.60
+;; Version: 1.0.90
 ;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
@@ -427,7 +427,8 @@ matching spot); a card-size slider sits below."
 
 (define-derived-mode cg-pat-mode special-mode "Patience"
   "Major mode for the pile solitaires."
-  (setq-local truncate-lines t))
+  (setq-local truncate-lines t)
+  (setq-local cursor-type cg-cursor-type))
 
 (defun cg-pat--play (class)
   (let* ((game (cg-pat--deal (make-instance class)))

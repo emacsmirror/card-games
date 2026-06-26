@@ -119,17 +119,19 @@ with its command.
 * TODO
 - [X] make the suit symbols customizable (~cg-symbols~) and obey them
 - [ ] a Texinfo manual
+- [ ] finish ~checkdoc~ docstrings across the per-game files
+  (the shared engine files are clean; ~make compile~ is warning-free)
 - [ ] renderer "skins": let games subclass the display components (text,
   SVG, full-window SVG)
-- [ ] a manual card-size control for the full-window SVG UI
+- [X] a manual card-size control for the full-window SVG UI
 - [ ] more games
 
 * Install
 ** From the package tarball
 #+begin_src
-make package           # builds card-games-1.0.60.tar
+make package           # builds card-games-1.0.90.tar
 #+end_src
-Then in Emacs: ~M-x package-install-file RET card-games-1.0.60.tar~.
+Then in Emacs: ~M-x package-install-file RET card-games-1.0.90.tar~.
 
 ** From a local ELPA archive
 #+begin_src
@@ -162,8 +164,23 @@ graphical display.
 - Crazy Eights: arrows choose, ~RET~ plays, ~d~ draws, ~x~ passes, ~n~
   new deal, ~?~ help.
 
-On a graphical display, ~v~ toggles the full-window SVG table and
-~+~ / ~-~ / ~0~ (Emacs ~text-scale-adjust~) resize the cards.
+On a graphical display, ~v~ toggles the full-window SVG table.  A
+*Card size* slider (and the ~+~ / ~-~ / ~0~ keys) resizes the cards, and
+in 500 the ~? Help / Rules~ button explains play.  Every game accepts the
+mouse: click cards, board slots, buttons, and the slider.
+
+* Testing
+This is a 1.0.90 pre-test snapshot.  To try it:
+1. ~make compile && make test~ -- should be warning-free and all green.
+2. ~M-x card-game~ opens the menu, or jump straight in, e.g.
+   ~M-x cg-klondike~, ~M-x cg-bid~ (500), ~M-x cg-gin~, ~M-x cg-handfoot~.
+3. On a graphical display, press ~v~ in 500 for the full-window SVG
+   table and play entirely with the mouse: click a bid, click five kitty
+   cards and the *Discard* button, click cards to play, move the *Card
+   size* slider, and open ~? Help / Rules~.
+
+Feedback most wanted: anything a mouse-only player who is new to Emacs
+finds confusing or unreachable, rules bugs, and rendering glitches.
 
 * Customization
 ~M-x customize-group RET cg-svg~ and ~RET card-games~:

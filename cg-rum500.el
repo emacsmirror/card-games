@@ -34,7 +34,9 @@
 ;;   `cg-rummy-basic' -- plain Rummy: the first player to meld their whole
 ;;     hand wins the deal and scores the cards left in the others' hands.
 ;;   `cg-rum500' -- Rummy 500: you score the cards you lay down and lose
-;;     the cards left in your hand; first past 500 wins.
+;;     the cards left in your hand; first past 500 wins.  In Rummy 500 you
+;;     may take a card from anywhere in the discard pile (T): you take that
+;;     card and everything above it, and the chosen card is melded at once.
 ;;
 ;; You are the South player (seat 0); the rest are simple AI.  To meld,
 ;; mark cards with SPC and press m; to lay a card off, put the cursor on
@@ -53,7 +55,8 @@
    (ace-15    :initarg :ace-15    :initform nil)
    (ace-high  :initarg :ace-high  :initform nil)
    (target    :initarg :target    :initform 100)
-   (score-style :initarg :score-style :initform 'go-out))
+   (score-style :initarg :score-style :initform 'go-out)
+   (deep-pickup :initarg :deep-pickup :initform nil))
   "Abstract base for table-meld rummy games (Basic Rummy, Rummy 500)."
   :abstract t)
 
@@ -84,6 +87,7 @@
 
 (defun cg-tm--ace-high (game) (oref game ace-high))
 (defun cg-tm--ace-15 (game) (oref game ace-15))
+(defun cg-tm--deep-pickup (game) (oref game deep-pickup))
 
 (defun cg-tm--draw (game s)
   "Move one stock card to seat S's hand; return it or nil if stock empty."
@@ -240,16 +244,72 @@ Return non-nil if any meld was laid."
       (let ((v (cg-rummy-value c (cg-tm--ace-15 game))))
         (when (> v bestv) (setq best c bestv v))))))
 
+(defun cg-tm--meld-for-target (game cards target)
+  "Return a minimal valid meld (card list) containing TARGET drawn from CARDS.
+Return nil when TARGET cannot join a set or run with the other CARDS."
+  (let* ((ace-high (cg-tm--ace-high game))
+         (pool (cons target cards))
+         (cands (cg-rummy--candidate-melds pool :ace-high ace-high))
+         (vec (vconcat pool))
+         (withtgt (cl-remove-if-not (lambda (m) (memq 0 m)) cands)))
+    (when withtgt
+      (setq withtgt (sort withtgt (lambda (a b) (< (length a) (length b)))))
+      (mapcar (lambda (i) (aref vec i)) (car withtgt)))))
+
+(defun cg-tm--take-deep (game s depth)
+  "Seat S takes the card DEPTH-deep in the discard pile, plus all above it.
+The chosen card is melded or laid off at once, as Rummy 500 requires; the
+rest enter the hand.  Return a status string, or nil when the move is not
+legal (the chosen card cannot be used immediately)."
+  (let* ((pile (cg-get game :discard)) (n (length pile)))
+    (when (and (cg-tm--deep-pickup game) (>= depth 0) (< depth n))
+      (let* ((target (nth depth pile))
+             (above (cl-subseq pile 0 depth))
+             (avail (append (cg-rummy--hand game s) above))
+             (lay (cl-find-if
+                   (lambda (r)
+                     (cg-rummy-meld-p (cons target (cdr r)) :min 3
+                                      :ace-high (cg-tm--ace-high game)))
+                   (cg-get game :table)))
+             (meld (unless lay (cg-tm--meld-for-target game avail target))))
+        (when (or lay meld)
+          (let ((taken (cl-subseq pile 0 (1+ depth))))
+            (cg-put game :discard (nthcdr (1+ depth) pile))
+            (dolist (c taken)
+              (cg-rummy--set-hand game s (cg-rummy-sort-hand
+                                          (cons c (cg-rummy--hand game s))))))
+          (if lay (cg-tm--layoff game s target) (cg-tm--meld game s meld))
+          (format "Took %d card%s and used %s."
+                  (1+ depth) (if (= depth 0) "" "s")
+                  (cg-rummy-card-string target)))))))
+
+(defun cg-tm--ai-deep-pickup (game s)
+  "Try a worthwhile below-the-top discard pickup for seat S.
+Return non-nil when one was taken."
+  (when (cg-tm--deep-pickup game)
+    (let* ((pile (cg-get game :discard)) (n (length pile))
+           (limit (min n 7)) (hand (cg-rummy--hand game s)) (chosen nil))
+      (cl-loop for d from 1 below limit
+               for target = (nth d pile)
+               for above = (cl-subseq pile 0 d)
+               when (cg-tm--meld-for-target game (append hand above) target)
+               do (setq chosen d) (cl-return))
+      (when chosen (cg-tm--take-deep game s chosen)))))
+
 (cl-defmethod cg-tm--ai-turn ((game cg-tablemeld-game) s)
   "Play seat S's whole turn."
-  (let* ((hand (cg-rummy--hand game s))
-         (up (cg-rummy--top game))
-         (cur (cg-rummy-deadwood hand (cg-tm--ace-high game) (cg-tm--ace-15 game)))
-         (with (and up (cg-rummy-deadwood (cons up hand)
-                                          (cg-tm--ace-high game) (cg-tm--ace-15 game))))
-         (drew (if (and up with (< with cur))
-                   (cg-tm--take-top game s)
-                 (cg-tm--draw game s))))
+  (let* ((deep (cg-tm--ai-deep-pickup game s))
+         (drew (if deep t
+                 (let* ((hand (cg-rummy--hand game s))
+                        (up (cg-rummy--top game))
+                        (cur (cg-rummy-deadwood hand (cg-tm--ace-high game)
+                                                (cg-tm--ace-15 game)))
+                        (with (and up (cg-rummy-deadwood
+                                       (cons up hand)
+                                       (cg-tm--ace-high game) (cg-tm--ace-15 game)))))
+                   (if (and up with (< with cur))
+                       (cg-tm--take-top game s)
+                     (cg-tm--draw game s))))))
     (if (not drew)
         (cg-tm--score-hand game nil)
       (cg-tm--ai-melds game s)
@@ -267,6 +327,22 @@ Return non-nil if any meld was laid."
 ;;;; UI
 
 (defvar-local cg-tm--game nil "The table-meld game in the current buffer.")
+
+(defun cg-tm--discard-string (game)
+  "Return the discard-pile display line for GAME.
+Deep-pickup games show the whole pile with depth indices (0 = top)."
+  (cl-flet ((paint (c)
+              (let ((cs (cg-rummy-card-string c)))
+                (if (and c (not (cg-rummy-joker-p c)) (cg-red-suit-p (car c)))
+                    (propertize cs 'face 'cg-red-suit) cs))))
+    (let ((pile (cg-get game :discard)))
+      (if (and (cg-tm--deep-pickup game) (cdr pile))
+          (concat "Discard (0=top): "
+                  (let ((i -1))
+                    (mapconcat
+                     (lambda (c) (setq i (1+ i)) (format "%d:%s" i (paint c)))
+                     (cl-subseq pile 0 (min (length pile) 12)) " ")))
+        (concat "Discard: " (paint (cg-rummy--top game)))))))
 
 (defun cg-tm--layoff-hint (game)
   "Return a predicate marking cards that can be laid off in GAME now."
@@ -295,9 +371,8 @@ Return non-nil if any meld was laid."
                         (mapconcat #'cg-rummy-card-string (cdr rec) " "))
                 out))
       (push "    (empty)\n" out))
-    (push (format "\n  Discard: %s     Stock: %d\n\n"
-                  (let ((cs (cg-rummy-card-string (cg-rummy--top game))) (tp (cg-rummy--top game)))
-                    (if (and tp (cg-red-suit-p (car tp))) (propertize cs 'face 'cg-red-suit) cs))
+    (push (format "\n  %s     Stock: %d\n\n"
+                  (cg-tm--discard-string game)
                   (length (cg-get game :stock)))
           out)
     (push (format "  Your hand%s:\n   "
@@ -415,6 +490,32 @@ Return non-nil if any meld was laid."
                                      (cg-rummy-card-string c))))))
     (cg-tm--redisplay)))
 
+(defun cg-tm-take-deep ()
+  "Take a card from below the top of the discard pile (Rummy 500).
+You take that card and every card lying on top of it; the chosen card is
+melded or laid off at once, the rest go into your hand."
+  (interactive)
+  (let* ((g cg-tm--game) (pile (cg-get g :discard)) (n (length pile)))
+    (cond
+     ((not (cg-tm--my-turn-p g)) (cg-put g :message "Not your turn."))
+     ((not (cg-tm--deep-pickup g))
+      (cg-put g :message "This game lets you take only the top discard (t)."))
+     ((not (eq (cg-get g :step) 'draw)) (cg-put g :message "You already drew."))
+     ((< n 1) (cg-put g :message "The discard pile is empty."))
+     (t (let ((depth (read-number
+                      (format "Take how deep?  0=top .. %d (you must meld that card): "
+                              (1- n)) 0)))
+          (if (and (integerp depth) (>= depth 0) (< depth n))
+              (let ((desc (cg-tm--take-deep g 0 depth)))
+                (if desc
+                    (progn (cg-put g :step 'play) (cg-tm--clamp-cursor g)
+                           (cg-put g :message
+                                   (concat desc "  Meld, lay off, or discard (RET).")))
+                  (cg-put g :message
+                          "You can't use that card right now -- choose another.")))
+            (cg-put g :message "No card at that depth.")))))
+    (cg-tm--redisplay)))
+
 (defun cg-tm-discard ()
   "Discard the cursor card and end your turn."
   (interactive)
@@ -446,7 +547,7 @@ Return non-nil if any meld was laid."
 (defun cg-tm-help ()
   "Describe the table-meld controls."
   (interactive)
-  (message "Arrows: choose  SPC: mark  m: meld  l: lay off  s: draw  t: take  RET: discard  n: new"))
+  (message "Arrows: choose  SPC: mark  m: meld  l: lay off  s: draw  t: take  T: deep take  RET: discard  n: new"))
 
 (defvar cg-tm-mode-map
   (let ((map (make-sparse-keymap)))
@@ -462,6 +563,7 @@ Return non-nil if any meld was laid."
     (define-key map "l" #'cg-tm-layoff)
     (define-key map "s" #'cg-tm-draw-stock)
     (define-key map "t" #'cg-tm-take)
+    (define-key map "T" #'cg-tm-take-deep)
     (define-key map (kbd "RET") #'cg-tm-discard)
     (define-key map "n" #'cg-tm-new)
     (define-key map "g" #'cg-tm-redraw)
@@ -513,6 +615,7 @@ Return non-nil if any meld was laid."
    (score-style :initform 'meld-points)
    (ace-15 :initform t)
    (ace-high :initform t)
+   (deep-pickup :initform t)
    (target :initform 500))
   "A game of Rummy 500.")
 
@@ -528,4 +631,4 @@ Return non-nil if any meld was laid."
 (defalias 'cg-rummy-500 #'cg-rum500)
 
 (provide 'cg-rum500)
-;;; 
+;;; cg-rum500.el ends here

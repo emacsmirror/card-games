@@ -1101,3 +1101,67 @@
     (should (= 1.5 cg-card-scale))
     (cg-render-apply g 'zoom-reset)
     (should (= 1.0 cg-card-scale))))
+
+;;;; Rummy 500 deep pickup and Hand & Foot rule completions
+
+(ert-deftest cgt-rum500-deep-pickup ()
+  "Taking a buried discard card melds it at once, keeping the cards above."
+  (let ((g (cg-rum500-game :nplayers 2 :hand-size 10)))
+    (cg-put g :nplayers 2) (cg-put g :scores (make-vector 2 0))
+    (cg-put g :hands (vector (list (cons 0 5) (cons 0 6)) nil)) ; 6S 7S
+    (cg-put g :discard (list (cons 1 9) (cons 0 4) (cons 2 3))) ; top 10C, buried 5S
+    (cg-put g :table nil) (cg-put g :laid (make-vector 2 0))
+    (cg-put g :turn 0) (cg-put g :step 'draw) (cg-put g :phase 'play)
+    (should (cg-tm--take-deep g 0 1))
+    (should (equal (cg-get g :table) '((0 (0 . 4) (0 . 5) (0 . 6)))))
+    (should (equal (cg-rummy--hand g 0) '((1 . 9))))
+    (should (= 1 (length (cg-get g :discard))))
+    ;; a card you cannot use immediately may not be taken
+    (cg-put g :hands (vector (list (cons 3 11)) nil))
+    (cg-put g :discard (list (cons 1 9) (cons 2 2)))
+    (should-not (cg-tm--take-deep g 0 1))))
+
+(ert-deftest cgt-handfoot-redthree ()
+  "Red threes leave the hand on deal and collect to the team pile."
+  (let ((g (cg-handfoot-game)))
+    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
+    (cg-hf--deal g)
+    (dotimes (s 4)
+      (should (= 0 (cl-count-if #'cg-hf--red-three-p (cg-rummy--hand g s)))))
+    (cg-put g :redthrees (make-vector 2 nil))
+    (cg-rummy--set-hand g 0 (list (cons 2 2) (cons 0 5))) ; 3 of diamonds + 6S
+    (cg-put g :stock (list (cons 0 9)))
+    (should (= 1 (cg-hf--collect-red-threes g 0)))
+    (should (= 1 (length (aref (cg-get g :redthrees) (cg-hf--team g 0)))))
+    (should-not (cl-find-if #'cg-hf--red-three-p (cg-rummy--hand g 0)))))
+
+(ert-deftest cgt-handfoot-min-meld ()
+  "Initial meld must reach the round minimum; below it is refused."
+  (let ((g (cg-handfoot-game)))
+    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
+    (cg-hf--deal g) (cg-put g :round 0)
+    (cg-put g :down (make-vector 2 nil)) (cg-put g :books (make-vector 2 nil))
+    (cg-put g :hands (vector (list (cons 0 3)(cons 1 3)(cons 2 3)) nil nil nil)) ; three 4s = 15
+    (should-not (cg-hf--initial-meld g 0 (cg-rummy--hand g 0)))
+    (should-not (cg-hf--down-p g 0))
+    (cg-put g :hands (vector (list (cons 0 0)(cons 1 0)(cons 2 0)) nil nil nil)) ; three aces = 60
+    (should (cg-hf--initial-meld g 0 (cg-rummy--hand g 0)))
+    (should (cg-hf--down-p g 0))
+    (should (= 1 (length (cg-hf--books g 0))))))
+
+(ert-deftest cgt-handfoot-pickup ()
+  "Picking up melds the top discard and rakes in the cards beneath it."
+  (let ((g (cg-handfoot-game)))
+    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
+    (cg-hf--deal g)
+    (cg-put g :redthrees (make-vector 2 nil)) (cg-put g :books (make-vector 2 nil))
+    (cg-put g :hands (vector (list (cons 0 8)(cons 1 8)(cons 0 4)) nil nil nil)) ; two 9s + 5S
+    (cg-put g :discard (list (cons 2 8)(cons 3 5)(cons 0 6)(cons 1 7))) ; top 9D + 3 beneath
+    (cg-put g :stock nil)
+    (should (cg-hf--pickup-eligible g 0))
+    (let ((top (cg-hf--pickup g 0)))
+      (should (equal top (cons 2 8)))
+      (should (= 1 (length (cg-hf--books g 0))))
+      (should (cg-hf--book-valid-p (car (cg-hf--books g 0))))
+      (should (= 4 (length (cg-rummy--hand g 0))))
+      (should-not (cg-get g :discard)))))

@@ -36,10 +36,11 @@
 ;; computer opponents.  Mark cards with SPC, meld them with m, lay off onto
 ;; a book with l, and discard with RET.
 ;;
-;; This is a deliberately streamlined Hand & Foot: it omits picking up the
-;; discard pile, the red-three bonus, and round-by-round minimum-meld
-;; requirements, keeping the books, wilds, hand/foot, and partnership
-;; scoring that give the game its character.  Cards use the package cons
+;; This Hand & Foot includes the round-by-round go-down minimum (50, 90,
+;; 120, then 150), the red-three bonus (100 each, or 200 each for all four),
+;; and picking up the discard pile -- meld its top card with two matching
+;; naturals (`p') to take the top card plus several cards beneath it.
+;; Cards use the package cons
 ;; (SUIT . RANK), RANK 0 (Ace) .. 12 (King), with jokers as (joker . 0).
 
 ;;; Code:
@@ -52,6 +53,13 @@
 (defcustom cg-handfoot-target 5000
   "Points a partnership needs to win Hand & Foot."
   :type 'integer :group 'card-games)
+
+(defcustom cg-handfoot-pickup-count 7
+  "Cards taken (top included) when picking up the discard pile."
+  :type 'integer :group 'card-games)
+
+(defconst cg-handfoot--minimums [50 90 120 150]
+  "Initial go-down minimum by round, the last value repeating thereafter.")
 
 (defconst cg-handfoot--names ["You" "West" "North" "East"]
   "Seat labels; North is your partner.")
@@ -69,6 +77,10 @@
 (defun cg-hf--three-p (card)
   "Return non-nil when CARD is a three (never meldable)."
   (and (not (cg-rummy-joker-p card)) (= (cdr card) 2)))
+
+(defun cg-hf--red-three-p (card)
+  "Return non-nil when CARD is a red three (a bonus card)."
+  (and (not (cg-rummy-joker-p card)) (= (cdr card) 2) (cg-red-suit-p (car card))))
 
 (defun cg-hf-value (card)
   "Return the Hand & Foot point value of CARD."
@@ -120,8 +132,12 @@
     (cg-put game :feet feet)
     (cg-put game :stage stage)
     (cg-put game :books (make-vector (cg-get game :nteams) nil))
+    (cg-put game :round (1+ (or (cg-get game :round) -1)))
+    (cg-put game :down (make-vector (cg-get game :nteams) nil))
+    (cg-put game :redthrees (make-vector (cg-get game :nteams) nil))
     (cg-put game :discard (list (pop deck)))
     (cg-put game :stock deck)
+    (dotimes (s n) (cg-hf--collect-red-threes game s))
     (cg-put game :turn 0)
     (cg-put game :step 'draw)
     (cg-put game :phase 'play)
@@ -132,6 +148,156 @@
 
 (defun cg-hf--books (game team) (aref (cg-get game :books) team))
 (defun cg-hf--set-books (game team v) (aset (cg-get game :books) team v))
+
+(defun cg-hf--down-p (game team)
+  "Return non-nil when TEAM has met this round's go-down minimum."
+  (aref (cg-get game :down) team))
+
+(defun cg-hf--min-for-round (game)
+  "Return the go-down minimum for GAME's current round."
+  (let ((r (or (cg-get game :round) 0)))
+    (aref cg-handfoot--minimums
+          (min r (1- (length cg-handfoot--minimums))))))
+
+(defun cg-hf--collect-red-threes (game s)
+  "Move seat S's red threes to its team pile, drawing replacements.
+Return the number collected."
+  (let ((team (cg-hf--team game s)) (moved 0) (again t))
+    (while again
+      (setq again nil)
+      (let ((rt (cl-find-if #'cg-hf--red-three-p (cg-rummy--hand game s))))
+        (when rt
+          (cg-rummy--set-hand game s (cg-rummy--remove1 rt (cg-rummy--hand game s)))
+          (aset (cg-get game :redthrees) team
+                (cons rt (aref (cg-get game :redthrees) team)))
+          (setq moved (1+ moved))
+          (let ((stock (cg-get game :stock)))
+            (when stock
+              (cg-rummy--set-hand game s (cg-rummy-sort-hand
+                                          (cons (car stock) (cg-rummy--hand game s))))
+              (cg-put game :stock (cdr stock))))
+          (setq again t))))
+    moved))
+
+(defun cg-hf--take-foot (game s)
+  "Move seat S onto its foot, collecting any red threes it holds."
+  (aset (cg-get game :stage) s 1)
+  (cg-rummy--set-hand game s (aref (cg-get game :feet) s))
+  (cg-hf--collect-red-threes game s))
+
+(defun cg-hf--pickup-eligible (game s)
+  "Return non-nil when seat S may pick up the discard pile.
+That needs two natural cards in hand matching a meldable top discard."
+  (let ((top (cg-rummy--top game)))
+    (and top (not (cg-hf--wild-p top)) (not (cg-hf--three-p top))
+         (>= (cl-count-if (lambda (c) (and (not (cg-hf--wild-p c))
+                                           (= (cdr c) (cdr top))))
+                          (cg-rummy--hand game s))
+             2))))
+
+(defun cg-hf--pickup (game s)
+  "Seat S picks up the discard pile, melding its top card.
+Take the top card plus up to `cg-handfoot-pickup-count' - 1 cards beneath
+it into hand, melding the top with two matching naturals.  Return the top
+card, or nil if ineligible."
+  (when (cg-hf--pickup-eligible game s)
+    (let* ((pile (cg-get game :discard)) (top (car pile)) (rank (cdr top))
+           (team (cg-hf--team game s)) (books (cg-hf--books game team))
+           (nats (cl-remove-if-not
+                  (lambda (c) (and (not (cg-hf--wild-p c)) (= (cdr c) rank)))
+                  (cg-rummy--hand game s)))
+           (two (list (nth 0 nats) (nth 1 nats)))
+           (existing (cl-find-if
+                      (lambda (bk) (and (not (cg-hf--book-complete-p bk))
+                                        (equal (cg-hf--book-rank bk) rank)))
+                      books))
+           (rest (cdr pile))
+           (ntake (min (1- cg-handfoot-pickup-count) (length rest)))
+           (take (cl-subseq rest 0 ntake))
+           (remain (nthcdr ntake rest)))
+      (dolist (c two)
+        (cg-rummy--set-hand game s (cg-rummy--remove1 c (cg-rummy--hand game s))))
+      (if existing
+          (setcar (memq existing books)
+                  (cg-rummy-sort-hand (append (list top) two existing)))
+        (cg-hf--set-books game team
+                          (append books (list (cg-rummy-sort-hand (cons top two))))))
+      (cg-put game :discard remain)
+      (dolist (c take)
+        (cg-rummy--set-hand game s (cg-rummy-sort-hand
+                                    (cons c (cg-rummy--hand game s)))))
+      (cg-hf--collect-red-threes game s)
+      top)))
+
+(defun cg-hf--partition-books (cards)
+  "Partition CARDS into valid books, or nil if they can't all be used.
+Naturals group by rank (each rank needs two), and wilds fill the groups."
+  (if (or (null cards) (cl-some #'cg-hf--three-p cards)) nil
+    (let ((wilds (cl-remove-if-not #'cg-hf--wild-p cards))
+          (byrank (make-hash-table :test 'eql)) (groups '()) (ok t))
+      (dolist (c cards)
+        (unless (cg-hf--wild-p c) (push c (gethash (cdr c) byrank))))
+      (maphash (lambda (_r cs) (push cs groups)) byrank)
+      (when (or (null groups) (cl-some (lambda (g) (< (length g) 2)) groups))
+        (setq ok nil))
+      (when ok
+        (let ((w (copy-sequence wilds)) (books '()))
+          (dolist (g (sort groups (lambda (a b) (< (length a) (length b)))))
+            (let ((bk (copy-sequence g)))
+              (while (and (< (length bk) 3) w) (push (pop w) bk))
+              (push bk books)))
+          (dolist (wcard w)
+            (let ((tgt (cl-find-if
+                        (lambda (bk)
+                          (and (< (length bk) 7)
+                               (< (cl-count-if #'cg-hf--wild-p bk) 3)
+                               (< (cl-count-if #'cg-hf--wild-p bk)
+                                  (cl-count-if-not #'cg-hf--wild-p bk))))
+                        books)))
+              (if tgt (setcar (memq tgt books) (cons wcard tgt)) (setq ok nil))))
+          (if (and ok (cl-every #'cg-hf--book-valid-p books)) books nil))))))
+
+(defun cg-hf--initial-meld (game s cards)
+  "Lay CARDS as seat S's initial meld, meeting the round minimum.
+Return non-nil when the team goes down."
+  (let* ((books (cg-hf--partition-books cards))
+         (team (cg-hf--team game s)))
+    (when (and books
+               (cl-subsetp cards (cg-rummy--hand game s) :test #'equal)
+               (>= (apply #'+ (mapcar #'cg-hf-value cards))
+                   (cg-hf--min-for-round game)))
+      (dolist (c cards)
+        (cg-rummy--set-hand game s (cg-rummy--remove1 c (cg-rummy--hand game s))))
+      (cg-hf--set-books game team
+                        (append (cg-hf--books game team)
+                                (mapcar #'cg-rummy-sort-hand books)))
+      (aset (cg-get game :down) team t)
+      t)))
+
+(defun cg-hf--ai-go-down (game s)
+  "Try to lay seat S's initial meld meeting the round minimum.
+Return non-nil when the team goes down."
+  (let* ((hand (cg-rummy--hand game s))
+         (byrank (make-hash-table :test 'eql))
+         (wilds (cl-remove-if-not #'cg-hf--wild-p hand)) (cards '()))
+    (dolist (c hand)
+      (unless (or (cg-hf--wild-p c) (cg-hf--three-p c))
+        (push c (gethash (cdr c) byrank))))
+    (let ((w (copy-sequence wilds)))
+      (maphash (lambda (_r cs)
+                 (cond ((>= (length cs) 3) (setq cards (append cs cards)))
+                       ((and (= (length cs) 2) w)
+                        (setq cards (append cs (list (pop w)) cards)))))
+               byrank))
+    (when (and cards (>= (apply #'+ (mapcar #'cg-hf-value cards))
+                         (cg-hf--min-for-round game)))
+      (cg-hf--initial-meld game s cards))))
+
+(defun cg-hf--ai-meld (game s)
+  "Meld for seat S, going down only when the round minimum is met."
+  (let ((team (cg-hf--team game s)))
+    (unless (cg-hf--down-p game team) (cg-hf--ai-go-down game s))
+    (when (cg-hf--down-p game team) (cg-hf--ai-extend game s))))
 
 ;;;; Engine
 
@@ -182,8 +348,7 @@
   (let ((stage (cg-get game :stage)))
     (when (and (= (aref stage s) 0) (null (cg-rummy--hand game s)))
       ;; hand exhausted: pick up the foot
-      (aset stage s 1)
-      (cg-rummy--set-hand game s (aref (cg-get game :feet) s)))
+      (cg-hf--take-foot game s))
     (if (and (= (aref stage s) 1) (null (cg-rummy--hand game s))
              (cg-hf--can-go-out-p game (cg-hf--team game s)))
         (cg-hf--score-round game s)
@@ -211,6 +376,8 @@
             (setq pts (+ pts (if (cg-hf--book-clean-p bk) 500 300)))))
         (when (and outseat (= (cg-hf--team game outseat) team))
           (setq pts (+ pts 100)))         ; going-out bonus
+        (let ((k (length (aref (cg-get game :redthrees) team))))
+          (setq pts (+ pts (* k (if (>= k 4) 200 100)))))  ; red threes
         ;; subtract cards left in members' hands and feet
         (dotimes (s (cg-get game :nplayers))
           (when (= (cg-hf--team game s) team)
@@ -244,8 +411,8 @@
 
 ;;;; AI
 
-(defun cg-hf--ai-meld (game s)
-  "Lay down and extend books for seat S as far as is easy."
+(defun cg-hf--ai-extend (game s)
+  "Extend and add books for seat S once the team is down."
   ;; lay off naturals onto existing incomplete team books
   (let ((again t))
     (while again
@@ -312,19 +479,22 @@
 
 (cl-defmethod cg-hf--ai-turn ((game cg-handfoot-game) s)
   "Play seat S's whole turn."
-  (if (not (cg-hf--draw2 game s))
-      (cg-hf--score-round game nil)
-    (cg-hf--ai-meld game s)
-    (when (eq (cg-get game :phase) 'play)
-      ;; if the hand emptied through melding, pick up the foot and meld again
-      (when (and (= (aref (cg-get game :stage) s) 0) (null (cg-rummy--hand game s)))
-        (aset (cg-get game :stage) s 1)
-        (cg-rummy--set-hand game s (aref (cg-get game :feet) s))
-        (cg-hf--ai-meld game s))
+  (let ((got (or (and (> (length (cg-get game :stock)) 30)
+                      (cg-hf--pickup-eligible game s)
+                      (cg-hf--pickup game s))
+                 (cg-hf--draw2 game s))))
+    (if (not got)
+        (cg-hf--score-round game nil)
+      (cg-hf--ai-meld game s)
       (when (eq (cg-get game :phase) 'play)
-        (if (cg-rummy--hand game s)
-            (cg-hf--discard game s (cg-hf--ai-discard-card game s))
-          (cg-hf--advance game s))))))
+        ;; if the hand emptied through melding, pick up the foot and meld again
+        (when (and (= (aref (cg-get game :stage) s) 0) (null (cg-rummy--hand game s)))
+          (cg-hf--take-foot game s)
+          (cg-hf--ai-meld game s))
+        (when (eq (cg-get game :phase) 'play)
+          (if (cg-rummy--hand game s)
+              (cg-hf--discard game s (cg-hf--ai-discard-card game s))
+            (cg-hf--advance game s)))))))
 
 (defun cg-hf--run (game)
   "Advance AI seats until it is your turn or the round ends."
@@ -339,9 +509,15 @@
   "Return a propertized depiction of the Hand & Foot GAME."
   (let* ((out '()) (scores (cg-get game :scores))
          (hand (cg-rummy--hand game 0)) (cursor (cg-get game :cursor)))
-    (push (format "  Hand & Foot      target %d\n\n" cg-handfoot-target) out)
+    (push (format "  Hand & Foot   target %d   round %d  (go-down minimum %d)\n\n"
+                  cg-handfoot-target (1+ (or (cg-get game :round) 0))
+                  (cg-hf--min-for-round game)) out)
     (dotimes (team (cg-get game :nteams))
-      (push (format "  Team %d  (score %d):\n" team (aref scores team)) out)
+      (push (format "  Team %d  (score %d)%s%s:\n" team (aref scores team)
+                    (if (cg-hf--down-p game team) "  down"
+                      (format "  needs %d to go down" (cg-hf--min-for-round game)))
+                    (let ((k (length (aref (cg-get game :redthrees) team))))
+                      (if (> k 0) (format "  red3:%d" k) ""))) out)
       (let ((bks (cg-hf--books game team)))
         (if bks
             (dolist (bk bks)
@@ -359,10 +535,11 @@
                       (length (cg-rummy--hand game s))
                       (if (= (aref (cg-get game :stage) s) 1) " (on foot)" ""))
               out)))
-    (push (format "\n  Discard: %s     Stock: %d\n\n"
+    (push (format "\n  Discard: %s (pile %d)     Stock: %d\n\n"
                   (let ((cs (cg-rummy-card-string (cg-rummy--top game))) (tp (cg-rummy--top game)))
                     (if (and tp (not (cg-rummy-joker-p tp)) (cg-red-suit-p (car tp)))
                         (propertize cs 'face 'cg-red-suit) cs))
+                  (length (cg-get game :discard))
                   (length (cg-get game :stock)))
           out)
     (push (format "  Your %s:\n   " (if (= (aref (cg-get game :stage) 0) 1) "foot" "hand")) out)
@@ -420,23 +597,36 @@
     (mapcar (lambda (i) (nth i hand)) (sort (copy-sequence (cg-get g :marks)) #'<))))
 
 (defun cg-hf-meld ()
-  "Meld the marked cards as a new book."
+  "Meld the marked cards.
+Until your team is down you must mark a complete initial meld -- one or
+more valid books totalling at least the round minimum -- and lay it in one
+action.  After that, mark single books as usual."
   (interactive)
-  (let* ((g cg-hf--game) (cards (cg-hf--marked g)))
+  (let* ((g cg-hf--game) (cards (cg-hf--marked g)) (team (cg-hf--team g 0)))
     (cond
      ((not (cg-hf--my-turn-p g)) (cg-put g :message "Not your turn."))
      ((eq (cg-get g :step) 'draw) (cg-put g :message "Draw first (s)."))
+     ((not (cg-hf--down-p g team))
+      (if (cg-hf--initial-meld g 0 cards)
+          (progn
+            (cg-put g :marks nil) (cg-hf--clamp g)
+            (when (and (= (aref (cg-get g :stage) 0) 0) (null (cg-rummy--hand g 0)))
+              (cg-hf--take-foot g 0) (cg-hf--clamp g))
+            (cg-put g :message
+                    (format "You're down!  (met the %d minimum.)  Meld more, lay off, or discard."
+                            (cg-hf--min-for-round g))))
+        (cg-put g :message
+                (format "Initial meld must be valid books totalling >= %d; mark them all, then m."
+                        (cg-hf--min-for-round g)))))
      ((not (cg-hf--book-valid-p cards))
       (cg-put g :message "Not a legal book: 3+ of a rank, 2+ natural, wilds <= naturals."))
      ((cg-hf--meld g 0 cards)
       (cg-put g :marks nil) (cg-hf--clamp g)
-      (when (and (= (aref (cg-get g :stage) 0) 0) (null (cg-rummy--hand g 0)))
-        (aset (cg-get g :stage) 0 1)
-        (cg-rummy--set-hand g 0 (aref (cg-get g :feet) 0))
-        (cg-hf--clamp g)
-        (cg-put g :message "Hand cleared -- foot picked up!  Keep melding or discard (RET)."))
-      (unless (and (= (aref (cg-get g :stage) 0) 1) (null (cg-rummy--hand g 0)))
-        (cg-put g :message "Booked.  Meld more, lay off (l), or discard (RET).")))
+      (if (and (= (aref (cg-get g :stage) 0) 0) (null (cg-rummy--hand g 0)))
+          (progn (cg-hf--take-foot g 0) (cg-hf--clamp g)
+                 (cg-put g :message "Hand cleared -- foot picked up!  Keep melding or discard (RET)."))
+        (unless (and (= (aref (cg-get g :stage) 0) 1) (null (cg-rummy--hand g 0)))
+          (cg-put g :message "Booked.  Meld more, lay off (l), or discard (RET)."))))
      (t (cg-put g :message "Could not meld those cards.")))
     (cg-hf--redisplay)))
 
@@ -462,9 +652,27 @@
      ((not (cg-hf--my-turn-p g)) (cg-put g :message "Not your turn."))
      ((not (eq (cg-get g :step) 'draw)) (cg-put g :message "You already drew."))
      ((cg-hf--draw2 g 0)
+      (cg-hf--collect-red-threes g 0)
       (cg-put g :step 'play) (cg-hf--clamp g)
       (cg-put g :message "Meld (m), lay off (l), then discard (RET)."))
      (t (cg-hf--score-round g nil)))
+    (cg-hf--redisplay)))
+
+(defun cg-hf-pickup ()
+  "Pick up the discard pile by melding its top card (Hand & Foot)."
+  (interactive)
+  (let ((g cg-hf--game))
+    (cond
+     ((not (cg-hf--my-turn-p g)) (cg-put g :message "Not your turn."))
+     ((not (eq (cg-get g :step) 'draw)) (cg-put g :message "You already drew."))
+     ((not (cg-hf--pickup-eligible g 0))
+      (cg-put g :message
+              "Can't pick up: you need two natural cards matching the top discard."))
+     (t (let ((top (cg-hf--pickup g 0)))
+          (cg-put g :step 'play) (cg-hf--clamp g)
+          (cg-put g :message
+                  (format "Picked up the pile, melding %s.  Meld more, lay off, or discard."
+                          (cg-rummy-card-string top))))))
     (cg-hf--redisplay)))
 
 (defun cg-hf-discard ()
@@ -487,7 +695,8 @@
   (interactive)
   (let ((g cg-hf--game))
     (when (eq (cg-get g :phase) 'game-over)
-      (cg-put g :scores (make-vector (cg-get g :nteams) 0)))
+      (cg-put g :scores (make-vector (cg-get g :nteams) 0))
+      (cg-put g :round -1))
     (cg-put g :reveal nil)
     (cg-hf--deal g)
     (cg-hf--run g)
@@ -498,7 +707,7 @@
 (defun cg-hf-help ()
   "Describe the Hand & Foot controls."
   (interactive)
-  (message "Arrows: choose  SPC: mark  m: meld  l: lay off  s: draw 2  RET: discard  n: new"))
+  (message "Arrows: choose  SPC: mark  m: meld  l: lay off  s: draw 2  p: pick up pile  RET: discard  n: new"))
 
 (defvar cg-handfoot-mode-map
   (let ((map (make-sparse-keymap)))
@@ -513,6 +722,7 @@
     (define-key map "m" #'cg-hf-meld)
     (define-key map "l" #'cg-hf-layoff)
     (define-key map "s" #'cg-hf-draw)
+    (define-key map "p" #'cg-hf-pickup)
     (define-key map (kbd "RET") #'cg-hf-discard)
     (define-key map "n" #'cg-hf-new)
     (define-key map "g" #'cg-hf-redraw)

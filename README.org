@@ -69,10 +69,15 @@ with its command.
   cards off onto them; empty your hand to go out and score the cards left
   in the other hands.
 - ~cg-rum500~ -- Rummy 500.  As above, but you score the cards you lay
-  down and lose the cards left in your hand; first past 500 wins.
+  down and lose the cards left in your hand; first past 500 wins.  Take a
+  buried discard card with ~T~: you take it and every card above it, and
+  meld the chosen card at once.
 - ~cg-handfoot~ -- Hand & Foot.  A partnership Canasta cousin: play a hand
   and then a foot, build books of a rank with Twos and Jokers wild, and go
-  out once your side has completed two of them.
+  out once your side has completed two of them.  Each round opens with a
+  rising go-down minimum (50, 90, 120, 150); red threes are bonus cards;
+  and you can pick up the discard pile (~p~) by melding its top card with
+  two matching naturals.
 
 ** Matching
 - ~cg-go-fish~ -- Go Fish.  Ask another player for a rank you hold;

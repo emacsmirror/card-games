@@ -675,6 +675,91 @@
       (should (= 1 (length (cg-sol--col g 0))))
       (should (= (1- rlen) (length (cg-get g :reserve)))))))
 
+(ert-deftest cgt-sol-russian-bank-deal ()
+  (let ((g (cg-sol--deal (cg-russian-bank-game))))
+    (should (= 8 (oref g ncols)))
+    (should (= 13 (length (cg-get g :reserve))))
+    (dotimes (c 8) (should (= 1 (length (cg-sol--col g c)))))
+    (dotimes (i 4) (should (null (aref (cg-get g :found) i))))
+    (should (= 31 (length (cg-get g :stock))))   ; 52 - 13 reserve - 8 houses
+    ;; Houses build down by alternating colour; foundations up by suit.
+    (should (cg-sol--place-p g '(0 . 6) '(2 . 5)))       ; 7S <- 6D (down, alt)
+    (should-not (cg-sol--place-p g '(0 . 6) '(1 . 5)))   ; 7S <- 6C (same colour)
+    (should (cg-sol--found-accepts g 0 '(3 . 0)))        ; empty foundation takes an Ace
+    (should-not (cg-sol--found-accepts g 0 '(3 . 1)))))  ; but not a Two
+
+(ert-deftest cgt-sol-russian-bank-autofill ()
+  (let ((g (cg-sol--deal (cg-russian-bank-game))))
+    (let ((rlen (length (cg-get g :reserve))))
+      (aset (cg-get g :tableau) 0 nil)   ; empty a house
+      (cg-sol--autofill g)
+      (should (= 1 (length (cg-sol--col g 0))))
+      (should (= (1- rlen) (length (cg-get g :reserve)))))))
+
+;;;; Russian Bank duel (Crapette)
+
+(ert-deftest cgt-crap-deal ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (dotimes (p 2)
+      (should (= 13 (length (cg-crap--reserve g p))))
+      (should (= 35 (length (cg-crap--hand g p))))
+      (should (null (cg-crap--waste g p))))
+    (dotimes (i 8) (should (= 1 (length (cg-crap--house g i)))))
+    (dotimes (i 8) (should (null (cg-crap--found g i))))
+    (should (= 0 (cg-get g :turn)))))
+
+(ert-deftest cgt-crap-legality ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :found) 0 nil)
+    (should (cg-crap--found-accepts g 0 '(3 . 0)))       ; empty -> Ace
+    (should-not (cg-crap--found-accepts g 0 '(3 . 1)))   ; not a Two
+    (aset (cg-get g :found) 0 (list '(3 . 0)))
+    (should (cg-crap--found-accepts g 0 '(3 . 1)))       ; up in suit
+    (should-not (cg-crap--found-accepts g 0 '(2 . 1)))   ; wrong suit
+    (aset (cg-get g :houses) 0 (list '(0 . 6)))          ; 7 of spades (black)
+    (should (cg-crap--house-accepts g 0 '(2 . 5)))       ; 6 of diamonds (red)
+    (should-not (cg-crap--house-accepts g 0 '(1 . 5)))   ; 6 of clubs (black)
+    (should (cg-crap--load-accepts '(2 . 5) '(2 . 6)))   ; same suit, one up
+    (should (cg-crap--load-accepts '(2 . 5) '(2 . 4)))   ; same suit, one down
+    (should-not (cg-crap--load-accepts '(2 . 5) '(3 . 6))) ; wrong suit
+    (should-not (cg-crap--load-accepts '(2 . 5) '(2 . 7))))) ; not adjacent
+
+(ert-deftest cgt-crap-win ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :reserve) 0 nil)
+    (aset (cg-get g :hand) 0 nil)
+    (aset (cg-get g :waste) 0 nil)
+    (should (cg-crap--won-p g 0))
+    (should-not (cg-crap--won-p g 1))))
+
+(ert-deftest cgt-crap-ai-turn ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (cl-flet ((total ()
+                (let ((n 0))
+                  (dotimes (i 8)
+                    (setq n (+ n (length (cg-crap--found g i))
+                              (length (cg-crap--house g i)))))
+                  (dotimes (p 2)
+                    (setq n (+ n (length (cg-crap--reserve g p))
+                              (length (cg-crap--waste g p))
+                              (length (cg-crap--hand g p)))))
+                  n)))
+      (should (= 104 (total)))
+      (cg-put g :turn 1)
+      (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
+      (should (= 104 (total)))              ; the AI turn conserves every card
+      (should-not (eq (cg-get g :winner) 0))))) ; the AI cannot make YOU win
+
+(ert-deftest cgt-crap-ai-plays-foundation ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :reserve) 1 (list '(0 . 0)))   ; AI reserve top = Ace of spades
+    (aset (cg-get g :waste) 1 nil)
+    (aset (cg-get g :hand) 1 nil)
+    (aset (cg-get g :found) 0 nil)
+    (cg-put g :turn 1)
+    (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
+    (should (eq (cg-get g :winner) 1))))     ; plays its last card, wins
+
 (ert-deftest cgt-pat-golf-deal ()
   (let ((g (cg-pat--deal (cg-golf-game))))
     (should (= 35 (length (cg-get g :cards))))

@@ -10,12 +10,14 @@ the mouse as well as the keyboard.
 
 ** New games (since 1.0.60)
   - Solitaire: Klondike, FreeCell, Spider, Yukon, Forty Thieves,
-    Scorpion, Canfield; Golf, TriPeaks, Pyramid.
+    Scorpion, Canfield, Russian Bank; Golf, TriPeaks, Pyramid.
   - Trick-taking: Hearts, Spades, Whist, Oh Hell, Euchre, Pitch,
     Briscola, and Contract Bridge (auction, dummy, rubber scoring).
   - Rummy family: Gin Rummy, Rummy, Rummy 500, Hand & Foot.
   - Matching: Go Fish, Old Maid.
   - Shedding and climbing: Crazy Eights, President.
+  - Two-player: Russian Bank / Crapette, played against the computer
+    (foundations, shared houses, and loading cards onto your opponent).
   - Pegging: Cribbage.   Capturing: Scopa, Casino.   Spite & Malice.
   (These join Gaps/Montana, Hell's Half-Acre, and 500 from 1.0.60.)
 
@@ -40,6 +42,21 @@ the mouse as well as the keyboard.
   - A card-size slider scales the South hand; layout fixes to the
     "Next hand" button and the hand fan.
   - Live multiplayer 500 over TCP (~M-x cg-bid-host~ / ~M-x cg-bid-join~).
+
+** Playtest fixes
+  - ~q~ now returns to the ~M-x card-game~ menu from any game, instead of
+    burying the buffer and leaving the previous buffer on screen.
+  - The cursor/selection ring no longer borrows the theme's ~region~
+    colour, which on some themes drew an alarming ring around the board;
+    it is now the intended gold (customize ~cg-svg-highlight-color~).
+  - Go Fish shows an "Ask for:" row of clickable rank buttons, so you
+    choose a rank to ask for without hunting for one card in a large,
+    overlapped hand.
+  - The tableau solitaires (Klondike, FreeCell, Canfield, and the rest)
+    and Go Fish now show a one-line control legend, so a new deal (~n~),
+    undo, help, and the menu are visible rather than hidden behind a key.
+  - Hell's Half-Acre / Gaps: clearer prompt pointing at the green ~+~
+    gaps to fill, and a ~q menu~ button on the control line.
 
 * Version 1.0.60
   - First multi-game release candidate: Montana/Gaps, Hell's Half-Acre,

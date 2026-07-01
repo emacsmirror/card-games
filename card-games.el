@@ -58,6 +58,7 @@
 (require 'cg-trick-ext)
 (require 'cg-spite)
 (require 'cg-bridge)
+(require 'cg-crapette)
 
 (defvar card-games-list
   '(("500 (Bid)" cg-bid
@@ -82,6 +83,8 @@
      "Shedding: match the suit or rank; eights are wild.")
     ("Canfield" cg-canfield
      "Solitaire: a 13-card reserve and a shifting foundation base rank.")
+    ("Russian Bank" cg-russian-bank
+     "Solitaire: eight houses down by alternating colour; a reserve feeds them.")
     ("Forty Thieves" cg-forty-thieves
      "Solitaire: two decks, ten columns, eight foundations, no redeal.")
     ("Scorpion" cg-scorpion
@@ -125,7 +128,9 @@
     ("Spite & Malice" cg-spite
      "Climbing patience: race to empty your goal pile; Kings are wild.")
     ("Bridge" cg-bridge
-     "Trick-taking: the auction, the dummy, and rubber scoring, to 121."))
+     "Trick-taking: the auction, the dummy, and rubber scoring, to 121.")
+    ("Crapette (Russian Bank)" cg-crapette
+     "Two-player Russian Bank versus the computer; empty your reserve, hand, and waste."))
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 

@@ -1580,3 +1580,19 @@
     (cg-put g :turn 1)
     (let ((cg-ai-level 'easy) (cg-crap--recording nil)) (cg-crap--ai-play g))
     (should (cg-crap--reserve g 1))))
+
+
+(ert-deftest cgt-treatment-set ()
+  (let ((saved (mapcar (lambda (v) (cons v (symbol-value v)))
+                       (append card-games--svg-card-vars card-games--full-svg-vars)))
+        (savedt card-games-treatment))
+    (unwind-protect
+        (progn
+          (card-games-set-treatment 'text)
+          (should-not cg-sol-svg-cards) (should-not cg-crapette-svg-cards)
+          (card-games-set-treatment 'full)
+          (should cg-sol-svg-cards) (should cg-bid-svg-ui) (should cg-gaps-svg-ui)
+          (card-games-set-treatment 'svg)
+          (should cg-sol-svg-cards) (should-not cg-bid-svg-ui))
+      (dolist (pr saved) (set (car pr) (cdr pr)))
+      (setq card-games-treatment savedt))))

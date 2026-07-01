@@ -134,6 +134,40 @@
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 
+(defvar card-games--svg-card-vars
+  '(cg-sol-svg-cards cg-trick-svg-cards cg-rummy-svg-cards cg-eights-svg-cards
+    cg-bridge-svg-cards cg-crapette-svg-cards cg-pat-svg-cards cg-pres-svg-cards)
+  "Per-game SVG-cards toggles that `card-games-set-treatment' flips together.")
+
+(defvar card-games--full-svg-vars
+  '(cg-gaps-svg-ui cg-bid-svg-ui)
+  "Full-window SVG toggles (Gaps and 500) used by the `full' treatment.")
+
+(defvar card-games-treatment 'svg
+  "Display treatment chosen from the menu: `text', `svg', or `full'.")
+
+;;;###autoload
+(defun card-games-set-treatment (treatment)
+  "Set how games are drawn: `text' (UNICODE), `svg' (cards), or `full'.
+`full' also uses the full-window SVG table where a game has one (Gaps and
+500).  Takes effect the next time a game is drawn -- press g to redraw an
+open game.  Gaps and 500 are always graphical on a window system."
+  (interactive
+   (list (intern (completing-read "Treatment: " '("text" "svg" "full") nil t))))
+  (setq card-games-treatment treatment)
+  (let ((cards (and (memq treatment '(svg full)) t))
+        (full (and (eq treatment 'full) t)))
+    (dolist (v card-games--svg-card-vars) (when (boundp v) (set v cards)))
+    (dolist (v card-games--full-svg-vars) (when (boundp v) (set v full))))
+  (when (called-interactively-p 'interactive)
+    (message "Display treatment: %s" treatment)))
+
+(defun card-game--cycle-treatment (_button)
+  "Cycle the display treatment and refresh the chooser."
+  (card-games-set-treatment
+   (pcase card-games-treatment ('text 'svg) ('svg 'full) (_ 'text)))
+  (card-game))
+
 (defun card-game--cycle-ai (_button)
   "Cycle the AI difficulty (`cg-ai-level') and refresh the chooser."
   (setq cg-ai-level (pcase cg-ai-level ('easy 'normal) ('normal 'hard) (_ 'easy)))
@@ -190,7 +224,14 @@ Press RET (or click) on a game to start it."
          'face 'link
          'help-echo "Click to change the AI difficulty (easy/normal/hard)"
          'action #'card-game--cycle-ai)
-        (insert (propertize "   (click to cycle easy/normal/hard)\n\n" 'face 'shadow))
+        (insert (propertize "   (click to cycle easy/normal/hard)\n" 'face 'shadow))
+        (insert "  Cards: ")
+        (insert-text-button
+         (symbol-name card-games-treatment)
+         'face 'link
+         'help-echo "Click to cycle the display: text / svg / full"
+         'action #'card-game--cycle-treatment)
+        (insert (propertize "   (click to cycle text/svg/full)\n\n" 'face 'shadow))
         (dolist (g card-games-list)
           (insert "    ")
           (insert-text-button

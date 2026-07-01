@@ -81,6 +81,12 @@ the mouse as well as the keyboard.
     "Next hand" button and the hand fan.
   - Live multiplayer 500 over TCP (~M-x cg-bid-host~ / ~M-x cg-bid-join~).
 
+** Pick how the games are drawn
+  - From the ~M-x card-game~ menu (or ~M-x card-games-set-treatment~) you
+    can switch all the games between ~text~ (UNICODE cards), ~svg~ (drawn
+    cards), and ~full~ (the full-window SVG table where a game has one,
+    Gaps and 500).
+
 ** Adjustable computer opponents
   - A new ~cg-ai-level~ (easy, normal, hard) sets how hard the computer
     plays, and you can change it right from the ~M-x card-game~ menu (or

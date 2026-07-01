@@ -16,8 +16,11 @@ the mouse as well as the keyboard.
   - Rummy family: Gin Rummy, Rummy, Rummy 500, Hand & Foot.
   - Matching: Go Fish, Old Maid.
   - Shedding and climbing: Crazy Eights, President.
-  - Two-player: Russian Bank / Crapette, played against the computer
-    (foundations, shared houses, and loading cards onto your opponent).
+  - Two-player: Russian Bank / Crapette, played against the computer --
+    foundations, shared houses, loading cards onto your opponent, the
+    "stop" rule that ends your turn if you skip a foundation play
+    (toggle with ~cg-crapette-stops~), and sequenced house-to-house
+    moves limited by the number of empty houses.
   - Pegging: Cribbage.   Capturing: Scopa, Casino.   Spite & Malice.
   (These join Gaps/Montana, Hell's Half-Acre, and 500 from 1.0.60.)
 

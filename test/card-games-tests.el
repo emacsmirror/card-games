@@ -760,6 +760,46 @@
     (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
     (should (eq (cg-get g :winner) 1))))     ; plays its last card, wins
 
+(ert-deftest cgt-crap-house-run ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
+    (should (= 3 (length (cg-crap--house-run g 0))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(0 . 6)))  ; 7S breaks colour
+    (should (= 1 (length (cg-crap--house-run g 0))))))
+
+(ert-deftest cgt-crap-sequence-move ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
+    (aset (cg-get g :houses) 1 (list '(1 . 9)))                    ; 10C
+    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) nil))          ; 6 empty houses
+    (should (eq t (cg-crap--house-move g 0 1)))
+    (should (= 0 (length (cg-crap--house g 0))))
+    (should (= 4 (length (cg-crap--house g 1))))
+    (should (equal '(3 . 6) (cg-crap--top (cg-crap--house g 1))))))
+
+(ert-deftest cgt-crap-sequence-space ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 3-card run
+    (aset (cg-get g :houses) 1 (list '(1 . 9)))                    ; 10C
+    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) (list '(0 . 0)))) ; no empty houses
+    (should (eq 'space (cg-crap--house-move g 0 1)))               ; too big to relay
+    (should (= 3 (length (cg-crap--house g 0))))))                 ; unchanged
+
+(ert-deftest cgt-crap-stop ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :reserve) 0 (list '(3 . 0)))   ; your reserve top is an Ace
+    (aset (cg-get g :found) 0 nil)
+    (should (cg-crap--forced g 0))
+    (let ((cg-crapette-stops nil))                 ; assist: block, no penalty
+      (cg-put g :turn 0)
+      (should (cg-crap--stop g))
+      (should (= 0 (cg-get g :turn)))
+      (should (string-match-p "foundation first" (cg-get g :message))))
+    (let ((cg-crapette-stops t))                   ; competitive: STOP ends your turn
+      (cg-put g :turn 0)
+      (should (cg-crap--stop g))
+      (should (string-match-p "STOP" (cg-get g :message))))))
+
 (ert-deftest cgt-pat-golf-deal ()
   (let ((g (cg-pat--deal (cg-golf-game))))
     (should (= 35 (length (cg-get g :cards))))

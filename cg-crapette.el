@@ -37,18 +37,28 @@
 ;;
 ;; On your turn you make as many legal moves as you like:
 ;;   - move the top of your reserve, your waste, or any house onto a
-;;     foundation or a house, and
+;;     foundation or a house;
+;;   - move a whole SEQUENCE (a run built down in alternating colours)
+;;     from one house to another -- but only when there are enough empty
+;;     houses to have shifted it a card at a time; and
 ;;   - LOAD a card from your reserve or waste onto the opponent's reserve
 ;;     or waste when it is the same suit and one rank up or down.
-;; A card that can go to a foundation MUST be played there before you turn
-;; a card (foundation priority).  When you can do no more, turn the top of
-;; your hand: if it fits somewhere you keep going, otherwise it goes to
-;; your waste and your turn ends.
 ;;
-;; SIMPLIFICATIONS (documented; a faithful-but-streamlined first cut):
-;; the adversarial "stop" call and its penalties are replaced by simply
-;; enforcing foundation priority; sequenced group moves between houses are
-;; done one card at a time; and the AI is a straightforward greedy player.
+;; FOUNDATION PRIORITY and "STOP": a card that can go to a foundation must
+;; be played there before anything else.  If you build a house, load your
+;; opponent, turn a card, or end your turn while a foundation play is
+;; waiting, your opponent calls "STOP!" and your turn ends at once.  The
+;; piles that owe a foundation play are ringed in the hint colour.  Set
+;; `cg-crapette-stops' to nil for a gentler assist mode that blocks the
+;; slip with a reminder instead of ending your turn.
+;;
+;; When you can do no more, turn the top of your hand: if it fits
+;; somewhere you keep going, otherwise it goes to your waste and your turn
+;; ends.
+;;
+;; SIMPLIFICATION (documented): the AI is a straightforward greedy player
+;; and always observes foundation priority, so in practice only you can be
+;; "stopped".
 
 ;;; Code:
 
@@ -57,6 +67,14 @@
 (defconst cg-crap-ranks
   ["A" "2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K"]
   "Rank labels indexed 0 (Ace) .. 12 (King).")
+
+(defcustom cg-crapette-stops t
+  "How Russian Bank enforces foundation priority on your turn.
+When non-nil (the competitive rule), the opponent calls \"stop\" and you
+forfeit the rest of your turn if you make any play other than an
+available foundation move.  When nil, such a slip is simply blocked with
+a reminder and costs you nothing -- a gentler assist mode for learning."
+  :type 'boolean :group 'card-games)
 
 (defclass cg-crapette-game (cg-game)
   ((vname :initform "Russian Bank"))
@@ -126,7 +144,7 @@
     (cg-put game :history nil)
     (cg-put game :winner nil)
     (cg-put game :message
-            "Your turn.  Play to foundations first, then build the houses or load your opponent.")
+            "Your turn.  Foundations first -- skip one and North calls STOP!  Build the houses or load North.")
     game))
 
 
@@ -148,9 +166,13 @@
        (let ((h (cg-crap--house game i)))
          (if (null h)
              t                                       ; empty house takes anything
-           (let ((top (cg-crap--top h)))
-             (and (= (cdr card) (1- (cdr top)))
-                  (not (eq (cg-crap--red-p card) (cg-crap--red-p top)))))))))
+           (cg-crap--builds-down-p (cg-crap--top h) card)))))
+
+(defun cg-crap--builds-down-p (upper lower)
+  "Return non-nil when LOWER may sit on UPPER: one rank down, opposite colour."
+  (and upper lower
+       (= (cdr lower) (1- (cdr upper)))
+       (not (eq (cg-crap--red-p upper) (cg-crap--red-p lower)))))
 
 (defun cg-crap--load-accepts (pile-top card)
   "Return non-nil when CARD may be loaded onto a pile whose top is PILE-TOP.
@@ -162,6 +184,66 @@ Loading needs the same suit and a rank one step up or down."
 (defun cg-crap--found-for (game card)
   "Return the index of a foundation that would accept CARD, or nil."
   (cl-loop for i below 8 when (cg-crap--found-accepts game i card) return i))
+
+
+;;;; Sequenced house moves
+
+(defun cg-crap--house-run (game i)
+  "Return the movable top run of house I as a list, bottom-to-top.
+The run is the longest sequence of cards at the top of the house that is
+built down in alternating colours."
+  (let ((rev (reverse (cg-crap--house game i))))     ; top-first
+    (if (null rev) nil
+      (let ((run (list (car rev))) (prev (car rev)))
+        (catch 'done
+          (dolist (c (cdr rev))                       ; each C sits below PREV
+            (if (cg-crap--builds-down-p c prev)
+                (progn (push c run) (setq prev c))     ; PREV builds down on C
+              (throw 'done nil))))
+        run))))
+
+(defun cg-crap--free-houses (game)
+  "Return the number of empty houses in GAME."
+  (cl-count-if #'null (append (cg-get game :houses) nil)))
+
+(defun cg-crap--capacity (game dest-i)
+  "Return how many cards may be moved as a group onto house DEST-I.
+With F empty houses you may relay F+1 cards onto a non-empty house, or
+F onto an empty house (the destination itself cannot serve as a relay)."
+  (let ((free (cg-crap--free-houses game)))
+    (if (cg-crap--house game dest-i) (1+ free) free)))
+
+(defun cg-crap--house-move (game i j)
+  "Move a legal sequence from house I onto house J in GAME.
+Return non-nil on success, the symbol `space' when the sequence is legal
+but there are too few empty houses, and nil when nothing fits."
+  (if (= i j)
+      nil
+    (let* ((run (cg-crap--house-run game i))
+           (rlen (length run))
+           (dst (cg-crap--house game j))
+           (dsttop (cg-crap--top dst))
+           (cap (cg-crap--capacity game j))
+           (n nil))
+      (when (> rlen 0)
+        (if (null dsttop)
+            (setq n (min rlen (max cap 0)))           ; empty house: as many as fit
+          (cl-loop for k from 0 below rlen            ; RUN is bottom-to-top
+                   for card = (nth k run)
+                   when (cg-crap--builds-down-p dsttop card)
+                   do (setq n (- rlen k)) (cl-return)))
+        (cond
+         ((or (null n) (< n 1)) nil)
+         ((> n cap) 'space)
+         (t
+          (cg-crap--snapshot game)
+          (let* ((pile (cg-crap--house game i))
+                 (keep (butlast pile n))
+                 (moved (last pile n)))
+            (aset (cg-get game :houses) i keep)
+            (aset (cg-get game :houses) j (append dst moved)))
+          (cg-put game :moves (1+ (cg-get game :moves)))
+          t))))))
 
 
 ;;;; Spots (the cursor visits piles)
@@ -256,6 +338,16 @@ Return non-nil when the move was legal and performed."
       (cg-put game :moves (1+ (cg-get game :moves)))
       t)))
 
+(defun cg-crap--do-move (game from to p)
+  "Perform player P's move from FROM to TO in GAME.
+A house-to-house move may carry a legal sequence of cards (see
+`cg-crap--house-move'); every other move carries a single card.  Returns
+the same values as those functions (non-nil on success, `space' when a
+sequence is too long for the empty houses)."
+  (if (and (eq (car from) 'house) (eq (car to) 'house))
+      (cg-crap--house-move game (cdr from) (cdr to))
+    (cg-crap--move game from to p)))
+
 
 ;;;; Turn logic
 
@@ -304,6 +396,19 @@ Return non-nil when the move was legal and performed."
     (unless (cg-get game :winner)
       (cg-put game :turn 0)
       (cg-put game :history nil))))
+
+(defun cg-crap--stop (game)
+  "Enforce foundation priority: call \"stop\" or block, per `cg-crapette-stops'.
+Return non-nil when the offending action must be abandoned by its caller."
+  (when (cg-crap--forced game 0)
+    (if cg-crapette-stops
+        (let ((note "North calls STOP -- you must play to a foundation first!"))
+          (message "%s" note)
+          (cg-put game :sel nil)
+          (cg-crap--end-turn game)
+          (cg-put game :message (concat note "  " (cg-get game :message))))
+      (cg-crap--msg game "Play to a foundation first (press f on a highlighted pile)."))
+    t))
 
 
 ;;;; The AI opponent (player 1)
@@ -416,7 +521,7 @@ is guaranteed to end."
     (erase-buffer)
     (insert (cg-crap--render g))
     (cg-insert-legend
-     "arrows move · RET pick up/drop · f foundation · SPC turn a card · e end turn · u undo · n new · q menu")
+     "arrows move · RET pick up/drop (runs move house→house) · f foundation · SPC turn a card · e end · u undo · n new · q menu")
     (goto-char (point-min))))
 
 
@@ -448,13 +553,24 @@ is guaranteed to end."
          (spot (nth (cg-get g :cursor) spots)) (sel (cg-get g :sel)))
     (when (cg-crap--your-turn-p g)
       (if sel
-          (if (cg-crap--move g sel spot 0)
-              (progn (cg-put g :sel nil) (cg-crap--after-human-move g))
-            (cg-crap--msg g "That card can't go there."))
+          (unless (and (not (eq (car spot) 'found)) (cg-crap--stop g))
+            (let ((res (cg-crap--do-move g sel spot 0)))
+              (cond
+               ((eq res 'space)
+                (cg-crap--msg g "Not enough empty houses to move that whole sequence."))
+               (res (cg-put g :sel nil) (cg-crap--after-human-move g))
+               (t (cg-crap--msg g "That card can't go there.")))))
         (if (and (cg-crap--source-p spot 0) (cg-crap--spot-top g spot))
-            (progn (cg-put g :sel spot)
-                   (cg-crap--msg g (format "Picked up %s -- choose where to drop it."
-                                           (cg-crap--card-string (cg-crap--spot-top g spot)))))
+            (let* ((top (cg-crap--spot-top g spot))
+                   (run (and (eq (car spot) 'house) (cg-crap--house-run g (cdr spot))))
+                   (n (length run)))
+              (cg-put g :sel spot)
+              (cg-crap--msg g
+                            (if (> n 1)
+                                (format "Picked up a run of %d (%s on top) -- drop it on a house."
+                                        n (cg-crap--card-string top))
+                              (format "Picked up %s -- choose where to drop it."
+                                      (cg-crap--card-string top)))))
           (cg-crap--msg g "Nothing of yours to pick up there."))))
     (cg-crap--redisplay)))
 
@@ -478,24 +594,21 @@ If it fits nowhere your turn ends."
   (interactive)
   (let ((g cg-crap--game))
     (when (cg-crap--your-turn-p g)
-      (cond
-       ((cg-crap--forced g 0)
-        (cg-crap--msg g "Play to a foundation first (press f on a highlighted pile)."))
-       ((null (cg-crap--hand g 0))
-        (cg-crap--msg g "Your hand is empty -- press e to end your turn."))
-       (t
-        (cg-crap--snapshot g)
-        (let* ((hand (cg-crap--hand g 0)) (card (cg-crap--top hand)))
-          (aset (cg-get g :hand) 0 (butlast hand 1))
-          (aset (cg-get g :waste) 0 (append (cg-crap--waste g 0) (list card)))
-          (cg-put g :sel nil)
-          (if (cg-crap--card-playable g 0 card)
-              (cg-crap--msg g (format "Turned %s onto your waste -- play on."
-                                      (cg-crap--card-string card)))
-            (progn
-              (cg-crap--msg g (format "Turned %s -- nothing to do, your turn ends."
-                                      (cg-crap--card-string card)))
-              (cg-crap--end-turn g)))))))
+      (unless (cg-crap--stop g)
+        (if (null (cg-crap--hand g 0))
+            (cg-crap--msg g "Your hand is empty -- press e to end your turn.")
+          (cg-crap--snapshot g)
+          (let* ((hand (cg-crap--hand g 0)) (card (cg-crap--top hand)))
+            (aset (cg-get g :hand) 0 (butlast hand 1))
+            (aset (cg-get g :waste) 0 (append (cg-crap--waste g 0) (list card)))
+            (cg-put g :sel nil)
+            (if (cg-crap--card-playable g 0 card)
+                (cg-crap--msg g (format "Turned %s onto your waste -- play on."
+                                        (cg-crap--card-string card)))
+              (progn
+                (cg-crap--msg g (format "Turned %s -- nothing to do, your turn ends."
+                                        (cg-crap--card-string card)))
+                (cg-crap--end-turn g)))))))
     (cg-crap--redisplay)))
 
 (defun cg-crap-end ()
@@ -503,10 +616,9 @@ If it fits nowhere your turn ends."
   (interactive)
   (let ((g cg-crap--game))
     (when (cg-crap--your-turn-p g)
-      (if (cg-crap--forced g 0)
-          (cg-crap--msg g "Play to a foundation first (press f on a highlighted pile).")
-        (progn (cg-crap--msg g "You end your turn.")
-               (cg-crap--end-turn g))))
+      (unless (cg-crap--stop g)
+        (cg-crap--msg g "You end your turn.")
+        (cg-crap--end-turn g)))
     (cg-crap--redisplay)))
 
 (defun cg-crap-undo ()
@@ -535,7 +647,7 @@ If it fits nowhere your turn ends."
   "Describe the controls."
   (interactive)
   (message
-   "Arrows: move  RET: pick up/drop  f: to foundation  SPC: turn a card  e: end turn  u: undo  n: new  q: menu"))
+   "Arrows: move  RET: pick up/drop (runs move house->house)  f: to foundation  SPC: turn a card  e: end turn  u: undo  n: new  q: menu"))
 
 (defvar cg-crapette-mode-map
   (let ((map (make-sparse-keymap)))

@@ -218,11 +218,54 @@ Return non-nil when S can ask."
     (`(hand . ,i) (cg-put g :cursor i))
     (_ (cl-call-next-method))))
 
+(defun cg-gf--hand-ranks (game)
+  "Return the distinct ranks in your hand, low to high (Ace..King)."
+  (let ((seen (make-vector 13 nil)) (out '()))
+    (dolist (c (cg-gf--hand game 0)) (aset seen (cdr c) t))
+    (dotimes (r 13) (when (aref seen r) (push r out)))
+    (nreverse out)))
+
+(defun cg-gf--pick-rank (button)
+  "Select the rank stored on BUTTON, ready to ask a player for it.
+Moves the hand cursor to a card of that rank so the existing
+1-4 player keys ask for it."
+  (let* ((g cg-gf--game) (rank (button-get button 'cg-gf-rank))
+         (i (cl-position rank (cg-gf--hand g 0) :key #'cdr)))
+    (when i (cg-put g :cursor i))
+    (cg-put g :message
+            (format "Ask which player for %s?  Press 1-%d."
+                    (aref cg-rummy-ranks rank) (1- (cg-get g :nplayers))))
+    (cg-gf--redisplay)))
+
+(defun cg-gf--insert-rank-picker (game)
+  "Insert a row of clickable rank buttons for the ranks in your hand.
+Each rank is a large, easy target, so you pick what to ask for by rank
+instead of hunting for one overlapped card in a big hand."
+  (let* ((ranks (cg-gf--hand-ranks game))
+         (cur (nth (cg-get game :cursor) (cg-gf--hand game 0)))
+         (cur-rank (and cur (cdr cur))))
+    (when ranks
+      (insert "\n  Ask for:  ")
+      (dolist (r ranks)
+        (insert-text-button
+         (format " %s " (aref cg-rummy-ranks r))
+         'face (if (eql r cur-rank) 'cg-hint 'link)
+         'mouse-face 'highlight 'follow-link t
+         'help-echo (format "Ask a player for %ss" (aref cg-rummy-ranks r))
+         'cg-gf-rank r
+         'action #'cg-gf--pick-rank)
+        (insert " "))
+      (insert "\n"))))
+
 (defun cg-gf--redisplay ()
   (let ((game cg-gf--game) (inhibit-read-only t))
         (setq cg-current-game game cg-redisplay-function #'cg-gf--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
-    (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
+    (erase-buffer)
+    (insert (cg-render game))
+    (cg-gf--insert-rank-picker game)
+    (cg-insert-legend "click a rank (or arrows) · 1-4 ask that player · n new · q menu · ? help")
+    (goto-char (point-min))))
 
 (defun cg-gf-left ()
   "Move the hand cursor left."
@@ -260,7 +303,8 @@ Return non-nil when S can ask."
        (cg-gf--deal cg-gf--game) (cg-gf--redisplay))
 (defun cg-gf-redraw () "Redraw." (interactive) (cg-gf--redisplay))
 (defun cg-gf-help () "Describe the controls." (interactive)
-       (message "Arrows: choose a rank  1-4: ask that player  n: new  g: redraw"))
+       (message
+        "Click a rank (or arrows) to choose  1-4: ask that player  n: new  q: menu"))
 
 (defvar cg-go-fish-mode-map
   (let ((map (make-sparse-keymap)))
@@ -275,6 +319,7 @@ Return non-nil when S can ask."
     (define-key map "n" #'cg-gf-new)
     (define-key map "g" #'cg-gf-redraw)
     (define-key map "?" #'cg-gf-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-go-fish-mode'.")
 
@@ -471,6 +516,7 @@ Return non-nil when S can ask."
     (define-key map "n" #'cg-om-new)
     (define-key map "g" #'cg-om-redraw)
     (define-key map "?" #'cg-om-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-old-maid-mode'.")
 

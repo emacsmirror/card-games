@@ -79,9 +79,11 @@
   :type 'string :group 'cg-svg)
 
 (defcustom cg-svg-theme-colors t
-  "Derive the highlight ring and card back from the active theme.
-When non-nil, colours are taken from the active Emacs theme, with the
-colour variables below as fallbacks."
+  "Derive the card back and move-hint ring from the active theme.
+When non-nil, those colours are taken from the active Emacs theme, with
+the colour variables below as fallbacks.  The cursor/selection ring is
+not themed this way -- see `cg-svg--highlight' -- so it never picks up a
+theme's `region' colour."
   :type 'boolean :group 'cg-svg)
 
 (defcustom cg-svg-card-back 'dots
@@ -111,10 +113,13 @@ hearts red."
 (defvar cg-svg-gap-color   "#95a5a6" "Empty-slot outline colour.")
 
 (defun cg-svg--highlight ()
-  "Resolve the cursor/selection ring colour (theme-aware)."
-  (if cg-svg-theme-colors
-      (cg-color 'region :background cg-svg-highlight-color)
-    cg-svg-highlight-color))
+  "Resolve the cursor/selection ring colour.
+Always the configured `cg-svg-highlight-color' (a calm gold by
+default).  This is deliberately not taken from the theme's `region'
+face: on many themes that face is a saturated colour, and a fat ring
+in it reads as an alarming frame flashing around the whole board on
+each redraw.  Customize `cg-svg-highlight-color' to change it."
+  cg-svg-highlight-color)
 
 (defun cg-svg--back-fill ()
   "Resolve the card-back fill colour (theme-aware)."

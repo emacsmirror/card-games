@@ -426,6 +426,7 @@ TOTAL is the running count after the play."
     (define-key map "n" #'cg-crib-new)
     (define-key map "g" #'cg-crib-redraw)
     (define-key map "?" #'cg-crib-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-cribbage-mode'.")
 

@@ -306,6 +306,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
     (define-key map "n" #'cg-fish-new)
     (define-key map "g" #'cg-fish-redraw)
     (define-key map "?" #'cg-fish-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-fish-mode'.")
 

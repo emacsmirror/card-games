@@ -783,6 +783,9 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
                                     (if s "carrying" "playing")))))
     (erase-buffer)
     (cg-render-game game)
+    (insert "\n")
+    (cg-insert-legend
+     "arrows move · RET pick up/drop · f foundation · a auto · u undo · n new · q menu · ? help")
     (goto-char (point-min))))
 
 ;;;; Mode and commands
@@ -810,6 +813,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
     (define-key map "n" #'cg-sol-new)
     (define-key map "g" #'cg-sol-redraw)
     (define-key map "?" #'cg-sol-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-sol-mode'.")
 
@@ -939,6 +943,56 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
         (cg-put game :reserve (butlast (cg-get game :reserve) 1))
         (cg-sol--set-col game c (list card))))))
 
+
+;;;; Russian Bank (single-player patience)
+
+;; A one-deck patience in the spirit of Russian Bank (Crapette): eight
+;; "houses" build down in alternating colours, the four foundations build
+;; up by suit from the Ace, and a thirteen-card reserve feeds the houses.
+;; The competitive two-player game (with its "stops" and loading rules)
+;; is a separate, larger build; this is the solitaire adaptation.
+
+(defclass cg-russian-bank-game (cg-solitaire-game)
+  ((ncols :initform 8) (nfound :initform 4) (has-stock :initform t)
+   (has-waste :initform t) (has-reserve :initform t) (draw :initform 1)
+   (redeal :initform t) (build :initform 'alt) (run-rule :initform 'alt)
+   (empty-rule :initform 'any) (base :initform 0) (wrap :initform nil)
+   (vname :initform "Russian Bank"))
+  "Russian Bank patience: eight houses down by alternating colour, four
+foundations up by suit from the Ace, and a thirteen-card reserve.")
+
+(cl-defmethod cg-sol--deal ((game cg-russian-bank-game))
+  "Deal a Russian Bank patience layout: reserve, eight houses, and a stock."
+  (let* ((deck (cg-sol--make-deck 1))
+         (reserve (cl-loop repeat 13 collect (pop deck)))
+         (tableau (make-vector 8 nil))
+         (down (make-vector 8 0)))
+    (dotimes (c 8) (aset tableau c (list (pop deck))))
+    (cg-put game :reserve reserve)
+    (cg-put game :tableau tableau)
+    (cg-put game :down down)
+    (cg-put game :found (make-vector 4 nil))
+    (cg-put game :free (make-vector 0 nil))
+    (cg-put game :stock deck)
+    (cg-put game :waste nil)
+    (cg-put game :sets 0)
+    (cg-put game :moves 0)
+    (cg-put game :cursor 0)
+    (cg-put game :sel nil)
+    (cg-put game :sel-n 0)
+    (cg-put game :history nil)
+    (cg-put game :message
+            "Russian Bank.  Houses build down in alternating colours; foundations up by suit from the Ace.")
+    game))
+
+(cl-defmethod cg-sol--autofill ((game cg-russian-bank-game))
+  "Fill an empty house from the reserve, as Russian Bank does."
+  (dotimes (c (oref game ncols))
+    (when (and (null (cg-sol--col game c)) (cg-get game :reserve))
+      (let ((card (car (last (cg-get game :reserve)))))
+        (cg-put game :reserve (butlast (cg-get game :reserve) 1))
+        (cg-sol--set-col game c (list card))))))
+
 ;;;###autoload
 (defun cg-forty-thieves ()
   "Play Forty Thieves solitaire (two decks)."
@@ -953,6 +1007,11 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
 (defun cg-canfield ()
   "Play Canfield solitaire."
   (interactive) (cg-sol--play 'cg-canfield-game))
+
+;;;###autoload
+(defun cg-russian-bank ()
+  "Play Russian Bank, the single-player patience adaptation."
+  (interactive) (cg-sol--play 'cg-russian-bank-game))
 
 (provide 'cg-solitaire)
 ;;; cg-solitaire.el ends here

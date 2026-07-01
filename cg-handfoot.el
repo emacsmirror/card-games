@@ -727,6 +727,7 @@ action.  After that, mark single books as usual."
     (define-key map "n" #'cg-hf-new)
     (define-key map "g" #'cg-hf-redraw)
     (define-key map "?" #'cg-hf-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-handfoot-mode'.")
 

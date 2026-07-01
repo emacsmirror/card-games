@@ -748,6 +748,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
     (define-key map "n" #'cg-bridge-new)
     (define-key map "g" #'cg-bridge-redraw)
     (define-key map "?" #'cg-bridge-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-bridge-mode'.")
 

@@ -422,6 +422,7 @@ matching spot); a card-size slider sits below."
     (define-key map "n" #'cg-pat-new)
     (define-key map "g" #'cg-pat-redraw)
     (define-key map "?" #'cg-pat-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-pat-mode'.")
 

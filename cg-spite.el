@@ -413,6 +413,7 @@
     (define-key map "n" #'cg-spite-new)
     (define-key map "g" #'cg-spite-redraw)
     (define-key map "?" #'cg-spite-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-spite-mode'.")
 

@@ -651,6 +651,7 @@ progress must be played out (unlike the solitaire games)."
     (define-key map [mouse-5] #'cg-bid-wheel)
     (define-key map "v" #'cg-bid-toggle-svg-ui)
     (define-key map [mouse-1] #'cg-bid-mouse)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-bid-mode' (Emacs style; see `cg-keys').")
 

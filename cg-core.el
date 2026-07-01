@@ -288,5 +288,24 @@ The clicked display string must carry a `cg-regions' text property."
   (interactive)
   (setq cg-card-scale 1.0) (cg-card-refresh))
 
+(defun cg-insert-legend (text)
+  "Insert TEXT as a shadowed one-line control legend in the current buffer.
+Games call this at the foot of the board so the common controls -- a
+new deal, undo, help, and returning to the menu -- stay visible instead
+of hiding behind a keystroke."
+  (insert (propertize (concat "  " text "\n") 'face 'shadow)))
+
+(defun cg-quit-to-menu ()
+  "Leave the current game and return to the `card-game' chooser.
+Buries the game buffer and reopens the game list, so `q' takes the
+player back to where they started rather than to whatever buffer
+happened to be underneath.  Falls back to `quit-window' when the
+chooser is not available (for example a game loaded on its own)."
+  (interactive)
+  (let ((game (current-buffer)))
+    (if (fboundp 'card-game)
+        (progn (card-game) (bury-buffer game))
+      (quit-window))))
+
 (provide 'cg-core)
 ;;; cg-core.el ends here

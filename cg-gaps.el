@@ -131,8 +131,9 @@ Subclasses set the head rank and build direction by overriding
     (cg-put game :cursor (cons 0 0))
     (cg-put game :history nil)
     (cg-put game :message
-            (format "Fill the gaps: each row one suit, %s.  RET on a gap.  ? = help."
-                    (if (> (cg-gaps--step game) 0) "2 up to K" "K down to 2")))
+            (format
+             "Each row one suit, %s.  Move to a green + gap and press RET (or click it).  ? = help."
+             (if (> (cg-gaps--step game) 0) "2 up to K" "K down to 2")))
     game))
 
 (defun cg-gaps--cell (board r c)
@@ -417,6 +418,7 @@ buttons (the keyboard hint *is* the button)."
   (cg-gaps--key-button "r"   "redeal" #'cg-gaps-redeal "Reshuffle the misplaced cards")
   (cg-gaps--key-button "u"   "undo"   #'cg-gaps-undo   "Undo the last move")
   (cg-gaps--key-button "n"   "new"    #'cg-gaps-new    "Deal a new game")
+  (cg-gaps--key-button "q"   "menu"   #'cg-quit-to-menu "Back to the game list")
   (cg-gaps--key-button "?"   "help"   #'cg-gaps-help   "Show the rules and keys")
   (insert "\n"))
 
@@ -814,6 +816,7 @@ The board scales to fill the area beside a proportional left panel."
     (define-key map "0" #'cg-gaps-zoom-reset)
     (define-key map "v" #'cg-gaps-toggle-svg-ui)
     (define-key map [mouse-1] #'cg-gaps-mouse)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-gaps-mode' (Emacs style; see `cg-keys').")
 

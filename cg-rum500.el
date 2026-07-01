@@ -568,6 +568,7 @@ melded or laid off at once, the rest go into your hand."
     (define-key map "n" #'cg-tm-new)
     (define-key map "g" #'cg-tm-redraw)
     (define-key map "?" #'cg-tm-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-tm-mode'.")
 

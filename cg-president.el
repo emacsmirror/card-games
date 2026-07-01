@@ -400,6 +400,7 @@ Each rank maps to a (hand . INDEX) region and a card-size slider sits below."
     (define-key map "n" #'cg-pres-new)
     (define-key map "g" #'cg-pres-redraw)
     (define-key map "?" #'cg-pres-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-pres-mode'.")
 

@@ -361,6 +361,7 @@ Return the drawn card, or nil when none is available."
     (define-key map "n" #'cg-eights-new)
     (define-key map "g" #'cg-eights-redraw)
     (define-key map "?" #'cg-eights-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-eights-mode'.")
 

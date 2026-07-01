@@ -634,6 +634,7 @@ and carries a card-size slider.  Draws SVG cards on a graphical display
     (define-key map "n" #'cg-gin-new)
     (define-key map "g" #'cg-gin-redraw)
     (define-key map "?" #'cg-gin-help)
+    (define-key map "q" #'cg-quit-to-menu)
     map)
   "Keymap for `cg-gin-mode'.")
 

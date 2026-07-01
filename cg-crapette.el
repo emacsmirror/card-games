@@ -63,6 +63,7 @@
 ;;; Code:
 
 (require 'cg-core)
+(require 'cg-svg)
 
 (defconst cg-crap-ranks
   ["A" "2" "3" "4" "5" "6" "7" "8" "9" "10" "J" "Q" "K"]
@@ -74,6 +75,11 @@ When non-nil (the competitive rule), the opponent calls \"stop\" and you
 forfeit the rest of your turn if you make any play other than an
 available foundation move.  When nil, such a slip is simply blocked with
 a reminder and costs you nothing -- a gentler assist mode for learning."
+  :type 'boolean :group 'card-games)
+
+(defcustom cg-crapette-svg-cards t
+  "When non-nil, draw the board with SVG cards on a graphical display.
+Set to nil to force the plain-text board everywhere."
   :type 'boolean :group 'card-games)
 
 (defclass cg-crapette-game (cg-game)
@@ -97,6 +103,10 @@ a reminder and costs you nothing -- a gentler assist mode for learning."
 (defun cg-crap--red-p (card)
   "Return non-nil when CARD is a red suit."
   (and card (cg-red-suit-p (car card))))
+
+(defun cg-crap--spec (card)
+  "Return the cg-svg display spec (RANK-STRING . SUIT) for CARD, or nil."
+  (and card (cons (aref cg-crap-ranks (cdr card)) (car card))))
 
 (defun cg-crap--deck ()
   "Return one freshly shuffled 52-card deck."
@@ -532,13 +542,106 @@ Empty when nothing (or a single card) is held from a house."
           (concat "  Holding: " (apply #'concat (nreverse parts))
                   (format "(moving top %d of %d)\n" held m)))))))
 
+(defun cg-crap--svg (g)
+  "Return (DISPLAY-STRING . REGIONS) drawing Russian Bank game G as SVG.
+REGIONS maps clicked rectangles to (TYPE . INDEX) spots."
+  (let* ((w cg-svg-card-width) (h cg-svg-card-height)
+         (gap cg-svg-card-gap) (pad 12) (colgap 14)
+         (vdown (max 16 (round (* h 0.26))))
+         (spots (cg-crap--spots g))
+         (cur (nth (cg-get g :cursor) spots))
+         (sel (cg-get g :sel))
+         (forced (cg-crap--forced g 0))
+         (heldn (and sel (eq (car sel) 'house)
+                     (min (or (cg-get g :sel-n) 0)
+                          (length (cg-crap--house-run g (cdr sel))))))
+         (houses (cg-get g :houses))
+         (maxlen (apply #'max 1 (mapcar #'length (append houses nil))))
+         (fx (+ w gap)) (hx (+ w colgap))
+         (width (+ (* 2 pad) (* 8 w) (* 7 colgap)))
+         (y-title 6) (y-opp 34)
+         (y-found (+ y-opp h 30))
+         (y-house (+ y-found h 30))
+         (house-h (+ h (* (1- maxlen) vdown)))
+         (y-you (+ y-house house-h 28))
+         (height (+ y-you h 34))
+         (svg (svg-create width height))
+         (lc (cg-color 'shadow :foreground "gray50"))
+         (regions '()))
+    (cl-labels
+        ((txt (str x y &optional sz bold)
+              (apply #'svg-text svg str :x x :y y :font-size (or sz 12) :fill lc
+                     :font-family cg-svg-font-family
+                     (if bold (list :font-weight "bold") nil)))
+         (curp (spot) (equal spot cur))
+         (forcedp (spot) (and (member spot forced) t))
+         (pile-cell (spot x y)
+                    (let ((spec (cg-crap--spec (cg-crap--spot-top g spot))))
+                      (if spec
+                          (cg-svg-card svg x y :rank (car spec) :suit (cdr spec)
+                                       :highlight (curp spot) :hint (forcedp spot))
+                        (cg-svg-card svg x y :gap t :highlight (curp spot)))
+                      (push (cons (list x y w h) spot) regions))))
+      (txt (format "Russian Bank -- %s"
+                   (cond ((eq (cg-get g :winner) 0) "you win!")
+                         ((eq (cg-get g :winner) 1) "you lose")
+                         ((= (cg-get g :turn) 0) "your turn")
+                         (t "opponent's turn")))
+           pad (+ y-title 12) 13 t)
+      (txt (format "North  reserve %d  waste %d  hand %d"
+                   (length (cg-crap--reserve g 1)) (length (cg-crap--waste g 1))
+                   (length (cg-crap--hand g 1)))
+           pad (- y-opp 4))
+      (pile-cell '(res . 1) pad y-opp)
+      (pile-cell '(was . 1) (+ pad fx) y-opp)
+      (txt "Foundations" pad (- y-found 4))
+      (dotimes (i 8) (pile-cell (cons 'found i) (+ pad (* i fx)) y-found))
+      (txt "Houses" pad (- y-house 4))
+      (dotimes (i 8)
+        (let* ((x (+ pad (* i hx))) (s (cons 'house i))
+               (pile (aref houses i)) (len (length pile)))
+          (push (cons (list x y-house w house-h) s) regions)
+          (if (= len 0)
+              (cg-svg-card svg x y-house :gap t :highlight (curp s))
+            (let ((y y-house) (k 0))
+              (dolist (card pile)
+                (let ((spec (cg-crap--spec card)) (topp (= k (1- len))))
+                  (cg-svg-card svg x y :rank (car spec) :suit (cdr spec)
+                               :highlight (and topp (curp s))
+                               :hint (and topp (forcedp s)))
+                  (when (and (equal sel s) heldn (>= k (- len heldn)))
+                    (svg-rectangle svg (- x 3) (- y 3) (+ w 6) (+ h 6)
+                                   :rx 8 :fill "none" :stroke "#4a90d9" :stroke-width 3)))
+                (setq y (+ y vdown) k (1+ k)))))))
+      (txt (format "You  reserve %d  waste %d  hand %d"
+                   (length (cg-crap--reserve g 0)) (length (cg-crap--waste g 0))
+                   (length (cg-crap--hand g 0)))
+           pad (- y-you 4))
+      (pile-cell '(res . 0) pad y-you)
+      (pile-cell '(was . 0) (+ pad fx) y-you)
+      (txt (cg-get g :message) pad (- height 10) 12))
+    (let ((rev (nreverse regions)))
+      (cons (propertize "*" 'display (cg-svg-image svg (cg-scale))
+                        'cg-regions rev)
+            rev))))
+
+(defun cg-crap-mouse (event)
+  "Handle a click on the SVG board: select that pile and act on it."
+  (interactive "e")
+  (let* ((g cg-crap--game) (spot (cg-mouse-action event)))
+    (when spot
+      (let ((idx (cl-position spot (cg-crap--spots g) :test #'equal)))
+        (when idx (cg-put g :cursor idx) (cg-crap-act))))))
+
 (cl-defmethod cg-render ((game cg-crapette-game))
   "Return a text depiction of GAME."
   (cg-crap--render game))
 
 (defun cg-crap--redisplay ()
-  "Redraw the current Russian Bank buffer."
+  "Redraw the current Russian Bank buffer (SVG on a graphical display)."
   (let ((g cg-crap--game) (inhibit-read-only t))
+    (setq cg-current-game g)
+    (setq-local cg-redisplay-function #'cg-crap--redisplay)
     (setq-local mode-line-process
                 (format " [%s]"
                         (cond ((eq (cg-get g :winner) 0) "you win")
@@ -546,9 +649,11 @@ Empty when nothing (or a single card) is held from a house."
                               ((= (cg-get g :turn) 0) "your turn")
                               (t "opponent"))))
     (erase-buffer)
-    (insert (cg-crap--render g))
+    (if (and cg-crapette-svg-cards (display-graphic-p))
+        (insert (car (cg-crap--svg g)) "\n")
+      (insert (cg-crap--render g)))
     (cg-insert-legend
-     "arrows move · RET pick up/drop · [ ] group size · f foundation · SPC turn a card · e end · u undo · n new · q menu")
+     "arrows/click move · RET pick up/drop · [ ] group size · f foundation · SPC turn · e end · u undo · n new · q menu")
     (goto-char (point-min))))
 
 
@@ -705,6 +810,11 @@ If it fits nowhere your turn ends."
     (define-key map (kbd "<up>")    #'cg-crap-left)
     (define-key map (kbd "<down>")  #'cg-crap-right)
     (define-key map (kbd "RET") #'cg-crap-act)
+    (define-key map [mouse-1] #'cg-crap-mouse)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "SPC") #'cg-crap-draw)
     (define-key map "f" #'cg-crap-found)
     (define-key map "[" #'cg-crap-hold-less)

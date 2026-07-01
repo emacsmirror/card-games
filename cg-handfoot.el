@@ -505,8 +505,45 @@ Return non-nil when the team goes down."
 
 (defvar-local cg-hf--game nil "The Hand & Foot game in the current buffer.")
 
+(defun cg-hf--svg (game)
+  "Return an SVG board for the Hand & Foot GAME."
+  (let* ((scores (cg-get game :scores)) (infos '()) (melds '()))
+    (dotimes (team (cg-get game :nteams))
+      (push (format "Team %d  (score %d)%s%s" team (aref scores team)
+                    (if (cg-hf--down-p game team) "  down"
+                      (format "  needs %d" (cg-hf--min-for-round game)))
+                    (let ((k (length (aref (cg-get game :redthrees) team))))
+                      (if (> k 0) (format "  red3:%d" k) "")))
+            infos)
+      (dolist (bk (cg-hf--books game team))
+        (push (cons (format "T%d%s" team
+                            (if (cg-hf--book-complete-p bk)
+                                (if (cg-hf--book-clean-p bk) " clean" " dirty") ""))
+                    bk)
+              melds)))
+    (dotimes (s (cg-get game :nplayers))
+      (unless (= s 0)
+        (push (format "%s: %d in hand%s" (aref cg-handfoot--names s)
+                      (length (cg-rummy--hand game s))
+                      (if (= (aref (cg-get game :stage) s) 1) " (on foot)" ""))
+              infos)))
+    (cg-rummy--board-svg
+     :title (format "Hand & Foot   target %d   round %d   (min %d)"
+                    cg-handfoot-target (1+ (or (cg-get game :round) 0))
+                    (cg-hf--min-for-round game))
+     :infos (nreverse infos) :melds (nreverse melds)
+     :discard (cg-rummy--top game) :stock (length (cg-get game :stock))
+     :hand (cg-rummy--hand game 0) :cursor (cg-get game :cursor)
+     :marks (cg-get game :marks) :message (cg-get game :message))))
+
 (cl-defmethod cg-render ((game cg-handfoot-game))
-  "Return a propertized depiction of the Hand & Foot GAME."
+  "Return a depiction of the Hand & Foot GAME: SVG board if graphical, else text."
+  (if (and cg-rummy-svg-cards (display-graphic-p))
+      (cg-hf--svg game)
+    (cg-hf--render-text game)))
+
+(defun cg-hf--render-text (game)
+  "Return a plain-text depiction of the Hand & Foot GAME."
   (let* ((out '()) (scores (cg-get game :scores))
          (hand (cg-rummy--hand game 0)) (cursor (cg-get game :cursor)))
     (push (format "  Hand & Foot   target %d   round %d  (go-down minimum %d)\n\n"

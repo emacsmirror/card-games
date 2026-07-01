@@ -219,8 +219,28 @@ Only subsets of two or more cards are considered.  Return nil if none."
 
 (defvar-local cg-fish--game nil "The fishing game in the current buffer.")
 
+(defun cg-fish--svg (game)
+  "Return an SVG board for the fishing GAME."
+  (cg-rummy--board-svg
+   :title (format "%s   (to %d)" (oref game vname) (oref game target))
+   :infos (list (format "Computer: %d cards   captured %d   (score %d)"
+                        (length (cg-fish--hand game 1)) (length (cg-fish--captured game 1))
+                        (aref (cg-get game :scores) 1))
+                (format "Your captured: %d   (score %d)"
+                        (length (cg-fish--captured game 0)) (aref (cg-get game :scores) 0)))
+   :stock-label "Deck" :stock (length (cg-get game :deck)) :discard 'none
+   :melds (list (cons "Table" (cg-rummy-sort-hand (cg-get game :table))))
+   :hand (cg-fish--hand game 0) :cursor (cg-get game :cursor)
+   :message (cg-get game :message)))
+
 (cl-defmethod cg-render ((game cg-fish-game))
-  "Return a propertized depiction of the fishing GAME."
+  "Return a depiction of the fishing GAME: SVG board if graphical, else text."
+  (if (and cg-rummy-svg-cards (display-graphic-p))
+      (cg-fish--svg game)
+    (cg-fish--render-text game)))
+
+(defun cg-fish--render-text (game)
+  "Return a plain-text depiction of the fishing GAME."
   (let* ((out '()) (cursor (cg-get game :cursor)))
     (push (format "  %s      to %d\n\n" (oref game vname) (oref game target)) out)
     (push (format "  Computer: %d cards   captured %d   (score %d)\n"

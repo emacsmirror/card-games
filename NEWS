@@ -43,6 +43,9 @@ the mouse as well as the keyboard.
     the stock and discard, the melds already down on the table, and your
     fanned hand with cursor, marks, and lay-off hints; click a card to
     select it.  Honours ~cg-rummy-svg-cards~.
+  - The same board now covers Hand & Foot (each team's books, and your
+    hand or foot) and the fishing games Scopa and Casino (the loose
+    table cards and the deck).
 
 ** Rummy-family rules completed
   - Rummy 500: take a card from anywhere in the discard pile (key ~T~) --

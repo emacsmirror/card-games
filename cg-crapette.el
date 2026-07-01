@@ -56,9 +56,11 @@
 ;; somewhere you keep going, otherwise it goes to your waste and your turn
 ;; ends.
 ;;
-;; SIMPLIFICATION (documented): the AI is a straightforward greedy player
-;; and always observes foundation priority, so in practice only you can be
-;; "stopped".
+;; The AI observes foundation priority, empties its reserve first (the
+;; bottleneck), prefers loading its cards onto you, and looks one move
+;; ahead to rearrange the houses when that frees a stuck reserve or waste
+;; card.  It never breaks foundation priority, so in practice only you can
+;; be "stopped".
 
 ;;; Code:
 
@@ -433,32 +435,62 @@ Return non-nil when the offending action must be abandoned by its caller."
            for fi = (and card (cg-crap--found-for game card))
            when fi return (cons spot (cons 'found fi))))
 
-(defun cg-crap--ai-useful-move (game)
-  "Return an AI (SOURCE . DEST) move that empties its reserve or waste, or nil.
-The AI only moves its own reserve/waste tops -- onto your piles (loading)
-or onto a house -- so every such move reduces the AI's cards and its turn
-is guaranteed to end."
-  (catch 'm
+(defun cg-crap--ai-unload-move (game)
+  "Return the best AI (SOURCE . DEST) move that empties its reserve or waste.
+Emptying the RESERVE is the goal of the game, so it outscores the waste;
+LOADING a card onto you (which also burdens you) outscores building a
+house.  Every such move reduces the AI's own cards, so its turn ends."
+  (let ((best nil) (bestscore 0))
     (dolist (spot (list (cons 'res 1) (cons 'was 1)))
-      (let ((card (cg-crap--spot-top game spot)))
+      (let ((card (cg-crap--spot-top game spot))
+            (base (if (eq (car spot) 'res) 40 0)))   ; the reserve is the bottleneck
         (when card
           (dolist (dst (list (cons 'res 0) (cons 'was 0)))
             (when (cg-crap--load-accepts (cg-crap--spot-top game dst) card)
-              (throw 'm (cons spot dst))))
+              (let ((sc (+ base 60)))                ; loading: rid a card AND burden you
+                (when (> sc bestscore)
+                  (setq bestscore sc best (cons spot dst))))))
           (cl-loop for i below 8
                    when (cg-crap--house-accepts game i card)
-                   do (throw 'm (cons spot (cons 'house i)))))))
-    nil))
+                   do (let ((sc (+ base 50)))        ; else build it onto a house
+                        (when (> sc bestscore)
+                          (setq bestscore sc best (cons spot (cons 'house i)))))
+                   (cl-return)))))
+    best))
+
+(defun cg-crap--ai-enabling-move (game)
+  "Return a single-card house->house move that unlocks an unload, or nil.
+This is the crafty bit: when the AI cannot place its reserve or waste top
+anywhere, it looks one move ahead for a house rearrangement that would
+make such a placement legal.  It only fires when no direct unload exists,
+and only when the shuffle genuinely opens one, so the turn still ends."
+  (when (null (cg-crap--ai-unload-move game))
+    (catch 'found
+      (dotimes (i 8)
+        (dotimes (j 8)
+          (let ((pilei (cg-crap--house game i)) (pilej (cg-crap--house game j)))
+            (when (and (/= i j) pilei)
+              (let ((card (cg-crap--top pilei)))
+                (when (cg-crap--house-accepts game j card)
+                  (aset (cg-get game :houses) i (butlast pilei 1))
+                  (aset (cg-get game :houses) j (append pilej (list card)))
+                  (let ((opens (cg-crap--ai-unload-move game)))
+                    (aset (cg-get game :houses) i pilei)
+                    (aset (cg-get game :houses) j pilej)
+                    (when opens
+                      (throw 'found (cons (cons 'house i) (cons 'house j)))))))))))
+      nil)))
 
 (defun cg-crap--ai-play (game)
   "Play the AI opponent's whole turn on GAME."
   (let ((guard 0))
     (catch 'done
       (while t
-        (when (> (setq guard (1+ guard)) 400) (throw 'done nil))
+        (when (> (setq guard (1+ guard)) 800) (throw 'done nil))
         (when (cg-crap--won-p game 1) (throw 'done nil))
         (let ((mv (or (cg-crap--ai-found-move game)
-                      (cg-crap--ai-useful-move game))))
+                      (cg-crap--ai-unload-move game)
+                      (cg-crap--ai-enabling-move game))))
           (cond
            (mv (cg-crap--move game (car mv) (cdr mv) 1))
            ((cg-crap--hand game 1)

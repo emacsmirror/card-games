@@ -760,6 +760,33 @@
     (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
     (should (eq (cg-get g :winner) 1))))     ; plays its last card, wins
 
+(ert-deftest cgt-crap-ai-enabling ()
+  ;; reserve 5D cannot be placed until the AI shifts 6H off 6S (crafty rearrange)
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :reserve) 1 (list '(2 . 4)))            ; 5 of diamonds
+    (aset (cg-get g :waste) 1 nil) (aset (cg-get g :hand) 1 nil)
+    (aset (cg-get g :reserve) 0 nil) (aset (cg-get g :waste) 0 nil)
+    (aset (cg-get g :found) 0 nil)
+    (aset (cg-get g :houses) 0 (list '(0 . 5) '(3 . 5)))    ; 6S (bottom), 6H (top)
+    (aset (cg-get g :houses) 1 (list '(1 . 6)))             ; 7C
+    (dotimes (k 6) (aset (cg-get g :houses) (+ 2 k) (list '(2 . 6)))) ; 7D fillers, none empty
+    (cg-put g :turn 1)
+    (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
+    (should (null (cg-crap--reserve g 1)))))                ; it unstuck and unloaded
+
+(ert-deftest cgt-crap-ai-loads-you ()
+  ;; reserve 6D loads onto your reserve top 7D; the AI should prefer that
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :reserve) 1 (list '(2 . 5)))            ; 6D
+    (aset (cg-get g :waste) 1 nil) (aset (cg-get g :hand) 1 nil)
+    (aset (cg-get g :reserve) 0 (list '(2 . 6)))            ; your reserve top 7D
+    (aset (cg-get g :waste) 0 nil) (aset (cg-get g :found) 0 nil)
+    (dotimes (k 8) (aset (cg-get g :houses) k (list '(1 . 10)))) ; nowhere on a house, none empty
+    (cg-put g :turn 1)
+    (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
+    (should (null (cg-crap--reserve g 1)))
+    (should (member '(2 . 5) (cg-crap--reserve g 0)))))     ; loaded onto you
+
 (ert-deftest cgt-crap-house-run ()
   (let ((g (cg-crap--deal (cg-crapette-game))))
     (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H

@@ -71,6 +71,12 @@ the mouse as well as the keyboard.
     "Next hand" button and the hand fan.
   - Live multiplayer 500 over TCP (~M-x cg-bid-host~ / ~M-x cg-bid-join~).
 
+** A craftier Russian Bank (Crapette) opponent
+  - The computer now empties its reserve first (the pile you must clear to
+    win), prefers loading its cards onto you, and -- new -- looks a move
+    ahead to rearrange the houses when doing so frees a card it could not
+    otherwise place.
+
 ** Playtest fixes
   - ~q~ now returns to the ~M-x card-game~ menu from any game, instead of
     burying the buffer and leaving the previous buffer on screen.

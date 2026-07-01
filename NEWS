@@ -50,6 +50,11 @@ the mouse as well as the keyboard.
     stock), Spite & Malice (the four centre piles, your goal and discard
     piles), and Old Maid (the opponents and your hand; click one of the
     next player's face-down cards to draw it).
+  - SVG boards for Cribbage (a peg-track for each player, the starter, the
+    pegging count and cards, and the crib at the show) and Bridge (the
+    rubber and contract, all four seats with the dummy exposed, the trick
+    in the middle, and the hand you are playing).  With these every game
+    in the collection now has a full graphical board.
 
 ** Rummy-family rules completed
   - Rummy 500: take a card from anywhere in the discard pile (key ~T~) --

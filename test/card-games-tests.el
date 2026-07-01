@@ -771,8 +771,8 @@
     (aset (cg-get g :houses) 1 (list '(1 . 6)))             ; 7C
     (dotimes (k 6) (aset (cg-get g :houses) (+ 2 k) (list '(2 . 6)))) ; 7D fillers, none empty
     (cg-put g :turn 1)
-    (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
-    (should (null (cg-crap--reserve g 1)))))                ; it unstuck and unloaded
+    (let ((cg-ai-level 'hard) (cg-crap--recording nil)) (cg-crap--ai-play g))
+    (should (null (cg-crap--reserve g 1)))))                ; hard unstuck and unloaded
 
 (ert-deftest cgt-crap-ai-loads-you ()
   ;; reserve 6D loads onto your reserve top 7D; the AI should prefer that
@@ -1553,3 +1553,30 @@
       (should (plist-get rg :help-close))
       (should (plist-get rg :help-classic))
       (should (plist-get rg :help-quit)))))
+
+
+(ert-deftest cgt-red-suit-boolean ()
+  "Two red suits compare equal by colour (the diamond/heart eq bug)."
+  (should (eq (cg-red-suit-p 2) (cg-red-suit-p 3)))     ; both red -> eq
+  (should (eq (cg-red-suit-p 0) (cg-red-suit-p 1)))     ; both black -> eq
+  (should-not (eq (cg-red-suit-p 2) (cg-red-suit-p 0))) ; red vs black
+  ;; a diamond may NOT sit on a heart in a house (both red)
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(3 . 5)))          ; 6 of hearts
+    (should-not (cg-crap--house-accepts g 0 '(2 . 4)))   ; 5 of diamonds (both red)
+    (aset (cg-get g :houses) 0 (list '(0 . 5)))          ; 6 of spades (black)
+    (should (cg-crap--house-accepts g 0 '(2 . 4)))))     ; 5 of diamonds ok
+
+(ert-deftest cgt-ai-level-easy-crapette ()
+  "The easy Crapette AI does not rearrange houses, so a stuck card stays."
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :reserve) 1 (list '(2 . 4)))
+    (aset (cg-get g :waste) 1 nil) (aset (cg-get g :hand) 1 nil)
+    (aset (cg-get g :reserve) 0 nil) (aset (cg-get g :waste) 0 nil)
+    (aset (cg-get g :found) 0 nil)
+    (aset (cg-get g :houses) 0 (list '(0 . 5) '(3 . 5)))
+    (aset (cg-get g :houses) 1 (list '(1 . 6)))
+    (dotimes (k 6) (aset (cg-get g :houses) (+ 2 k) (list '(2 . 6))))
+    (cg-put g :turn 1)
+    (let ((cg-ai-level 'easy) (cg-crap--recording nil)) (cg-crap--ai-play g))
+    (should (cg-crap--reserve g 1))))

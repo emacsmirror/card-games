@@ -81,11 +81,23 @@ the mouse as well as the keyboard.
     "Next hand" button and the hand fan.
   - Live multiplayer 500 over TCP (~M-x cg-bid-host~ / ~M-x cg-bid-join~).
 
+** Adjustable computer opponents
+  - A new ~cg-ai-level~ (easy, normal, hard) sets how hard the computer
+    plays, and you can change it right from the ~M-x card-game~ menu (or
+    with ~M-x card-games-set-ai-level~).  Russian Bank (Crapette) plays
+    all three levels; the trick-taking games play a random legal card on
+    easy.  Other games ignore it for now.
+
 ** A craftier Russian Bank (Crapette) opponent
-  - The computer now empties its reserve first (the pile you must clear to
-    win), prefers loading its cards onto you, and -- new -- looks a move
-    ahead to rearrange the houses when doing so frees a card it could not
-    otherwise place.
+  - On normal and hard the computer empties its reserve first (the pile
+    you must clear to win) and prefers loading its cards onto you; on hard
+    it also looks a move ahead to rearrange the houses when doing so frees
+    a card it could not otherwise place.  Easy keeps the old simple play.
+
+** Bug fixes
+  - Alternating-colour building (the tableau solitaires and Russian Bank)
+    wrongly treated a diamond and a heart as opposite colours, so a red
+    card could be built on another red card.  Both are red; fixed.
 
 ** Playtest fixes
   - ~q~ now returns to the ~M-x card-game~ menu from any game, instead of

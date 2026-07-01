@@ -134,6 +134,19 @@
   "Registry of playable games.
 Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
 
+(defun card-game--cycle-ai (_button)
+  "Cycle the AI difficulty (`cg-ai-level') and refresh the chooser."
+  (setq cg-ai-level (pcase cg-ai-level ('easy 'normal) ('normal 'hard) (_ 'easy)))
+  (card-game))
+
+;;;###autoload
+(defun card-games-set-ai-level (level)
+  "Set the computer-opponent difficulty to LEVEL (easy, normal, or hard)."
+  (interactive
+   (list (intern (completing-read "AI level: " '("easy" "normal" "hard") nil t))))
+  (setq cg-ai-level level)
+  (message "AI level: %s" level))
+
 (defun card-game--launch (button)
   "Start the game whose command is stored on BUTTON."
   (let ((cmd (button-get button 'card-game-command)))
@@ -169,8 +182,15 @@ Press RET (or click) on a game to start it."
         (erase-buffer)
         (insert (propertize "  Card Games for Emacs\n" 'face 'bold))
         (insert (propertize
-                 "  Choose a game with RET or the mouse.  q to quit.\n\n"
+                 "  Choose a game with RET or the mouse.  q to quit.\n"
                  'face 'shadow))
+        (insert "  AI opponents: ")
+        (insert-text-button
+         (symbol-name cg-ai-level)
+         'face 'link
+         'help-echo "Click to change the AI difficulty (easy/normal/hard)"
+         'action #'card-game--cycle-ai)
+        (insert (propertize "   (click to cycle easy/normal/hard)\n\n" 'face 'shadow))
         (dolist (g card-games-list)
           (insert "    ")
           (insert-text-button

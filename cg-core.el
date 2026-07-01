@@ -73,6 +73,17 @@ and SPC as an action key.  Takes effect the next time a game starts."
                  (const :tag "Classic (adds hjkl, SPC)" classic))
   :group 'card-games)
 
+(defcustom cg-ai-level 'normal
+  "Difficulty of the computer opponents, where a game supports it.
+`easy' plays a quick, simple game, `normal' plays soundly, and `hard'
+thinks a little harder.  Honoured by Russian Bank (Crapette) and the
+trick-taking games so far; other games ignore it for now.  Change it from
+the `card-game' menu or with `card-games-set-ai-level'."
+  :type '(choice (const :tag "Easy" easy)
+                 (const :tag "Normal" normal)
+                 (const :tag "Hard" hard))
+  :group 'card-games)
+
 (defclass cg-game ()
   ((name :initarg :name :initform "game" :type string
          :documentation "Human-readable game name.")
@@ -196,8 +207,10 @@ The glyphs are taken from `cg-symbols'."
       "?"))
 
 (defsubst cg-red-suit-p (suit)
-  "Return non-nil when SUIT index denotes a red suit."
-  (memq suit '(2 3)))
+  "Return t when SUIT index denotes a red suit, else nil.
+Normalised to a boolean so callers may compare two results with `eq'
+\(diamonds and hearts are both red but `memq' returns different tails)."
+  (and (memq suit '(2 3)) t))
 
 (defsubst cg-sister-suit (suit)
   "Return the other suit index of the same colour as SUIT."

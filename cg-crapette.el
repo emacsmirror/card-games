@@ -481,16 +481,34 @@ and only when the shuffle genuinely opens one, so the turn still ends."
                       (throw 'found (cons (cons 'house i) (cons 'house j)))))))))))
       nil)))
 
+(defun cg-crap--ai-greedy-move (game)
+  "A simple first-fit unload move -- the `easy' AI.
+Empties the reserve or waste top onto the first legal spot, without the
+scoring or the house-rearranging lookahead of the tougher levels."
+  (catch 'm
+    (dolist (spot (list (cons 'res 1) (cons 'was 1)))
+      (let ((card (cg-crap--spot-top game spot)))
+        (when card
+          (dolist (dst (list (cons 'res 0) (cons 'was 0)))
+            (when (cg-crap--load-accepts (cg-crap--spot-top game dst) card)
+              (throw 'm (cons spot dst))))
+          (cl-loop for i below 8
+                   when (cg-crap--house-accepts game i card)
+                   do (throw 'm (cons spot (cons 'house i)))))))
+    nil))
+
 (defun cg-crap--ai-play (game)
-  "Play the AI opponent's whole turn on GAME."
-  (let ((guard 0))
+  "Play the AI opponent's whole turn on GAME, per `cg-ai-level'."
+  (let ((guard 0) (level cg-ai-level))
     (catch 'done
       (while t
         (when (> (setq guard (1+ guard)) 800) (throw 'done nil))
         (when (cg-crap--won-p game 1) (throw 'done nil))
         (let ((mv (or (cg-crap--ai-found-move game)
-                      (cg-crap--ai-unload-move game)
-                      (cg-crap--ai-enabling-move game))))
+                      (if (eq level 'easy)
+                          (cg-crap--ai-greedy-move game)
+                        (cg-crap--ai-unload-move game))
+                      (and (eq level 'hard) (cg-crap--ai-enabling-move game)))))
           (cond
            (mv (cg-crap--move game (car mv) (cdr mv) 1))
            ((cg-crap--hand game 1)

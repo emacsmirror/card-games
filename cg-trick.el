@@ -394,7 +394,11 @@
   "Play a whole hand with AI for every seat (used by tests)."
   (while (not (cg-trick--hand-over-p game))
     (let ((seat (cg-get game :turn)))
-      (cg-trick--play game seat (cg-trick--ai-play game seat))))
+      (cg-trick--play game seat
+                      (if (eq cg-ai-level 'easy)
+                          (let ((moves (cg-trick--legal-moves game seat)))
+                            (nth (random (length moves)) moves))
+                        (cg-trick--ai-play game seat)))))
   (cg-trick--score-hand game))
 
 ;;;; New-game / hand lifecycle

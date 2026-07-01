@@ -11,9 +11,14 @@ TAR      = $(TARDIR).tar
 SRCTAR   = $(PKG)-$(VERSION)-src.tar.gz
 DIST     = dist
 BATCH    = $(EMACS) -Q --batch -L .
-EXTRA    = README.org $(PKGDESC)
+MANUAL   = doc/card-games.texi
+INFO     = doc/card-games.info
+MAKEINFO ?= makeinfo
+TEXI2PDF ?= texi2pdf
+EXTRA    = README.org $(PKGDESC) $(MANUAL)
 
-.PHONY: all compile test clean distclean checkdoc lint package tarball elpa release help
+.PHONY: all compile test clean distclean checkdoc lint package tarball elpa release help \
+        info html pdf docclean
 
 help:
 	@echo "card-games $(VERSION) -- make targets:"
@@ -21,6 +26,9 @@ help:
 	@echo "  test       run the ERT test suite"
 	@echo "  checkdoc   run checkdoc on all sources"
 	@echo "  lint       run package-lint (if installed)"
+	@echo "  info       build the Info manual ($(INFO))"
+	@echo "  html       build the one-file HTML manual"
+	@echo "  pdf        build the PDF manual (needs a TeX installation)"
 	@echo "  package    build the installable package tarball ($(TAR))"
 	@echo "  elpa       build a one-package ELPA archive in $(DIST)/"
 	@echo "  release    clean + test + package + source tarball"
@@ -75,8 +83,27 @@ release: distclean test tarball
 	    -czf $(SRCTAR) $(SRCFILES)
 	@echo "Built $(SRCTAR) and $(TAR) for release $(VERSION)"
 
+# Documentation.  The Texinfo source lives in doc/; the Info manual is
+# built from it with makeinfo.
+info: $(INFO)
+$(INFO): $(MANUAL)
+	$(MAKEINFO) -o $@ $(MANUAL)
+
+html: $(MANUAL)
+	$(MAKEINFO) --html --no-split -o doc/card-games.html $(MANUAL)
+
+pdf: $(MANUAL)
+	cd doc && $(TEXI2PDF) -q card-games.texi
+
+docclean:
+	rm -f $(INFO) doc/card-games.html doc/card-games.pdf \
+	      doc/card-games.aux doc/card-games.cp doc/card-games.cps \
+	      doc/card-games.fn doc/card-games.ky doc/card-games.log \
+	      doc/card-games.pg doc/card-games.toc doc/card-games.tp \
+	      doc/card-games.vr doc/card-games.fns
+
 clean:
 	rm -f $(ELC)
 
-distclean: clean
+distclean: clean docclean
 	rm -rf $(DIST) $(TARDIR) $(TAR) $(SRCTAR)

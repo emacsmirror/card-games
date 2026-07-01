@@ -1,0 +1,181 @@
+\input texinfo   @c -*- texinfo -*-
+@c %**start of header
+@setfilename card-games.info
+@settitle Card Games for Emacs
+@documentencoding UTF-8
+@documentlanguage en
+@syncodeindex vr cp
+@syncodeindex fn cp
+@c %**end of header
+
+@set VERSION 1.0.90
+@set YEAR 2026
+
+@copying
+This manual is for Card Games for Emacs (version @value{VERSION}), an
+Emacs package that plays card games as UNICODE text in a terminal and as
+SVG cards on a graphical display.
+
+Copyright @copyright{} @value{YEAR} Corwin Brust.
+
+@quotation
+This manual is licensed under the Creative Commons Attribution 4.0
+International License.  To view a copy of this license, visit
+@url{https://creativecommons.org/licenses/by/4.0/}.
+
+The Card Games for Emacs @emph{program} is free software, licensed under
+the GNU General Public License, version 3 or later.
+@end quotation
+@end copying
+
+@dircategory Emacs
+@direntry
+* Card Games: (card-games).     Play card games in Emacs (text and SVG).
+@end direntry
+
+@titlepage
+@title Card Games for Emacs
+@subtitle A collection of solitaire, two-player, and partnership games
+@subtitle for GNU Emacs, version @value{VERSION}
+@author Corwin Brust
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top Card Games for Emacs
+
+@insertcopying
+@end ifnottex
+
+@menu
+* Introduction::                What this package is.
+* Installation::                Getting it, and starting to play.
+* The Game Menu::               The chooser, and its controls.
+* Playing::                     Controls shared by every game.
+* Customization::               Colours, cards, keys, and opponents.
+* Solitaire Games::             One-player patiences.
+* Trick-Taking Games::          Hearts, Spades, Bridge, and friends.
+* Rummy Games::                 Melds, knocks, and books.
+* Matching Games::              Go Fish and Old Maid.
+* Capturing Games::             Scopa and Casino.
+* Climbing Games::              President and Spite & Malice.
+* Russian Bank::                The two-player duel.
+* Networked Play::              Live 500 over the network.
+* Credits::                     Sources and thanks.
+* License::                     Terms for this manual.
+* Index::                       Commands, variables, and concepts.
+@end menu
+
+@node Introduction
+@chapter Introduction
+
+@cindex introduction
+Card Games for Emacs is a collection of more than thirty card games ---
+solitaires, two-player games, and four-handed partnership games ---
+played entirely inside GNU Emacs.  Each game draws itself as plain
+UNICODE text in a terminal and as SVG cards on a graphical display, and
+every game accepts both the keyboard and the mouse.
+
+@c TODO(pass 2): expand -- the engine, the philosophy (console first),
+@c the range of games, screenshots.
+
+@node Installation
+@chapter Installation
+
+@cindex installation
+@c TODO(pass 2): package.el / ELPA install, requirements (Emacs 26.1),
+@c building from source, running the tests.
+
+@node The Game Menu
+@chapter The Game Menu
+
+@findex card-game
+@cindex chooser
+Type @kbd{M-x card-game} to open the chooser, a buffer listing every
+game.  Move between games with @key{TAB} (or @kbd{n} and @kbd{p}) and
+press @key{RET}, or click, to start one.  The chooser also carries two
+controls, @dfn{AI opponents} and @dfn{Cards}, described later.
+
+@c TODO(pass 2): the AI-level control, the treatment control, quitting.
+
+@node Playing
+@chapter Playing
+
+@cindex controls
+@c TODO(pass 2): the shared controls -- arrows, RET, q to the menu, the
+@c footer legend, zoom (+/-/0), redraw (g), help (?).
+
+@node Customization
+@chapter Customization
+
+@cindex customization
+@c TODO(pass 2): card backs, the Emacs logo, themes, four-colour decks,
+@c suit glyphs, key schemes, the AI level, the display treatment.
+
+@node Solitaire Games
+@chapter Solitaire Games
+
+@c TODO(pass 3): Klondike, FreeCell, Spider, Yukon, Canfield, Forty
+@c Thieves, Scorpion, Golf, TriPeaks, Pyramid, Gaps/Montana, Hell's
+@c Half-Acre, Russian Bank (patience) -- object, rules, strategy, keys.
+
+@node Trick-Taking Games
+@chapter Trick-Taking Games
+
+@c TODO(pass 4): 500, Hearts, Spades, Whist, Oh Hell, Euchre, Pitch,
+@c Briscola, Bridge.
+
+@node Rummy Games
+@chapter Rummy Games
+
+@c TODO(pass 5): Gin Rummy, Rummy, Rummy 500, Hand & Foot.
+
+@node Matching Games
+@chapter Matching Games
+
+@c TODO(pass 5): Go Fish, Old Maid.
+
+@node Capturing Games
+@chapter Capturing Games
+
+@c TODO(pass 5): Scopa, Casino.
+
+@node Climbing Games
+@chapter Climbing Games
+
+@c TODO(pass 5): President, Spite & Malice, Cribbage.
+
+@node Russian Bank
+@chapter Russian Bank
+
+@c TODO(pass 6): Crapette -- the two-player duel, foundations, houses,
+@c loading, the stop rule, sequenced moves, the difficulty dial.
+
+@node Networked Play
+@chapter Networked Play
+
+@c TODO(pass 6): live 500 over TCP -- cg-bid-host, cg-bid-join, lobbies.
+
+@node Credits
+@chapter Credits
+
+@c TODO(pass 6): rules sources (Wikipedia, Pagat), thanks to testers.
+
+@node License
+@appendix License
+
+This manual is licensed under the Creative Commons Attribution 4.0
+International License.  To view a copy of this license, visit
+@url{https://creativecommons.org/licenses/by/4.0/}.
+
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@bye

@@ -4,3 +4,18 @@
 /card-games-*-src.tar.gz
 *.sketch
 *~
+# Generated documentation (built from doc/card-games.texi with makeinfo)
+/doc/card-games.info
+/doc/card-games.html
+/doc/card-games.pdf
+/doc/card-games.aux
+/doc/card-games.log
+/doc/card-games.toc
+/doc/card-games.cp
+/doc/card-games.cps
+/doc/card-games.fn
+/doc/card-games.fns
+/doc/card-games.ky
+/doc/card-games.pg
+/doc/card-games.tp
+/doc/card-games.vr

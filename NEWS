@@ -21,7 +21,10 @@ the mouse as well as the keyboard.
     "stop" rule that ends your turn if you skip a foundation play
     (toggle with ~cg-crapette-stops~), and sequenced house-to-house
     moves limited by the number of empty houses -- with ~[~ and ~]~ to
-    choose how many cards of a run to drop onto an empty house.
+    choose how many cards of a run to drop onto an empty house.  On a
+    graphical display it draws an SVG board (houses shown as stacks) that
+    you can click to pick up and drop, with ~+~ / ~-~ / ~0~ to zoom;
+    set ~cg-crapette-svg-cards~ to nil for the plain-text board.
   - Pegging: Cribbage.   Capturing: Scopa, Casino.   Spite & Malice.
   (These join Gaps/Montana, Hell's Half-Acre, and 500 from 1.0.60.)
 
@@ -31,6 +34,11 @@ the mouse as well as the keyboard.
   - Mouse support everywhere: click cards to select or play, click board
     slots and buttons, and use an on-screen card-size slider plus the
     ~+~ / ~-~ / ~0~ zoom keys.
+  - Full SVG table for the trick-taking games (Hearts, Spades, Whist,
+    Oh Hell, Euchre, Pitch, Briscola): the three opponents, the trick in
+    the middle, and your fanned hand, with the legal cards you may play
+    ringed.  Click a card to play it.  Set ~cg-trick-svg-cards~ to nil
+    for the plain-text board.
 
 ** Rummy-family rules completed
   - Rummy 500: take a card from anywhere in the discard pile (key ~T~) --

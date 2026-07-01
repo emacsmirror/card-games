@@ -821,6 +821,40 @@
     (should (= 2 (length (cg-crap--house g 0))))
     (should (= 1 (length (cg-crap--house g 1))))))
 
+(ert-deftest cgt-crap-svg-smoke ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; a run to draw
+    (aset (cg-get g :reserve) 0 (list '(3 . 0)))                   ; a forced foundation
+    (cg-put g :sel '(house . 0)) (cg-put g :sel-n 2) (cg-put g :cursor 3)
+    (let ((res (cg-crap--svg g)))
+      (should (stringp (car res)))
+      (should (get-text-property 0 'display (car res)))
+      (should (get-text-property 0 'cg-regions (car res)))
+      ;; every clickable region is a (RECT . SPOT) with a 4-number RECT
+      (should (cl-every (lambda (r) (= 4 (length (car r)))) (cdr res)))
+      (should (rassoc '(house . 0) (cdr res))))))
+
+(ert-deftest cgt-trick-svg-smoke ()
+  (let ((g (cg-hearts-game)))
+    (cg-trick--deal g)
+    (cg-put g :cursor 0) (cg-put g :phase 'play) (cg-put g :turn 0) (cg-put g :message "x")
+    (cg-put g :trick (list (cons 1 (car (cg-trick--hand g 1)))))   ; West has led
+    (should (stringp (cg-trick--render-text g)))
+    (let ((s (cg-trick--svg g)))
+      (should (stringp s))
+      (should (get-text-property 0 'display s))
+      (let ((regs (get-text-property 0 'cg-regions s)))
+        (should regs)
+        (should (rassoc '(hand . 0) regs))
+        (should (cl-every (lambda (r) (= 4 (length (car r)))) regs))))))
+
+(ert-deftest cgt-trick-svg-bidding ()
+  (let ((g (cg-spades-game)))
+    (cg-trick--deal g)
+    (cg-put g :cursor 2) (cg-put g :phase 'bid) (cg-put g :turn 0) (cg-put g :message "bid")
+    (cg-put g :bids (vector 3 nil 4 nil)) (cg-put g :scores (vector 100 50 100 50))
+    (should (stringp (cg-trick--svg g)))))
+
 (ert-deftest cgt-pat-golf-deal ()
   (let ((g (cg-pat--deal (cg-golf-game))))
     (should (= 35 (length (cg-get g :cards))))

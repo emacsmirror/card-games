@@ -64,6 +64,7 @@ the GNU General Public License, version 3 or later.
 * Matching Games::              Go Fish and Old Maid.
 * Capturing Games::             Scopa and Casino.
 * Climbing Games::              President and Spite & Malice.
+* Cribbage::                    The pegging game, to 121.
 * Russian Bank::                The two-player duel.
 * Networked Play::              Live 500 over the network.
 * Credits::                     Sources and thanks.
@@ -808,22 +809,235 @@ setting up a long suit --- before you play to the first trick.
 @node Rummy Games
 @chapter Rummy Games
 
-@c TODO(pass 5): Gin Rummy, Rummy, Rummy 500, Hand & Foot.
+@cindex rummy
+@cindex melds
+Draw a card --- from the stock or the discard pile --- then throw one
+away, and work your hand into @dfn{melds}: @dfn{sets} of three or four of
+a kind, and @dfn{runs} of three or more cards in one suit.
+
+@menu
+* Gin Rummy::                   Knock with little deadwood.
+* Rummy::                       Meld your whole hand to go out.
+* Rummy 500::                   Score the cards you lay down.
+* Hand & Foot::                 The partnership Canasta cousin.
+@end menu
+
+@node Gin Rummy
+@section Gin Rummy
+
+@findex cg-gin
+@cindex Gin Rummy
+@cindex deadwood
+@cindex knock
+Two-handed, with ten-card hands.  Draw from the stock (@kbd{s}) or take
+the up-card (@kbd{t}), then discard with @key{RET}.  When your unmatched
+cards --- your @dfn{deadwood} --- add up to ten points or fewer you may
+@dfn{knock} (@kbd{k}) and end the hand; with no deadwood at all you go
+@dfn{gin} for a bonus.  Your opponent then lays their own deadwood off
+onto your melds.  First to 100 points wins.
+
+@strong{Strategy.}  Keep cards that could join more than one meld, knock
+early against a slow hand, and note which cards your opponent takes.
+
+@node Rummy
+@section Rummy
+
+@findex cg-rummy-basic
+@cindex Rummy
+Draw and discard, and lay your melds down on the table.  Mark the cards
+of a meld with @key{SPC} and lay it down with @kbd{m}; add a single card
+to a meld already on the table (yours or anyone's) with @kbd{l}.  Get rid
+of your whole hand to go out.
+
+@table @kbd
+@item @key{SPC} @r{/} m @r{/} l
+Mark cards, meld them, lay one off.
+@item s @r{/} t @r{/} @key{RET}
+Draw from the stock, take the up-card, discard.
+@end table
+
+@strong{Strategy.}  Do not meld too soon --- cards on the table cannot be
+rearranged, and they tell your opponents what you hold.
+
+@node Rummy 500
+@section Rummy 500
+
+@findex cg-rum500
+@cindex Rummy 500
+Rummy played for points over many hands, first past 500.  You score the
+cards you lay down and lose the ones left in your hand.  Besides the top
+of the discard pile you may take a card from deeper in it with @kbd{T},
+picking up that card and everything above it --- as long as you meld the
+chosen card at once.  Aces count 15.
+
+@strong{Strategy.}  Chase the high-scoring cards, and raid the discard
+pile when the reward outweighs the cards it puts in your hand.
+
+@node Hand & Foot
+@section Hand & Foot
+
+@findex cg-handfoot
+@cindex Hand and Foot
+A partnership cousin of Canasta.  You are dealt a @dfn{hand} and a
+@dfn{foot}; play out the hand, then take up the foot.  Build @dfn{books}
+of seven cards of a rank --- @dfn{clean} with no wild cards, or
+@dfn{dirty} with some.  Twos and Jokers are wild; threes never meld.
+Draw two cards with @kbd{s}, or pick up the whole discard pile with
+@kbd{p} by melding its top card; meld (@kbd{m}), lay off (@kbd{l}), and
+discard (@key{RET}).  Your side goes out once it has two complete books
+and you have emptied your foot.
+
+@strong{Strategy.}  Hoard wild cards for clean books, and do not go out
+before your partner has played their foot.
 
 @node Matching Games
 @chapter Matching Games
 
-@c TODO(pass 5): Go Fish, Old Maid.
+@cindex matching games
+Two light games of collecting and shedding, good for a quick sit-down.
+
+@menu
+* Go Fish::                     Ask for ranks; collect books of four.
+* Old Maid::                    Shed pairs; dodge the odd Queen.
+@end menu
+
+@node Go Fish
+@section Go Fish
+
+@findex cg-go-fish
+@cindex Go Fish
+@cindex books
+Collect @dfn{books} of four of a kind.  On your turn pick a rank you hold
+--- click one of the rank buttons, or move the cursor to a card and it
+selects that rank --- then press @kbd{1}, @kbd{2}, @kbd{3}, or @kbd{4} to
+ask that player for it.  If they have any they must hand them over and you
+ask again; if not, you ``go fish'' and draw from the stock.  Complete the
+most books to win.
+
+@strong{Strategy.}  Remember what everyone has asked for; it tells you
+who holds what.
+
+@node Old Maid
+@section Old Maid
+
+@findex cg-old-maid
+@cindex Old Maid
+One Queen is set aside, so a single Queen is left without a partner.
+Throw out every pair in your hand, then draw a card, unseen, from the next
+player: move over their face-down cards with the arrows (or click one) and
+press @key{RET}.  Whoever is left holding the odd Queen at the end loses.
+
+@strong{Strategy.}  Mostly luck --- but do not let your reactions reveal
+where the odd Queen is hiding.
 
 @node Capturing Games
 @chapter Capturing Games
 
-@c TODO(pass 5): Scopa, Casino.
+@cindex capturing games
+@cindex fishing games
+Play a card from your hand to the table; if it matches, it @dfn{captures}
+table cards and takes them for scoring.  Press @key{RET} to play the card
+under the cursor.
+
+@menu
+* Scopa::                       Sweep the table for a scopa.
+* Casino::                      Big and little casino, and the sweeps.
+@end menu
+
+@node Scopa
+@section Scopa
+
+@findex cg-scopa
+@cindex Scopa
+A 40-card Italian game.  The card you play captures a single table card of
+the same value, or a set of table cards that add up to its value.
+Clearing the whole table at a stroke is a @dfn{scopa} and scores a bonus.
+At the end of each round you score for taking the most cards, the most
+coins, the Seven of Coins (the @dfn{sette bello}), and the @dfn{primiera};
+play to 11.
+
+@strong{Strategy.}  Watch the running total on the table, and try to leave
+your opponent unable to make the capture that would sweep it.
+
+@node Casino
+@section Casino
+
+@findex cg-casino
+@cindex Casino
+The 52-card cousin of Scopa.  Number cards capture by value as in Scopa;
+face cards capture only by matching rank.  Score the @dfn{big casino}
+(the Ten of Diamonds), the @dfn{little casino} (the Two of Spades), the
+Aces, and the most cards and most spades; play to 21.
+
+@strong{Strategy.}  Guard the two casinos and grab spades when you can ---
+the little points decide close games.
 
 @node Climbing Games
 @chapter Climbing Games
 
-@c TODO(pass 5): President, Spite & Malice, Cribbage.
+@cindex climbing games
+@cindex shedding games
+Be the first to get rid of your cards by playing something that beats
+what is already on the table.
+
+@menu
+* President::                   First out rules; last out scrubs.
+* Spite & Malice::              Race to empty your goal pile.
+@end menu
+
+@node President
+@section President
+
+@findex cg-president
+@cindex President
+@cindex Scum
+Also called Scum.  The leader plays one to four cards of a rank; the next
+player must answer with the same number of a @emph{higher} rank, or pass
+--- and here the Two is the highest card of all.  Whoever empties their
+hand first is President; the last one out is the Scum, and before the next
+deal the Scum must hand the President their best cards.
+
+To lead more than one card of a rank, give a numeric prefix first ---
+@kbd{C-u 2 @key{RET}} leads a pair.  @kbd{p} passes.
+
+@strong{Strategy.}  Shed your low cards while the lead is cheap, and save
+your Twos and your pairs to grab the lead back when it matters.
+
+@node Spite & Malice
+@section Spite & Malice
+
+@findex cg-spite
+@cindex Spite and Malice
+@cindex Cat and Mouse
+Race to empty your @dfn{goal} pile.  Four shared centre piles are built up
+from Ace to Queen, and Kings are wild.  On your turn play a card from your
+hand with @key{RET}, the top of your goal pile with @kbd{G}, or the top of
+one of your four discard piles with @kbd{1}--@kbd{4}; then end your turn by
+discarding a hand card with @kbd{d}.  The first to clear their goal pile
+wins.
+
+@strong{Strategy.}  Spend a wild King to reach the next goal card, and
+keep your discard piles in order so you can unload them in turn.
+
+@node Cribbage
+@chapter Cribbage
+
+@findex cg-cribbage
+@cindex Cribbage
+@cindex pegging
+@cindex the crib
+The classic two-player game, pegged to 121.  Each deal has three parts.
+
+First, both players lay two cards face down to the dealer's @dfn{crib}:
+mark them with @key{SPC} and confirm with @kbd{m}.  A @dfn{starter} card is
+then cut.  Next comes @dfn{the play}: take turns laying cards (@key{RET}),
+scoring as the running total reaches fifteen and thirty-one and for pairs
+and runs made along the way.  Finally, @dfn{the show} scores each hand and
+then the crib for its fifteens, pairs, runs, flushes, and @dfn{his nobs}
+(the Jack of the starter's suit).  First to 121 wins.
+
+@strong{Strategy.}  Weigh a strong hand against what you give away to the
+crib, and always be counting toward the next fifteen and thirty-one.
 
 @node Russian Bank
 @chapter Russian Bank

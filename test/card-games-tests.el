@@ -787,6 +787,21 @@
     (should (null (cg-crap--reserve g 1)))
     (should (member '(2 . 5) (cg-crap--reserve g 0)))))     ; loaded onto you
 
+(ert-deftest cgt-svg-logo-smoke ()
+  (dolist (choice '(modern classic gnu splash drawn none nonexistent))
+    (let ((cg-svg-emacs-logo choice) (svg (svg-create 200 120)))
+      (cg-svg-draw-logo svg 100 60 1.0)
+      (should (imagep (svg-image svg))))))
+
+(ert-deftest cgt-svg-card-back-smoke ()
+  (dolist (b '(dots rings solid lattice waves diamond
+               emacs emacs-classic gnu splash random))
+    (let ((cg-svg-card-back b) (svg (svg-create 80 100)))
+      (cg-svg-card svg 12 10 :down t)
+      (should (imagep (svg-image svg)))))
+  (cg-svg--roll-back)
+  (should (memq cg-svg--random-back cg-svg--card-backs)))
+
 (ert-deftest cgt-crap-house-run ()
   (let ((g (cg-crap--deal (cg-crapette-game))))
     (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H

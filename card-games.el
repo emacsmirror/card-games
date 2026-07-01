@@ -159,6 +159,9 @@ Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
   "Open a chooser listing the available card games.
 Press RET (or click) on a game to start it."
   (interactive)
+  (when (and (boundp 'cg-svg-card-back) (eq cg-svg-card-back 'random)
+             (fboundp 'cg-svg--roll-back))
+    (cg-svg--roll-back))                 ; a fresh random back per menu visit
   (let ((buf (get-buffer-create "*Card Games*")))
     (with-current-buffer buf
       (card-game-mode)

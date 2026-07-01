@@ -86,9 +86,47 @@ not themed this way -- see `cg-svg--highlight' -- so it never picks up a
 theme's `region' colour."
   :type 'boolean :group 'cg-svg)
 
-(defcustom cg-svg-card-back 'dots
-  "Pattern drawn on a face-down card back."
-  :type '(choice (const dots) (const rings) (const solid)) :group 'cg-svg)
+(defcustom cg-svg-card-back 'random
+  "Pattern drawn on a face-down card back.
+The `emacs', `emacs-classic', `gnu' and `splash' backs stamp the card with
+a logo that ships with Emacs.  `random' picks one of the concrete backs
+for the session (reshuffle with `cg-svg-shuffle-card-back')."
+  :type '(choice (const dots) (const rings) (const solid)
+                 (const lattice) (const waves) (const diamond)
+                 (const emacs) (const emacs-classic) (const gnu) (const splash)
+                 (const random))
+  :group 'cg-svg)
+
+(defconst cg-svg--card-backs
+  '(dots rings solid lattice waves diamond emacs emacs-classic gnu splash)
+  "Concrete card backs that `random' chooses among.")
+
+(defvar cg-svg--random-back nil
+  "The concrete back currently chosen for the `random' setting.")
+
+(defun cg-svg--roll-back ()
+  "Choose a fresh concrete back for `random' and return it."
+  (setq cg-svg--random-back
+        (nth (random (length cg-svg--card-backs)) cg-svg--card-backs)))
+
+;;;###autoload
+(defun cg-svg-shuffle-card-back ()
+  "Pick a new random card back (used when `cg-svg-card-back' is `random')."
+  (interactive)
+  (cg-svg--roll-back)
+  (when (called-interactively-p 'interactive)
+    (message "Card back: %s" cg-svg--random-back)))
+
+(defun cg-svg--effective-back ()
+  "Return the concrete back to draw, resolving `random'."
+  (if (eq cg-svg-card-back 'random)
+      (or cg-svg--random-back (cg-svg--roll-back))
+    cg-svg-card-back))
+
+(defun cg-svg--back-logo-name (back)
+  "Map a logo card-back BACK to a `cg-svg--logo-files' key."
+  (pcase back ('emacs 'modern) ('emacs-classic 'classic)
+         ('gnu 'gnu) ('splash 'splash)))
 
 (defcustom cg-svg-four-color nil
   "Use a four-colour deck when non-nil.
@@ -255,6 +293,60 @@ X, Y and W, H give the card's top-left corner and size."
   (cg-svg--text svg "★" (+ x (/ w 2.0)) (+ y (* h 0.52)) (* h 0.40) color)
   (cg-svg--text svg "JOKER" (+ x (/ w 2.0)) (+ y (* h 0.74)) (* h 0.135) color t))
 
+(defun cg-svg--back-dots (svg x y w h)
+  "Draw the dotted-medallion back pattern."
+  (let ((gy (+ y 10)))
+    (while (< gy (- (+ y h) 8))
+      (let ((gx (+ x 10)))
+        (while (< gx (- (+ x w) 8))
+          (svg-circle svg gx gy 1.1 :fill cg-svg-back-trim)
+          (setq gx (+ gx 9))))
+      (setq gy (+ gy 9)))))
+
+(defun cg-svg--back-lattice (svg x y w h)
+  "Draw a small-cross lattice back pattern."
+  (let ((gy (+ y 13)))
+    (while (< gy (- (+ y h) 10))
+      (let ((gx (+ x 13)))
+        (while (< gx (- (+ x w) 10))
+          (svg-line svg (- gx 2) (- gy 2) (+ gx 2) (+ gy 2)
+                    :stroke cg-svg-back-trim :stroke-width 1)
+          (svg-line svg (- gx 2) (+ gy 2) (+ gx 2) (- gy 2)
+                    :stroke cg-svg-back-trim :stroke-width 1)
+          (setq gx (+ gx 11))))
+      (setq gy (+ gy 11)))))
+
+(defun cg-svg--back-waves (svg x y w h)
+  "Draw a staggered-dash (brickwork) back pattern."
+  (let ((gy (+ y 12)) (row 0))
+    (while (< gy (- (+ y h) 9))
+      (let ((gx (+ x (if (cl-evenp row) 9 15))))
+        (while (< gx (- (+ x w) 9))
+          (svg-line svg gx gy (+ gx 6) gy :stroke cg-svg-back-trim :stroke-width 1.4)
+          (setq gx (+ gx 12))))
+      (setq gy (+ gy 8) row (1+ row)))))
+
+(defun cg-svg--back-diamond (svg x y w h)
+  "Draw concentric diamonds as the back pattern."
+  (let ((cx (+ x (/ w 2.0))) (cy (+ y (/ h 2.0))))
+    (dolist (f '(0.40 0.28 0.16))
+      (let ((dw (* w f)) (dh (* h f)))
+        (svg-polygon svg (list (cons cx (- cy dh)) (cons (+ cx dw) cy)
+                               (cons cx (+ cy dh)) (cons (- cx dw) cy))
+                     :fill "none" :stroke cg-svg-back-trim :stroke-width 1)))))
+
+(defun cg-svg--back-logo (svg x y w h back)
+  "Stamp the Emacs logo for BACK centred on the card, or dots if unavailable."
+  (let ((file (and (fboundp 'svg-embed)
+                   (cg-svg--logo-file (cg-svg--back-logo-name back)))))
+    (if (null file)
+        (cg-svg--back-dots svg x y w h)
+      (let ((size (round (* h 0.52))))
+        (svg-embed svg file "image/png" nil
+                   :x (round (+ x (/ (- w size) 2.0)))
+                   :y (round (+ y (/ (- h size) 2.0)))
+                   :width size :height size)))))
+
 (defun cg-svg--draw-back (svg x y w h r)
   "Draw a face-down card back on SVG at X, Y (W by H, corner R).
 The pattern is controlled by `cg-svg-card-back'."
@@ -262,21 +354,20 @@ The pattern is controlled by `cg-svg-card-back'."
                  :stroke cg-svg-border-color :stroke-width 1)
   (svg-rectangle svg (+ x 4) (+ y 4) (- w 8) (- h 8) :rx 4 :fill "none"
                  :stroke cg-svg-back-trim :stroke-width 1)
-  (pcase cg-svg-card-back
-    ('solid nil)
-    ('rings
-     (svg-rectangle svg (+ x 8) (+ y 8) (- w 16) (- h 16) :rx 5 :fill "none"
-                    :stroke cg-svg-back-trim :stroke-width 1)
-     (svg-rectangle svg (+ x 12) (+ y 12) (- w 24) (- h 24) :rx 4 :fill "none"
-                    :stroke cg-svg-back-trim :stroke-width 1))
-    (_
-     (let ((gy (+ y 10)))
-       (while (< gy (- (+ y h) 8))
-         (let ((gx (+ x 10)))
-           (while (< gx (- (+ x w) 8))
-             (svg-circle svg gx gy 1.1 :fill cg-svg-back-trim)
-             (setq gx (+ gx 9))))
-         (setq gy (+ gy 9)))))))
+  (let ((back (cg-svg--effective-back)))
+    (pcase back
+      ('solid nil)
+      ('rings
+       (svg-rectangle svg (+ x 8) (+ y 8) (- w 16) (- h 16) :rx 5 :fill "none"
+                      :stroke cg-svg-back-trim :stroke-width 1)
+       (svg-rectangle svg (+ x 12) (+ y 12) (- w 24) (- h 24) :rx 4 :fill "none"
+                      :stroke cg-svg-back-trim :stroke-width 1))
+      ('lattice (cg-svg--back-lattice svg x y w h))
+      ('waves (cg-svg--back-waves svg x y w h))
+      ('diamond (cg-svg--back-diamond svg x y w h))
+      ((or 'emacs 'emacs-classic 'gnu 'splash)
+       (cg-svg--back-logo svg x y w h back))
+      (_ (cg-svg--back-dots svg x y w h)))))
 
 (defun cg-svg--draw-face (svg x y w h r rank suit)
   "Draw a face-up card (RANK of SUIT) on SVG at X, Y (W by H, corner R)."

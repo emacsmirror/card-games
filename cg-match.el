@@ -452,8 +452,69 @@ instead of hunting for one overlapped card in a big hand."
 
 (defvar-local cg-om--game nil "The Old Maid game in the current buffer.")
 
+(defun cg-om--svg (game)
+  "Return an SVG board for the Old Maid GAME."
+  (let* ((w cg-svg-card-width) (h cg-svg-card-height) (gap cg-svg-card-gap) (pad 16)
+         (hand (cg-om--hand game 0)) (n (length hand))
+         (target (cg-om--target game 0)) (pick (or (cg-get game :pick) 0))
+         (yourp (and target (eq (cg-get game :phase) 'play) (= (cg-get game :turn) 0)))
+         (np (cg-get game :nplayers))
+         (overlap (cond ((> n 11) (- w 24)) ((> n 8) 20) (t 0)))
+         (step (max 14 (- (+ w gap) overlap)))
+         (fanw (if (> n 0) (+ (* (1- n) step) w) w))
+         (bstep 20)
+         (tn (and target (length (cg-om--hand game target))))
+         (y-title 6) (y-info 26)
+         (y-target (+ y-info (* (1- np) 16) 18))
+         (y-hand (+ y-target h 42))
+         (targetw (if (and yourp tn (> tn 0)) (+ (* (1- tn) bstep) w) 0))
+         (height (+ y-hand h 30))
+         (width (max (+ fanw (* 2 pad)) (+ targetw (* 2 pad)) 560))
+         (svg (svg-create width height))
+         (lc (cg-color 'shadow :foreground "gray50"))
+         (regions '()))
+    (cl-labels ((txt (str x y &optional sz bold)
+                     (apply #'svg-text svg str :x x :y y :font-size (or sz 12) :fill lc
+                            :font-family cg-svg-font-family (and bold '(:font-weight "bold")))))
+      (txt "Old Maid" pad (+ y-title 12) 13 t)
+      (let ((yy (+ y-info 4)))
+        (dotimes (s np)
+          (unless (= s 0)
+            (txt (format "Player %d: %d cards%s" s (length (cg-om--hand game s))
+                         (if (eql s target) "   <- draw from here" ""))
+                 pad yy 12)
+            (setq yy (+ yy 16)))))
+      (when (and yourp tn (> tn 0))
+        (txt (format "Pick a card from Player %d:" target) pad (- y-target 6) 11)
+        (let ((x pad))
+          (dotimes (i tn)
+            (cg-svg-card svg x y-target :down t :highlight (= i pick))
+            (push (cons (list x y-target (if (= i (1- tn)) w bstep) h) (cons 'pick i))
+                  regions)
+            (setq x (+ x bstep)))))
+      (txt "Your hand" pad (- y-hand 6) 11)
+      (let ((x (max pad (- (/ width 2) (/ fanw 2)))))
+        (dolist (c hand)
+          (let ((sp (cg-rummy--card-spec c)))
+            (cg-svg-card svg x y-hand :rank (car sp) :suit (cdr sp)))
+          (setq x (+ x step))))
+      (txt (or (cg-get game :message) "") pad (- height 8) 12))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale)) 'cg-regions (nreverse regions))))
+
+(cl-defmethod cg-render-apply ((g cg-old-maid-game) action)
+  "Apply a click ACTION: pick that card from the target and draw it."
+  (pcase action
+    (`(pick . ,i) (cg-put g :pick i) (cg-om-draw))
+    (_ (cl-call-next-method))))
+
 (cl-defmethod cg-render ((game cg-old-maid-game))
-  "Return a propertized depiction of the Old Maid GAME."
+  "Return a depiction of the Old Maid GAME: SVG board if graphical, else text."
+  (if (and cg-rummy-svg-cards (display-graphic-p))
+      (cg-om--svg game)
+    (cg-om--render-text game)))
+
+(defun cg-om--render-text (game)
+  "Return a plain-text depiction of the Old Maid GAME."
   (let* ((out '()) (target (cg-om--target game 0)))
     (push "  Old Maid\n\n" out)
     (dotimes (s (cg-get game :nplayers))
@@ -472,6 +533,7 @@ instead of hunting for one overlapped card in a big hand."
 
 (defun cg-om--redisplay ()
   (let ((game cg-om--game) (inhibit-read-only t))
+    (setq cg-current-game game cg-redisplay-function #'cg-om--redisplay)
     (setq-local mode-line-process (format " [%s]" (cg-get game :phase)))
     (erase-buffer) (insert (cg-render game)) (goto-char (point-min))))
 
@@ -510,6 +572,11 @@ instead of hunting for one overlapped card in a big hand."
 
 (defvar cg-old-maid-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1] #'cg-card-click)
+    (define-key map "+" #'cg-card-zoom-in)
+    (define-key map "=" #'cg-card-zoom-in)
+    (define-key map "-" #'cg-card-zoom-out)
+    (define-key map "0" #'cg-card-zoom-reset)
     (define-key map (kbd "<left>")  #'cg-om-left)
     (define-key map (kbd "<right>") #'cg-om-right)
     (define-key map (kbd "RET") #'cg-om-draw)

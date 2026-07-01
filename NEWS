@@ -46,6 +46,10 @@ the mouse as well as the keyboard.
   - The same board now covers Hand & Foot (each team's books, and your
     hand or foot) and the fishing games Scopa and Casino (the loose
     table cards and the deck).
+  - SVG boards for Crazy Eights (the discard, the suit in play, and the
+    stock), Spite & Malice (the four centre piles, your goal and discard
+    piles), and Old Maid (the opponents and your hand; click one of the
+    next player's face-down cards to draw it).
 
 ** Rummy-family rules completed
   - Rummy 500: take a card from anywhere in the discard pile (key ~T~) --

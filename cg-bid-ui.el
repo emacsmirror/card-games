@@ -842,14 +842,9 @@ FS scales the N/S/E/W label fonts."
     (svg-circle svg cx cy 3 :fill "#cfeccf")))
 
 (defun cg-bid--draw-logo (svg cx cy &optional fs)
-  "Draw a GNU Emacs emblem centred at CX, CY on SVG, scaled by FS."
-  (let ((fs (or fs 1.0)))
-    (svg-gradient svg "cg-logo" 'linear '((0 . "#8056c8") (100 . "#3f1f9e")))
-    (svg-circle svg cx cy (round (* 26 fs)) :gradient "cg-logo"
-                :stroke "#2a1370" :stroke-width 2)
-    (cg-svg--text svg "e" cx (+ cy (round (* 10 fs))) (round (* 30 fs)) "#ffffff" t)
-    (cg-svg--text svg "GNU Emacs" cx (+ cy (round (* 42 fs)))
-                  (max 10 (round (* 11 fs))) "#c7bbe6")))
+  "Draw the configured Emacs emblem centred at CX, CY on SVG, scaled by FS.
+The emblem is chosen with `cg-svg-emacs-logo'."
+  (cg-svg-draw-logo svg cx cy fs))
 
 (defun cg-bid--grid-cell (bid gx gy cw ch g)
   "Return (X Y W H) for BID in a grid at GX,GY with cells CW by CH, gutter G.

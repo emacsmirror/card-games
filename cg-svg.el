@@ -471,5 +471,59 @@ card-size slider beneath the row."
                             (cg-svg-slider-draw svg pad (+ pad h 8) cg-card-scale)))
       (propertize "*" 'display (cg-svg-image svg (cg-scale)) 'cg-regions regions))))
 
+(defcustom cg-svg-emacs-logo 'modern
+  "Which Emacs emblem to show in the full-window (svg-fill) games.
+The image choices embed a logo that ships with Emacs, falling back to the
+drawn emblem when the file is unavailable.  `drawn' is a small built-in
+emblem and `none' shows nothing."
+  :type '(choice (const :tag "Modern Emacs icon" modern)
+                 (const :tag "Classic Emacs icon" classic)
+                 (const :tag "GNU head (Gnus)" gnu)
+                 (const :tag "GNU Emacs splash" splash)
+                 (const :tag "Drawn emblem" drawn)
+                 (const :tag "None" none))
+  :group 'cg-svg)
+
+(defconst cg-svg--logo-files
+  '((modern  . ("images/icons/hicolor/48x48/apps/emacs.png"
+                "images/icons/hicolor/128x128/apps/emacs.png"))
+    (classic . ("images/icons/hicolor/48x48/apps/emacs23.png"
+                "images/icons/hicolor/128x128/apps/emacs23.png"))
+    (gnu     . ("images/gnus/gnus.png"))
+    (splash  . ("images/splash.png")))
+  "Map a logo name to candidate image files relative to `data-directory'.")
+
+(defun cg-svg--logo-file (name)
+  "Return the first readable image file for logo NAME, or nil."
+  (cl-loop for rel in (cdr (assq name cg-svg--logo-files))
+           for f = (expand-file-name rel data-directory)
+           when (file-readable-p f) return f))
+
+(defun cg-svg--draw-logo-emblem (svg cx cy fs)
+  "Draw the built-in purple GNU Emacs emblem centred at CX, CY, scaled FS."
+  (svg-gradient svg "cg-logo" 'linear '((0 . "#8056c8") (100 . "#3f1f9e")))
+  (svg-circle svg cx cy (round (* 26 fs)) :gradient "cg-logo"
+              :stroke "#2a1370" :stroke-width 2)
+  (cg-svg--text svg "e" cx (+ cy (round (* 10 fs))) (round (* 30 fs)) "#ffffff" t)
+  (cg-svg--text svg "GNU Emacs" cx (+ cy (round (* 42 fs)))
+                (max 10 (round (* 11 fs))) "#c7bbe6"))
+
+(defun cg-svg-draw-logo (svg cx cy &optional fs)
+  "Draw the configured Emacs emblem (`cg-svg-emacs-logo') centred at CX, CY.
+FS scales it.  Embeds a real Emacs logo image when one is available, and
+otherwise draws the built-in emblem."
+  (let ((fs (or fs 1.0)) (choice cg-svg-emacs-logo))
+    (pcase choice
+      ('none nil)
+      ('drawn (cg-svg--draw-logo-emblem svg cx cy fs))
+      (_ (let ((file (and (fboundp 'svg-embed) (cg-svg--logo-file choice))))
+           (if (null file)
+               (cg-svg--draw-logo-emblem svg cx cy fs)
+             (let ((size (round (* 56 fs))))
+               (svg-embed svg file "image/png" nil
+                          :x (round (- cx (/ size 2)))
+                          :y (round (- cy (/ size 2)))
+                          :width size :height size))))))))
+
 (provide 'cg-svg)
 ;;; cg-svg.el ends here

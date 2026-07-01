@@ -39,6 +39,10 @@ the mouse as well as the keyboard.
     the middle, and your fanned hand, with the legal cards you may play
     ringed.  Click a card to play it.  Set ~cg-trick-svg-cards~ to nil
     for the plain-text board.
+  - The Emacs emblem in the full-window (SVG) UIs is now switchable via
+    ~cg-svg-emacs-logo~: it embeds a real logo that ships with Emacs --
+    the modern icon (default), the classic icon, a GNU head, or the
+    splash image -- or the small built-in drawn emblem, or none.
   - Full SVG board for the rummy games (Gin Rummy, Rummy, Rummy 500):
     the stock and discard, the melds already down on the table, and your
     fanned hand with cursor, marks, and lay-off hints; click a card to

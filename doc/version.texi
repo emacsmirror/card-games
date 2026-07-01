@@ -1,0 +1,3 @@
+@set VERSION 1.0.90
+@set UPDATED 1 July 2026
+@set YEAR 2026

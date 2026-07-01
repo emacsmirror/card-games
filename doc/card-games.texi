@@ -8,8 +8,7 @@
 @syncodeindex fn cp
 @c %**end of header
 
-@set VERSION 1.0.90
-@set YEAR 2026
+@include version.texi
 
 @copying
 This manual is for Card Games for Emacs (version @value{VERSION}), an
@@ -80,6 +79,10 @@ the GNU General Public License, version 3 or later.
 Card Games for Emacs is a collection of more than thirty card games ---
 solitaires, two-player games, and four-handed partnership games ---
 played entirely inside GNU Emacs.
+
+@ifnotinfo
+@center @image{images/klondike, , , Klondike solitaire in Emacs, png}
+@end ifnotinfo
 
 Every game draws itself two ways.  In a terminal it uses plain UNICODE
 text, so it works anywhere Emacs runs, including over @command{ssh} and
@@ -598,6 +601,10 @@ In these games the four players each play a card to the @dfn{trick}, and
 the highest card (or the highest trump) wins it.  You sit South; the
 other three seats are computer players, and for the partnership games
 North is your partner.
+
+@ifnotinfo
+@center @image{images/hearts, , , A hand of Hearts, png}
+@end ifnotinfo
 
 @cindex trick games, controls
 Most of them share these controls:

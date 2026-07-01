@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+# hooks/pre-commit -- regenerate README.md from README.org on commit.
+#
+# When README.org (or build.el) is part of the commit, re-run the batch
+# Org -> Markdown export and stage the refreshed README.md so it travels
+# in the same commit.  GitHub and MELPA render Markdown better than Org.
+#
+# Lightweight by design: no sentinel file, no post-commit --amend.  If
+# nothing relevant changed, the hook exits immediately.
+#
+# Install:  make hooks   (or: ln -s ../../hooks/pre-commit .git/hooks/pre-commit)
+#
+# Set EMACS in the environment if the Emacs binary is not named "emacs"
+# on the PATH git sees (common on Windows/MSYS2).
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Only act when README.org or the exporter itself is staged.
+if ! git diff --cached --name-only | grep -Eq '^(README\.org|build\.el)$'; then
+    exit 0
+fi
+
+EMACS_BIN="${EMACS:-emacs}"
+if ! command -v "$EMACS_BIN" >/dev/null 2>&1; then
+    echo "pre-commit: WARNING: '$EMACS_BIN' not found; README.md not regenerated." >&2
+    echo "pre-commit:   set EMACS to your Emacs binary, or run 'make readme'." >&2
+    exit 0
+fi
+
+echo "pre-commit: regenerating README.md from README.org"
+"$EMACS_BIN" -Q --batch -l build.el
+
+git add README.md
+exit 0

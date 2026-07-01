@@ -12,13 +12,16 @@ SRCTAR   = $(PKG)-$(VERSION)-src.tar.gz
 DIST     = dist
 BATCH    = $(EMACS) -Q --batch -L .
 MANUAL   = doc/card-games.texi
+VERTEXI  = doc/version.texi
 INFO     = doc/card-games.info
+IMAGES   = doc/images/klondike.png doc/images/hearts.png
 MAKEINFO ?= makeinfo
 TEXI2PDF ?= texi2pdf
-EXTRA    = README.org $(PKGDESC) $(MANUAL)
+README   = README.md
+EXTRA    = README.org $(README) $(PKGDESC) $(MANUAL) $(VERTEXI) $(IMAGES)
 
 .PHONY: all compile test clean distclean checkdoc lint package tarball elpa release help \
-        info html pdf docclean
+        info info-emacs html pdf docclean version readme hooks
 
 help:
 	@echo "card-games $(VERSION) -- make targets:"
@@ -26,7 +29,11 @@ help:
 	@echo "  test       run the ERT test suite"
 	@echo "  checkdoc   run checkdoc on all sources"
 	@echo "  lint       run package-lint (if installed)"
-	@echo "  info       build the Info manual ($(INFO))"
+	@echo "  version    regenerate $(VERTEXI) from VERSION"
+	@echo "  readme     export README.org -> README.md (Emacs batch)"
+	@echo "  hooks      install the git pre-commit hook"
+	@echo "  info       build the Info manual ($(INFO)) with makeinfo"
+	@echo "  info-emacs build the Info manual with Emacs alone (fallback)"
 	@echo "  html       build the one-file HTML manual"
 	@echo "  pdf        build the PDF manual (needs a TeX installation)"
 	@echo "  package    build the installable package tarball ($(TAR))"
@@ -74,8 +81,8 @@ elpa: tarball
 # Source snapshot for a GitHub release.  Archive an explicit file list
 # (not ".") so the growing output tarball and editor lock files are never
 # read mid-write -- which is what caused "tar: .: file changed as we read it".
-SRCFILES = $(EL) $(EXTRA) Makefile .gitignore test
-release: distclean test tarball
+SRCFILES = $(EL) $(EXTRA) build.el hooks Makefile .gitignore test
+release: distclean version readme test tarball
 	rm -f $(SRCTAR)
 	tar --transform 's,^,$(TARDIR)/,' \
 	    --exclude='*.elc' --exclude='*.tar' --exclude='*.tar.gz' \
@@ -84,15 +91,46 @@ release: distclean test tarball
 	@echo "Built $(SRCTAR) and $(TAR) for release $(VERSION)"
 
 # Documentation.  The Texinfo source lives in doc/; the Info manual is
-# built from it with makeinfo.
+# built from it with makeinfo.  doc/version.texi carries the version and
+# is committed; `make version' regenerates it from VERSION (run at release).
+version:
+	@printf '@set VERSION %s\n@set UPDATED %s\n@set YEAR %s\n' \
+	  "$(VERSION)" "$$(date '+%-d %B %Y')" "$$(date +%Y)" > $(VERTEXI)
+	@echo "Wrote $(VERTEXI) (VERSION $(VERSION))"
+
+# README: Org is the source; GitHub and MELPA render Markdown better than
+# Org, so we export README.org -> README.md with Emacs batch (ox-md).  The
+# git pre-commit hook (make hooks) keeps README.md in step automatically.
+readme: $(README)
+$(README): README.org build.el
+	$(BATCH) -l build.el
+
+# Install the pre-commit hook into this checkout's .git/hooks.
+hooks:
+	@if [ -d .git ]; then \
+	  cp hooks/pre-commit .git/hooks/pre-commit && \
+	  chmod +x .git/hooks/pre-commit && \
+	  echo "Installed .git/hooks/pre-commit"; \
+	else \
+	  echo "No .git directory here; skipping hook install."; \
+	fi
+
 info: $(INFO)
-$(INFO): $(MANUAL)
+$(INFO): $(MANUAL) $(VERTEXI)
 	$(MAKEINFO) -o $@ $(MANUAL)
 
-html: $(MANUAL)
+# Fallback: build the Info manual with Emacs alone (no makeinfo needed).
+# Handy on Windows/MSYS2 where Emacs is present but texinfo may not be.
+# The native formatter is lower fidelity than makeinfo, so `make info'
+# stays the default; this is only for a makeinfo-less environment.
+info-emacs: $(MANUAL) $(VERTEXI)
+	cd doc && $(EMACS) -Q --batch --eval "(require 'texinfmt)" \
+	  -f batch-texinfo-format card-games.texi
+
+html: $(MANUAL) $(VERTEXI)
 	$(MAKEINFO) --html --no-split -o doc/card-games.html $(MANUAL)
 
-pdf: $(MANUAL)
+pdf: $(MANUAL) $(VERTEXI)
 	cd doc && $(TEXI2PDF) -q card-games.texi
 
 docclean:

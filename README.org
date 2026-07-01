@@ -1,16 +1,28 @@
 #+TITLE: card-games -- Play card games in Emacs
 #+AUTHOR: Corwin Brust
+#+OPTIONS: toc:nil
 
-Card games for Emacs.
+Card games for Emacs: about thirty of them, from Klondike and FreeCell
+to Hearts, 500, Gin, Cribbage, and two-player Russian Bank against the
+computer.  Every game plays with the keyboard everywhere and with the
+mouse on a graphical display.
 
-Renders SVG by default when ~display-graphic-p~ is t and rsvg is
-available.  The default (UNICODE) symbols maybe customized by
-configuring ~card-game-symbols~.
+[[file:doc/images/klondike.png]]
+
+On a graphical display the cards are drawn as SVG; in a terminal they
+fall back to UNICODE glyphs (customize ~card-game-symbols~).  You can
+switch how every game is drawn from the menu -- ~text~ (UNICODE),
+~svg~ (drawn cards), or ~full~ (a full-window SVG table) -- and dial the
+computer opponents between ~easy~, ~normal~, and ~hard~.
+
+A full Info manual ships with the package: after installing, ~C-h i~ and
+choose *Card Games*, or ~M-x info RET (card-games) RET~.
 
 * Games
 
 To open the game menu type ~M-x card-game~, or start a game directly
-with its command.
+with its command.  From the menu you can also switch the card treatment
+(text / SVG / full-window) and the AI difficulty.
 
 ** Trick-taking
 - ~cg-bid~ -- 500 (Bid).  Win the auction, name the trump suit, then take
@@ -116,9 +128,19 @@ with its command.
   vulnerability.  You are South; when you declare you play the dummy too.
   The bidding AI is a small natural system, sensible but no expert.
 
+** Two-player patience
+- ~cg-russian-bank~ / ~cg-crapette~ -- Russian Bank (Crapette).  A race
+  against the computer: build the eight shared foundations up by suit,
+  build the shared houses down in alternating colour, and empty your
+  reserve to win.  Load your cards onto your opponent's piles when the
+  rank and suit line up, mind the "stop" rule that ends your turn if you
+  skip a foundation play, and sequence house-to-house moves within the
+  free houses (~[~ / ~]~ choose how many cards of a run to drop on an
+  empty house).  The opponent plays all three difficulty levels.
+
 * TODO
 - [X] make the suit symbols customizable (~cg-symbols~) and obey them
-- [ ] a Texinfo manual
+- [X] a Texinfo manual
 - [ ] finish ~checkdoc~ docstrings across the per-game files
   (the shared engine files are clean; ~make compile~ is warning-free)
 - [ ] renderer "skins": let games subclass the display components (text,
@@ -132,6 +154,16 @@ with its command.
 make package           # builds card-games-1.0.90.tar
 #+end_src
 Then in Emacs: ~M-x package-install-file RET card-games-1.0.90.tar~.
+
+** With ~use-package~
+Once the package is on your ~load-path~ (installed from the tarball or an
+ELPA archive), the whole collection loads from the single ~card-games~
+feature:
+#+begin_src emacs-lisp
+(use-package card-games
+  :commands (card-game cg-klondike cg-bid cg-hearts cg-gin cg-crapette))
+#+end_src
+Then ~M-x card-game~ for the menu.
 
 ** From a local ELPA archive
 #+begin_src
@@ -147,8 +179,17 @@ make elpa              # builds dist/ (archive-contents + tar)
 Put the ~cg-*.el~ and ~card-games.el~ files on your ~load-path~ and
 ~(require 'card-games)~.
 
+* Manual
+A complete Info manual is included.  After installing, ~C-h i~ and pick
+*Card Games*, or ~M-x info RET (card-games) RET~.  To build it from a
+source checkout:
+#+begin_src
+make info              # builds doc/card-games.info with makeinfo
+#+end_src
+The manual text is licensed CC-BY-4.0; the code is GPL-3.0-or-later.
+
 * Playing
-Both games work with the keyboard everywhere and with the mouse on a
+Every game works with the keyboard everywhere and with the mouse on a
 graphical display.
 
 - 500: ~b~ bid, ~p~ pass, arrows + ~RET~ to play (or click a card),
@@ -169,6 +210,8 @@ On a graphical display, ~v~ toggles the full-window SVG table.  A
 in 500 the ~? Help / Rules~ button explains play.  Every game accepts the
 mouse: click cards, board slots, buttons, and the slider.
 
+[[file:doc/images/hearts.png]]
+
 * Testing
 This is a 1.0.90 pre-test snapshot.  To try it:
 1. ~make compile && make test~ -- should be warning-free and all green.
@@ -184,12 +227,23 @@ finds confusing or unreachable, rules bugs, and rendering glitches.
 
 * Customization
 ~M-x customize-group RET cg-svg~ and ~RET card-games~:
+- ~cg-ai-level~ -- how hard the computer plays: ~easy~, ~normal~, or
+  ~hard~ (also on the ~M-x card-game~ menu, or ~M-x
+  card-games-set-ai-level~).
+- ~card-games-treatment~ -- how the games are drawn: ~text~, ~svg~, or
+  ~full~ (also on the menu, or ~M-x card-games-set-treatment~).
 - ~cg-svg-theme-colors~ -- derive the highlight ring and card backs
   from your theme (on by default).
+- ~cg-svg-highlight-color~ -- the cursor/selection ring (gold by default).
 - ~cg-bid-felt-color~ -- the 500 table felt.
 - ~cg-svg-card-width~, ~cg-svg-card-height~, ~cg-svg-card-shadow~,
   ~cg-svg-font-family~ -- card appearance.
-- ~cg-svg-card-back~ -- card-back pattern: dots, rings, or solid.
+- ~cg-svg-card-back~ -- the card-back design: ~dots~, ~rings~, ~solid~,
+  ~lattice~, ~waves~, ~diamond~, an Emacs-logo back (~emacs~,
+  ~emacs-classic~, ~gnu~, ~splash~), or ~random~ (the default -- picks
+  one for the session; ~M-x cg-svg-shuffle-card-back~ rolls a new one).
+- ~cg-svg-emacs-logo~ -- the emblem on the full-window table:
+  ~modern~ (default), ~classic~, ~gnu~, ~splash~, ~drawn~, or ~none~.
 - ~cg-symbols~ -- the Unicode suit glyphs (and the joker) drawn on cards.
 - ~cg-svg-four-color~ -- draw a four-colour deck (clubs green, diamonds
   blue-purple).

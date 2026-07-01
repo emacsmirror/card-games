@@ -1042,19 +1042,123 @@ crib, and always be counting toward the next fifteen and thirty-one.
 @node Russian Bank
 @chapter Russian Bank
 
-@c TODO(pass 6): Crapette -- the two-player duel, foundations, houses,
-@c loading, the stop rule, sequenced moves, the difficulty dial.
+@findex cg-crapette
+@findex cg-russian-bank-duel
+@cindex Russian Bank
+@cindex Crapette
+Russian Bank, also called Crapette, is the competitive two-player
+ancestor of the solitaire (@pxref{Russian Bank Solitaire}).  You (South)
+play against the computer (North), each with your own 52-card pack.
+
+In the centre sit eight @dfn{foundations}, built up by suit from the Ace,
+and eight @dfn{houses}, built down in alternating colour; both are common
+ground either player may build on.  Each of you also has a thirteen-card
+@dfn{reserve} (its top card face up), a @dfn{waste}, and a face-down
+@dfn{hand}.  You win by getting rid of every card in your reserve, hand,
+and waste.
+
+On your turn you make as many legal moves as you like:
+
+@itemize @bullet
+@item
+move the top of your reserve, your waste, or any house onto a foundation
+or a house;
+@item
+move a whole @dfn{sequence} (a run built down in alternating colours) from
+one house to another --- but only when there are enough empty houses to
+have shifted it a card at a time; and
+@item
+@dfn{load} a card from your reserve or waste onto the opponent's reserve
+or waste, when it is the same suit and one rank higher or lower.
+@end itemize
+
+@cindex stop rule
+@vindex cg-crapette-stops
+@strong{Foundation priority and ``Stop''.}  A card that can go to a
+foundation must be played there before anything else.  If you build a
+house, load your opponent, turn a card, or end your turn while a
+foundation play is waiting, your opponent calls ``Stop!'' and your turn
+ends at once --- the piles that owe a foundation play are ringed to warn
+you.  Set @code{cg-crapette-stops} to @code{nil} for a gentler mode that
+simply blocks the slip instead of ending your turn.
+
+When you can do no more, turn the top of your hand: if it fits somewhere
+you keep going, otherwise it goes to your waste and your turn ends.
+
+@table @kbd
+@item arrows
+Move the cursor between piles.
+@item @key{RET} @r{(or click)}
+Pick up the card or run under the cursor; press again on a destination to
+drop it.
+@item f
+Send the chosen card to a foundation.
+@item [ @r{and} ]
+Choose how many cards of a picked-up run to move onto an empty house.
+@item @key{SPC} @r{(or} d@r{)}
+Turn the top card of your hand.
+@item e
+End your turn.
+@item u @r{/} n @r{/} q
+Undo, new game, and the menu.
+@end table
+
+@noindent
+@code{cg-ai-level} sets how hard North plays (@pxref{Opponents}): on
+@code{hard} it even looks a move ahead to rearrange the houses.
+
+@strong{Strategy.}  Play to the foundations first, and empty your reserve
+--- it is the pile you must clear to win.  Load your spare cards onto your
+opponent to slow them down, and keep an empty house free as room to shift
+a sequence.
 
 @node Networked Play
 @chapter Networked Play
 
-@c TODO(pass 6): live 500 over TCP -- cg-bid-host, cg-bid-join, lobbies.
+@findex cg-bid-host
+@findex cg-bid-join
+@cindex networked play
+@cindex multiplayer
+500 can be played live against other people over a TCP connection.  One
+player hosts the game and the others join it.
+
+@table @kbd
+@item M-x cg-bid-host @key{RET} @var{port} @key{RET}
+Start a game as the host.  You take the South seat and wait for others to
+connect.
+@item M-x cg-bid-join @key{RET} @var{host} @key{RET} @var{port} @key{RET} @var{name} @key{RET}
+Connect to a host at @var{host} and @var{port} under a display
+@var{name}.
+@end table
+
+@cindex lobby
+The game starts automatically once four people have joined.  The host may
+also press @kbd{s} to start early, with the computer filling any empty
+seats.
+
+@vindex cg-bid-shuffle-partners
+With @code{cg-bid-shuffle-partners} non-@code{nil}, the joining players
+are dealt randomly among the seats.  Each player's view is rotated so
+they sit South, so the ordinary controls (@pxref{500}) work unchanged.
+Play is turn-based and the host is authoritative; a client can join from
+anywhere Emacs can open a network connection.
 
 @node Credits
 @chapter Credits
 
-@c TODO(pass 6): rules sources (Wikipedia, Pagat); thanks to testers;
-@c a credit for Claude (the AI assistant who helped build much of this).
+@cindex credits
+@cindex acknowledgements
+Card Games for Emacs was written by Corwin Brust.
+
+The rules of the trickier games were checked against public references,
+chiefly Wikipedia and John McLeod's card-game site, Pagat
+(@url{https://www.pagat.com/}).  Thanks are due to the playtesters whose
+feedback shaped the controls and the display.
+
+@cindex Claude
+Much of the code, and this manual, were written by Corwin Brust in
+collaboration with Claude, an AI assistant made by Anthropic, over a
+series of pair-programming sessions.
 
 @node License
 @appendix License

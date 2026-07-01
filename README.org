@@ -151,9 +151,9 @@ with its command.  From the menu you can also switch the card treatment
 * Install
 ** From the package tarball
 #+begin_src
-make package           # builds card-games-1.0.90.tar
+make package           # builds card-games-1.0.91.tar
 #+end_src
-Then in Emacs: ~M-x package-install-file RET card-games-1.0.90.tar~.
+Then in Emacs: ~M-x package-install-file RET card-games-1.0.91.tar~.
 
 ** With ~use-package~
 Once the package is on your ~load-path~ (installed from the tarball or an
@@ -213,7 +213,7 @@ mouse: click cards, board slots, buttons, and the slider.
 [[file:doc/images/hearts.png]]
 
 * Testing
-This is a 1.0.90 pre-test snapshot.  To try it:
+This is a 1.0.91 pre-test snapshot.  To try it:
 1. ~make compile && make test~ -- should be warning-free and all green.
 2. ~M-x card-game~ opens the menu, or jump straight in, e.g.
    ~M-x cg-klondike~, ~M-x cg-bid~ (500), ~M-x cg-gin~, ~M-x cg-handfoot~.

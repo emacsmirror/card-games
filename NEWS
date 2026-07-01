@@ -1,6 +1,18 @@
 card-games NEWS  -- user-visible changes
 ========================================
 
+* Version 1.0.91 (pretest2: playtest)
+
+** Documentation
+  - A complete Info manual now ships with the package: ~C-h i~ and choose
+    *Card Games* (or ~M-x info RET (card-games) RET~).  It is built with
+    makeinfo (~make info~); ~make info-emacs~ builds it with Emacs alone
+    for environments without a texinfo installation.
+  - The README is generated from ~README.org~ to ~README.md~ with Emacs
+    batch (~ox-md~), so GitHub and MELPA render it faithfully; a
+    ~pre-commit~ hook (~make hooks~) keeps ~README.md~ in step.  Added
+    board screenshots and refreshed the game list and customization notes.
+
 * Version 1.0.90 (pre-test snapshot)
 
 This release grows the package from the five-game 1.0.60 candidate to a

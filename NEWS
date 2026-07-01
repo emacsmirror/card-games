@@ -20,7 +20,8 @@ the mouse as well as the keyboard.
     foundations, shared houses, loading cards onto your opponent, the
     "stop" rule that ends your turn if you skip a foundation play
     (toggle with ~cg-crapette-stops~), and sequenced house-to-house
-    moves limited by the number of empty houses.
+    moves limited by the number of empty houses -- with ~[~ and ~]~ to
+    choose how many cards of a run to drop onto an empty house.
   - Pegging: Cribbage.   Capturing: Scopa, Casino.   Spite & Malice.
   (These join Gaps/Montana, Hell's Half-Acre, and 500 from 1.0.60.)
 

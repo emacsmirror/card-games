@@ -800,6 +800,27 @@
       (should (cg-crap--stop g))
       (should (string-match-p "STOP" (cg-get g :message))))))
 
+(ert-deftest cgt-crap-sequence-partial ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
+    (aset (cg-get g :houses) 1 nil)                                ; empty destination
+    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) nil))          ; plenty of space
+    (should (eq t (cg-crap--house-move g 0 1 2)))                  ; move only the top 2
+    (should (equal '(2 . 8) (cg-crap--top (cg-crap--house g 0))))  ; 9D stays behind
+    (should (= 2 (length (cg-crap--house g 1))))
+    (should (equal '(0 . 7) (car (cg-crap--house g 1))))          ; 8S is the moved bottom
+    (should (equal '(3 . 6) (cg-crap--top (cg-crap--house g 1)))))) ; 7H the top
+
+(ert-deftest cgt-crap-partial-space ()
+  (let ((g (cg-crap--deal (cg-crapette-game))))
+    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; run of 3
+    (aset (cg-get g :houses) 1 nil)                                ; the only empty house
+    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) (list '(0 . 0))))
+    (should (eq 'space (cg-crap--house-move g 0 1 3)))             ; 3 needs more space
+    (should (eq t (cg-crap--house-move g 0 1 1)))                  ; but 1 fits
+    (should (= 2 (length (cg-crap--house g 0))))
+    (should (= 1 (length (cg-crap--house g 1))))))
+
 (ert-deftest cgt-pat-golf-deal ()
   (let ((g (cg-pat--deal (cg-golf-game))))
     (should (= 35 (length (cg-get g :cards))))

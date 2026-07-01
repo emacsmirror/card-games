@@ -213,10 +213,13 @@ F onto an empty house (the destination itself cannot serve as a relay)."
   (let ((free (cg-crap--free-houses game)))
     (if (cg-crap--house game dest-i) (1+ free) free)))
 
-(defun cg-crap--house-move (game i j)
+(defun cg-crap--house-move (game i j &optional want)
   "Move a legal sequence from house I onto house J in GAME.
-Return non-nil on success, the symbol `space' when the sequence is legal
-but there are too few empty houses, and nil when nothing fits."
+WANT, when given, is how many of the top cards to move onto an EMPTY
+house (default the whole run); it is ignored for a non-empty house, where
+the landing rank fixes the count.  Return non-nil on success, the symbol
+`space' when the sequence is legal but there are too few empty houses,
+and nil when nothing fits."
   (if (= i j)
       nil
     (let* ((run (cg-crap--house-run game i))
@@ -227,7 +230,7 @@ but there are too few empty houses, and nil when nothing fits."
            (n nil))
       (when (> rlen 0)
         (if (null dsttop)
-            (setq n (min rlen (max cap 0)))           ; empty house: as many as fit
+            (setq n (min (or want rlen) rlen))        ; empty house: the chosen count
           (cl-loop for k from 0 below rlen            ; RUN is bottom-to-top
                    for card = (nth k run)
                    when (cg-crap--builds-down-p dsttop card)
@@ -338,14 +341,14 @@ Return non-nil when the move was legal and performed."
       (cg-put game :moves (1+ (cg-get game :moves)))
       t)))
 
-(defun cg-crap--do-move (game from to p)
+(defun cg-crap--do-move (game from to p &optional want)
   "Perform player P's move from FROM to TO in GAME.
 A house-to-house move may carry a legal sequence of cards (see
-`cg-crap--house-move'); every other move carries a single card.  Returns
-the same values as those functions (non-nil on success, `space' when a
-sequence is too long for the empty houses)."
+`cg-crap--house-move', to which WANT is passed); every other move carries
+a single card.  Returns the same values as those functions (non-nil on
+success, `space' when a sequence is too long for the empty houses)."
   (if (and (eq (car from) 'house) (eq (car to) 'house))
-      (cg-crap--house-move game (cdr from) (cdr to))
+      (cg-crap--house-move game (cdr from) (cdr to) want)
     (cg-crap--move game from to p)))
 
 
@@ -503,7 +506,31 @@ is guaranteed to end."
                (length (cg-crap--hand g 0)) (length (cg-crap--reserve g 0))
                (length (cg-crap--waste g 0)))
        (cell '(res . 0) "R:") (cell '(was . 0) "W:") "\n\n"
-       (format "  %s\n" (cg-get g :message))))))
+       (format "  %s\n" (cg-get g :message))
+       (cg-crap--holding-line g)))))
+
+(defun cg-crap--holding-line (g)
+  "Return a line showing the picked-up house run, marking the held top cards.
+Empty when nothing (or a single card) is held from a house."
+  (let ((sel (cg-get g :sel)))
+    (if (not (and sel (eq (car sel) 'house)))
+        ""
+      (let* ((run (cg-crap--house-run g (cdr sel)))
+             (m (length run))
+             (held (min (or (cg-get g :sel-n) m) m))
+             (i 0) (parts nil))
+        (if (< m 2)
+            ""
+          (dolist (c run)
+            (let ((on (>= i (- m held))))
+              (push (propertize (concat (cg-crap--card-string c) " ")
+                                'face (cond (on 'cg-hint)
+                                            ((cg-crap--red-p c) 'cg-red-suit)
+                                            (t 'shadow)))
+                    parts))
+            (setq i (1+ i)))
+          (concat "  Holding: " (apply #'concat (nreverse parts))
+                  (format "(moving top %d of %d)\n" held m)))))))
 
 (cl-defmethod cg-render ((game cg-crapette-game))
   "Return a text depiction of GAME."
@@ -521,7 +548,7 @@ is guaranteed to end."
     (erase-buffer)
     (insert (cg-crap--render g))
     (cg-insert-legend
-     "arrows move · RET pick up/drop (runs move house→house) · f foundation · SPC turn a card · e end · u undo · n new · q menu")
+     "arrows move · RET pick up/drop · [ ] group size · f foundation · SPC turn a card · e end · u undo · n new · q menu")
     (goto-char (point-min))))
 
 
@@ -554,20 +581,21 @@ is guaranteed to end."
     (when (cg-crap--your-turn-p g)
       (if sel
           (unless (and (not (eq (car spot) 'found)) (cg-crap--stop g))
-            (let ((res (cg-crap--do-move g sel spot 0)))
+            (let ((res (cg-crap--do-move g sel spot 0 (cg-get g :sel-n))))
               (cond
                ((eq res 'space)
-                (cg-crap--msg g "Not enough empty houses to move that whole sequence."))
-               (res (cg-put g :sel nil) (cg-crap--after-human-move g))
+                (cg-crap--msg g "Not enough empty houses to move that many cards."))
+               (res (cg-put g :sel nil) (cg-put g :sel-n nil) (cg-crap--after-human-move g))
                (t (cg-crap--msg g "That card can't go there.")))))
         (if (and (cg-crap--source-p spot 0) (cg-crap--spot-top g spot))
             (let* ((top (cg-crap--spot-top g spot))
                    (run (and (eq (car spot) 'house) (cg-crap--house-run g (cdr spot))))
                    (n (length run)))
               (cg-put g :sel spot)
+              (cg-put g :sel-n (max 1 n))
               (cg-crap--msg g
                             (if (> n 1)
-                                (format "Picked up a run of %d (%s on top) -- drop it on a house."
+                                (format "Picked up a run of %d (%s on top) -- [ / ] to change how many, drop on a house."
                                         n (cg-crap--card-string top))
                               (format "Picked up %s -- choose where to drop it."
                                       (cg-crap--card-string top)))))
@@ -587,6 +615,27 @@ is guaranteed to end."
             (progn (cg-put g :sel nil) (cg-crap--after-human-move g))
           (cg-crap--msg g "No foundation accepts that card."))))
     (cg-crap--redisplay)))
+
+(defun cg-crap--hold-adjust (d)
+  "Change how many cards of a picked-up house run you hold, by D."
+  (let* ((g cg-crap--game) (sel (cg-get g :sel)))
+    (when (cg-crap--your-turn-p g)
+      (if (and sel (eq (car sel) 'house))
+          (let* ((m (length (cg-crap--house-run g (cdr sel))))
+                 (new (max 1 (min m (+ (or (cg-get g :sel-n) m) d)))))
+            (cg-put g :sel-n new)
+            (cg-crap--msg g (format "Holding the top %d of %d -- drop on an empty house."
+                                    new m)))
+        (cg-crap--msg g "Pick up a house run first, then [ and ] set how many to move.")))
+    (cg-crap--redisplay)))
+
+(defun cg-crap-hold-less ()
+  "Hold one fewer card of the picked-up run."
+  (interactive) (cg-crap--hold-adjust -1))
+
+(defun cg-crap-hold-more ()
+  "Hold one more card of the picked-up run."
+  (interactive) (cg-crap--hold-adjust 1))
 
 (defun cg-crap-draw ()
   "Turn the top card of your hand onto your waste.
@@ -647,7 +696,7 @@ If it fits nowhere your turn ends."
   "Describe the controls."
   (interactive)
   (message
-   "Arrows: move  RET: pick up/drop (runs move house->house)  f: to foundation  SPC: turn a card  e: end turn  u: undo  n: new  q: menu"))
+   "Arrows: move  RET: pick up/drop  [ ]: how many cards of a run  f: to foundation  SPC: turn a card  e: end  u: undo  n: new  q: menu"))
 
 (defvar cg-crapette-mode-map
   (let ((map (make-sparse-keymap)))
@@ -658,6 +707,8 @@ If it fits nowhere your turn ends."
     (define-key map (kbd "RET") #'cg-crap-act)
     (define-key map (kbd "SPC") #'cg-crap-draw)
     (define-key map "f" #'cg-crap-found)
+    (define-key map "[" #'cg-crap-hold-less)
+    (define-key map "]" #'cg-crap-hold-more)
     (define-key map "d" #'cg-crap-draw)
     (define-key map "e" #'cg-crap-end)
     (define-key map "u" #'cg-crap-undo)

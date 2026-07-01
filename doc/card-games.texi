@@ -591,8 +591,219 @@ controls are identical.
 @node Trick-Taking Games
 @chapter Trick-Taking Games
 
-@c TODO(pass 4): 500, Hearts, Spades, Whist, Oh Hell, Euchre, Pitch,
-@c Briscola, Bridge.
+@cindex trick-taking
+@cindex tricks
+In these games the four players each play a card to the @dfn{trick}, and
+the highest card (or the highest trump) wins it.  You sit South; the
+other three seats are computer players, and for the partnership games
+North is your partner.
+
+@cindex trick games, controls
+Most of them share these controls:
+
+@table @kbd
+@item @key{LEFT} @key{RIGHT}
+Choose a card in your hand.
+@item @key{RET} @r{(or} @key{SPC}@r{)}
+Play the chosen card.  During the Hearts pass it instead marks a card.
+@item p
+Confirm the Hearts pass, once three cards are marked.
+@item n @r{/} g @r{/} ? @r{/} q
+New match, redraw, describe the keys, and return to the menu.
+@end table
+
+@noindent
+When a game calls for a bid, you are prompted for it in the minibuffer.
+@xref{Opponents}, to set how hard the computer plays.  500 and Bridge
+have richer boards and a few keys of their own, noted below.
+
+@menu
+* Five Hundred: 500.            Partnership bidding to 500.
+* Hearts::                      Avoid the hearts and the black lady.
+* Spades::                      Bid your tricks; spades are trump.
+* Whist::                       Fixed trump, no bidding.
+* Oh Hell::                     Bid exactly, on shrinking hands.
+* Euchre::                      Bowers, and going alone.
+* Pitch::                       Set the trump with your lead.
+* Briscola::                    No follow; capture the points.
+* Bridge: Contract Bridge.      The auction, the dummy, the rubber.
+@end menu
+
+@node 500
+@section 500
+
+@findex cg-bid
+@cindex 500
+Australia's national card game, and the flagship of this collection.  You
+and North play against East and West.  After the deal there is an
+auction: each side bids a number of tricks (six to ten) and a trump ---
+or Misère, to take no tricks at all.  The high bidder takes the five-card
+@dfn{kitty}, then discards five cards, and play begins.
+
+The trump order runs Joker (highest), then the Jack of trump (right
+bower) and the other Jack of the same colour (left bower), then Ace down
+to Four.  Score the Avondale table for making or breaking the contract.
+A side wins by reaching 500 on a contract it made (the ``front door''),
+and loses by falling to @minus{}500 (the ``back door'').
+
+@table @kbd
+@item b
+Make a bid; @kbd{p} passes.
+@item @key{RET}
+Select the card, or the kitty card, under the pointer.
+@item x
+Discard the five cards you have marked for the kitty.
+@item v
+Toggle the full-window table.
+@item M-@key{UP} M-@key{DOWN}
+Scroll the message log (the mouse wheel works too).
+@item n @r{/} ? @r{/} q
+New game, help, and the menu.
+@end table
+
+@noindent
+500 can also be played live against other people over the network.
+@xref{Networked Play}.
+
+@strong{Strategy.}  Bid what your trumps and side-suit aces can actually
+make; take the kitty only when it can complete a contract; and keep
+Misère for a hand too weak to win a single trick.
+
+@node Hearts
+@section Hearts
+
+@findex cg-hearts
+@cindex Hearts
+An avoidance game with no trump.  Every heart costs one point and the
+Queen of Spades costs thirteen, and you want as few as possible.  Before
+each hand you pass three cards to another player --- left, right, across,
+then a hand with no passing, and around again.  The Two of Clubs leads
+the first trick, on which no points may be played.
+
+Take @emph{all} the points in a hand and you ``shoot the moon'': the
+twenty-six are charged to everyone else instead.  When a player reaches
+100 the game ends and the lowest score wins.
+
+@strong{Strategy.}  Void a suit so you can throw the Queen or a heart into
+it; keep track of who might hold the Queen; and only chase the moon with a
+hand that cannot be stopped.
+
+@node Spades
+@section Spades
+
+@findex cg-spades
+@cindex Spades
+Spades are always trump.  Each player bids the number of tricks they
+expect to win, and the two partners' bids are added: your side must make
+that combined total.  Extra tricks (``bags'') score a point each, but
+every tenth bag costs you 100.  A bid and made @dfn{Nil} --- no tricks at
+all --- scores 100, or loses 100 if broken.  Play to 500.
+
+@strong{Strategy.}  Count your sure winners before you bid; go Nil only
+with low spades and short, duckable side suits; and protect your
+partner's Nil when you can.
+
+@node Whist
+@section Whist
+
+@findex cg-whist
+@cindex Whist
+The old English ancestor of Bridge, with no bidding.  The dealer's last
+card is turned for trump.  Follow the suit led if you can; trumps beat the
+plain suits.  Each side counts one point for every trick it wins beyond
+the @dfn{book} of six, and the first side to five wins.
+
+@strong{Strategy.}  Lead from your longest suit, draw the opponents'
+trumps, and remember the cards that have gone.
+
+@node Oh Hell
+@section Oh Hell
+
+@findex cg-ohhell
+@cindex Oh Hell
+The hand shrinks every deal, from seven cards down to one, and a card is
+turned for trump.  Each player bids the @emph{exact} number of tricks
+they will take and scores a bonus only for hitting it precisely --- one
+over or under and the bonus is lost.  Play the fixed run of rounds; it is
+every player for themselves.
+
+@strong{Strategy.}  On the small hands a high card is a sure trick and a
+low one a sure miss; do not be afraid to bid zero and duck everything.
+
+@node Euchre
+@section Euchre
+
+@findex cg-euchre
+@cindex Euchre
+A brisk 24-card game (Nine to Ace).  The Jack of the trump suit (the
+@dfn{right bower}) and the other Jack of the same colour (the @dfn{left
+bower}) are the two highest trumps.  A card is turned up, and you may
+@dfn{order it up} as trump or, later, name a different suit.  The side
+that names trump must take three of the five tricks.  Partnership to 10.
+
+You are asked whether to order up the turned card (@kbd{y} or @kbd{n})
+and, if bidding comes round again, to name a trump.
+
+@strong{Strategy.}  Order up with three trumps, or two trumps and an
+off-suit Ace; a very strong hand can be played ``alone'' for a bigger
+score.
+
+@node Pitch
+@section Pitch
+
+@findex cg-pitch
+@cindex Pitch
+Auction Pitch.  Players bid for the right to @dfn{pitch}, and the
+pitcher's first lead sets the trump suit.  Thereafter follow the led suit
+if you can, but you may always trump instead.  Four points are at stake
+each hand --- High, Low, Jack, and Game --- and the first to seven wins.
+
+@strong{Strategy.}  Bid only on a solid trump holding, ideally with the
+Jack or with both the highest and lowest trumps.
+
+@node Briscola
+@section Briscola
+
+@findex cg-briscola
+@cindex Briscola
+A 40-card Italian game.  One card is turned to fix the trump, the
+@dfn{briscola}, and --- unusually --- there is no need to follow suit: you
+may play any card to any trick.  Winning a trick captures its cards, and
+the Aces and Threes carry the most points.  Capture the points; the first
+to 61 of the 120 wins.
+
+@strong{Strategy.}  Save your briscole to capture the opponents' Aces, and
+lead worthless cards to coax points out of them.
+
+@node Contract Bridge
+@section Bridge
+
+@findex cg-bridge
+@cindex Bridge
+@cindex Contract Bridge
+The full game: the auction, then the play with the dummy exposed, and
+rubber scoring.  You sit South and partner North against East and West.
+
+In the auction you compose a call and make it: @key{UP} and @key{DOWN}
+change the level, @key{LEFT} and @key{RIGHT} change the strain, @key{RET}
+bids it, @kbd{p} passes, and @kbd{d} doubles.  When the auction ends, the
+declaring side's first player is declarer and their partner is the dummy,
+whose hand is turned face up; the declarer plays both hands, so you play
+the dummy from your seat when it is the dummy's turn.  Making your
+contract scores below the line toward game and the rubber.
+
+@table @kbd
+@item arrows @r{and} @key{RET}
+Compose and make a call (auction), or choose and play a card (play).
+@item p @r{/} d
+Pass and double, during the auction.
+@item n @r{/} g @r{/} q
+Next deal, redraw, and the menu.
+@end table
+
+@strong{Strategy.}  Count your high-card points, look for an eight-card
+trump fit with your partner, and plan the whole hand --- drawing trumps,
+setting up a long suit --- before you play to the first trick.
 
 @node Rummy Games
 @chapter Rummy Games

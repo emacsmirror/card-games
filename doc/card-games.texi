@@ -75,47 +75,279 @@ the GNU General Public License, version 3 or later.
 @chapter Introduction
 
 @cindex introduction
+@cindex about
 Card Games for Emacs is a collection of more than thirty card games ---
 solitaires, two-player games, and four-handed partnership games ---
-played entirely inside GNU Emacs.  Each game draws itself as plain
-UNICODE text in a terminal and as SVG cards on a graphical display, and
-every game accepts both the keyboard and the mouse.
+played entirely inside GNU Emacs.
 
-@c TODO(pass 2): expand -- the engine, the philosophy (console first),
-@c the range of games, screenshots.
+Every game draws itself two ways.  In a terminal it uses plain UNICODE
+text, so it works anywhere Emacs runs, including over @command{ssh} and
+on a phone.  On a graphical display it draws proper SVG cards, with a
+felt table for the four-handed games.  You can switch between these
+treatments at any time (@pxref{Customization}).
+
+You play with the keyboard, the mouse, or both.  A highlighted cursor
+marks the card or pile you are about to act on; the arrow keys move it
+and @key{RET} acts.  Clicking a card does the same thing.
+
+@cindex families of games
+The games are grouped into families that share an engine and a feel:
+
+@table @asis
+@item Solitaire
+Klondike, FreeCell, Spider, Yukon, Canfield, Forty Thieves, Scorpion,
+Golf, TriPeaks, Pyramid, Gaps (Montana), and Hell's Half-Acre, plus a
+one-player Russian Bank.  @xref{Solitaire Games}.
+
+@item Trick-taking
+500, Hearts, Spades, Whist, Oh Hell, Euchre, Pitch, Briscola, and
+Contract Bridge.  @xref{Trick-Taking Games}.
+
+@item Rummy
+Gin Rummy, Rummy, Rummy 500, and the partnership game Hand & Foot.
+@xref{Rummy Games}.
+
+@item Matching, capturing, and climbing
+Go Fish and Old Maid; Scopa and Casino; President, Spite & Malice, and
+Cribbage.
+
+@item Two-player Russian Bank
+The competitive duel, Crapette, against the computer.  @xref{Russian
+Bank}.
+@end table
+
+To start, type @kbd{M-x card-game}.
 
 @node Installation
 @chapter Installation
 
 @cindex installation
-@c TODO(pass 2): package.el / ELPA install, requirements (Emacs 26.1),
-@c building from source, running the tests.
+@cindex requirements
+Card Games for Emacs needs GNU Emacs 26.1 or newer.  SVG display
+additionally needs an Emacs built with image support (any modern
+graphical Emacs has it); in a terminal the games fall back to text.
+
+@menu
+* From a package archive::      The easy way.
+* From source::                 Cloning the repository.
+* Building::                    Compiling, testing, and the manual.
+@end menu
+
+@node From a package archive
+@section From a package archive
+
+@cindex ELPA
+When the package is available from a package archive, install it the
+usual way with @kbd{M-x package-install @key{RET} card-games @key{RET}}.
+The autoloads let you run @kbd{M-x card-game} straight away.
+
+@node From source
+@section From source
+
+@cindex source, installing from
+Clone the repository from @url{https://code.bru.st/corwin/card-game.el},
+add it to your @code{load-path}, and load the umbrella file:
+
+@example
+(add-to-list 'load-path "/path/to/card-game.el")
+(require 'card-games)
+@end example
+
+@noindent
+Then @kbd{M-x card-game}.  You can also build an installable tarball with
+@kbd{make package} and install it with @kbd{M-x package-install-file}.
+
+@node Building
+@section Building
+
+@cindex Makefile
+@cindex tests
+The @file{Makefile} provides the usual developer targets:
+
+@table @code
+@item make compile
+Byte-compile all the sources.
+@item make test
+Run the ERT test suite.
+@item make info
+Build this manual (also @code{make html} and @code{make pdf}).
+@item make package
+Build the installable @file{.tar}.
+@end table
 
 @node The Game Menu
 @chapter The Game Menu
 
 @findex card-game
+@findex card-games
 @cindex chooser
-Type @kbd{M-x card-game} to open the chooser, a buffer listing every
-game.  Move between games with @key{TAB} (or @kbd{n} and @kbd{p}) and
-press @key{RET}, or click, to start one.  The chooser also carries two
-controls, @dfn{AI opponents} and @dfn{Cards}, described later.
+@cindex menu
+@kbd{M-x card-game} (also available as @code{card-games}) opens the
+chooser: a buffer listing every game with a one-line description.  Move
+between games with @key{TAB} and @kbd{S-@key{TAB}}, or @kbd{n} and
+@kbd{p}, and press @key{RET} --- or click a game's name --- to start it.
+@kbd{q} buries the menu.
 
-@c TODO(pass 2): the AI-level control, the treatment control, quitting.
+Two controls sit at the top of the list.
+
+@table @asis
+@item AI opponents
+@vindex cg-ai-level
+Sets how hard the computer plays: @code{easy}, @code{normal}, or
+@code{hard}.  Click it to cycle, or use @kbd{M-x card-games-set-ai-level}.
+@xref{Opponents}.
+
+@item Cards
+@vindex card-games-treatment
+Chooses how the games are drawn: @code{text}, @code{svg}, or @code{full}.
+Click it to cycle, or use @kbd{M-x card-games-set-treatment}.
+@xref{Display}.
+@end table
 
 @node Playing
 @chapter Playing
 
-@cindex controls
-@c TODO(pass 2): the shared controls -- arrows, RET, q to the menu, the
-@c footer legend, zoom (+/-/0), redraw (g), help (?).
+@cindex controls, shared
+@cindex keys
+Each game has its own rules and a few keys of its own, but the basic
+controls are the same everywhere.  Press @kbd{?} in any game to see that
+game's keys in the echo area.
+
+@table @kbd
+@item @key{LEFT} @key{RIGHT} @key{UP} @key{DOWN}
+Move the highlighted cursor between cards and piles.
+@item @key{RET}
+Act on the cursor: pick up or drop a card, play it, or select it.  Many
+games also accept @key{SPC}.
+@item mouse-1
+Click a card or pile to do the same as moving the cursor there and
+acting.
+@item f
+Where there are foundations, send the chosen card to one.
+@item u
+Undo the last move, in the games that support it.
+@item n
+Deal a new game.
+@item g
+Redraw the board.
+@item ?
+Describe the game's controls.
+@item q
+Leave the game and return to the menu (@pxref{The Game Menu}).
+@end table
+
+@cindex zoom
+@vindex cg-card-scale
+On a graphical display, @kbd{+} and @kbd{-} (and @kbd{=}) make the cards
+larger and smaller, and @kbd{0} resets the size.  Emacs's own
+@code{text-scale-adjust} works too.  Many boards show a one-line legend
+of the current game's keys along the bottom.
 
 @node Customization
 @chapter Customization
 
 @cindex customization
-@c TODO(pass 2): card backs, the Emacs logo, themes, four-colour decks,
-@c suit glyphs, key schemes, the AI level, the display treatment.
+All the options live in the @code{card-games} customization group; type
+@kbd{M-x customize-group @key{RET} card-games @key{RET}} to browse them.
+The most useful are collected here.
+
+@menu
+* Display::                     Text, SVG cards, or a full table.
+* Cards and colours::           Backs, decks, glyphs, and themes.
+* The Emacs emblem::            Which logo the full table shows.
+* Keys::                        Emacs or classic movement.
+* Opponents::                   How hard the computer plays.
+@end menu
+
+@node Display
+@section Display
+
+@vindex card-games-treatment
+@findex card-games-set-treatment
+@kbd{M-x card-games-set-treatment} switches every game between three
+treatments: @code{text} draws UNICODE cards, @code{svg} draws SVG cards,
+and @code{full} additionally uses the full-window SVG table for the games
+that have one (Gaps and 500).  You can also cycle it from the menu
+(@pxref{The Game Menu}).  A change takes effect the next time a game is
+drawn; press @kbd{g} to redraw an open game.
+
+@vindex cg-card-scale
+The card size follows @code{cg-card-scale} and the zoom keys
+(@pxref{Playing}).
+
+@node Cards and colours
+@section Cards and colours
+
+@vindex cg-svg-card-back
+@findex cg-svg-shuffle-card-back
+@cindex card backs
+The pattern on a face-down card is @code{cg-svg-card-back}.  Besides
+@code{dots}, @code{rings}, and @code{solid} there are the drawn patterns
+@code{lattice}, @code{waves}, and @code{diamond}, and four backs stamped
+with an Emacs logo: @code{emacs}, @code{emacs-classic}, @code{gnu}, and
+@code{splash}.  The default, @code{random}, chooses a back for the
+session; @kbd{M-x cg-svg-shuffle-card-back} rolls a new one, and
+reopening the menu also re-rolls.
+
+@vindex cg-svg-four-color
+@cindex four-colour deck
+With @code{cg-svg-four-color} non-@code{nil}, clubs are drawn green and
+diamonds blue, so all four suits are told apart by colour.
+
+@vindex cg-symbols
+@cindex suit glyphs
+@code{cg-symbols} maps each suit to the glyph used for it, in both the
+text and the SVG cards; customize it to use the outlined suits
+@samp{♤ ♧ ♢ ♡}, say, instead of the filled ones.
+
+@findex card-games-set-theme
+@vindex card-games-themes
+@cindex themes
+@kbd{M-x card-games-set-theme} applies a colour preset ---
+@code{classic}, @code{dark}, or @code{contrast} --- setting the felt
+colour, the card back, and the highlight together.  The individual
+colours (@code{cg-svg-highlight-color}, @code{cg-bid-felt-color}, and the
+rest) can also be set on their own.
+
+@vindex cg-cursor-type
+@cindex cursor
+Card buffers hide the text cursor by default, since you act on the
+highlighted card rather than on point; @code{cg-cursor-type} can bring it
+back.
+
+@node The Emacs emblem
+@section The Emacs emblem
+
+@vindex cg-svg-emacs-logo
+@cindex logo
+The full-window tables (500 and Gaps) show an Emacs emblem in a corner.
+@code{cg-svg-emacs-logo} chooses it: @code{modern} (the current Emacs
+icon, the default), @code{classic} (the older icon), @code{gnu} (a GNU
+head), @code{splash} (the startup image), @code{drawn} (a small built-in
+emblem), or @code{none}.  The image choices embed a logo that ships with
+your Emacs, falling back to the drawn emblem when it cannot be found.
+
+@node Keys
+@section Keys
+
+@vindex cg-keys
+@cindex key scheme
+@code{cg-keys} selects a movement scheme.  @code{emacs} (the default)
+follows Emacs conventions --- the arrow keys move and @key{RET} acts.
+@code{classic} additionally enables @kbd{h} @kbd{j} @kbd{k} @kbd{l} and
+@key{SPC}.  A change takes effect the next time a game starts.
+
+@node Opponents
+@section Opponents
+
+@vindex cg-ai-level
+@findex card-games-set-ai-level
+@cindex difficulty
+@code{cg-ai-level} sets how hard the computer plays: @code{easy},
+@code{normal}, or @code{hard}.  Russian Bank plays all three levels; the
+trick-taking games play a random legal card on @code{easy} and their
+usual game otherwise.  Other games do not yet consult it.  Set it with
+@kbd{M-x card-games-set-ai-level} or from the menu.
 
 @node Solitaire Games
 @chapter Solitaire Games
@@ -164,7 +396,8 @@ controls, @dfn{AI opponents} and @dfn{Cards}, described later.
 @node Credits
 @chapter Credits
 
-@c TODO(pass 6): rules sources (Wikipedia, Pagat), thanks to testers.
+@c TODO(pass 6): rules sources (Wikipedia, Pagat); thanks to testers;
+@c a credit for Claude (the AI assistant who helped build much of this).
 
 @node License
 @appendix License

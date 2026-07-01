@@ -325,6 +325,98 @@ and carries a card-size slider.  Draws SVG cards on a graphical display
       (setq i (1+ i)))
     (apply #'concat (nreverse out)))))
 
+(defun cg-rummy--board-svg (&rest args)
+  "Draw a rummy-style board; return a propertized display string.
+Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
+:hint-fn :message.  :melds is a list of (LABEL . CARDS), or the symbol
+`none' to hide the table area.  The hand carries (hand . INDEX) regions."
+  (let* ((title (or (plist-get args :title) ""))
+         (infos (plist-get args :infos))
+         (raw-melds (plist-get args :melds))
+         (show-table (not (eq raw-melds 'none)))
+         (melds (and show-table raw-melds))
+         (discard (plist-get args :discard))
+         (stock (or (plist-get args :stock) 0))
+         (hand (plist-get args :hand))
+         (cursor (or (plist-get args :cursor) 0))
+         (marks (plist-get args :marks))
+         (hint-fn (plist-get args :hint-fn))
+         (msg (or (plist-get args :message) ""))
+         (w cg-svg-card-width) (h cg-svg-card-height) (gap cg-svg-card-gap)
+         (pad 16) (label-w 46)
+         (n (length hand))
+         (overlap (cond ((> n 11) (- w 24)) ((> n 8) 20) (t 0)))
+         (step (max 14 (- (+ w gap) overlap)))
+         (fanw (if (> n 0) (+ (* (1- n) step) w) w))
+         (mstep (max 16 (round (* w 0.5))))
+         (n-info (length infos))
+         (y-title 6) (y-info 26)
+         (y-sd (+ y-info (* n-info 16) 8))
+         (meld-rowh (+ h 8))
+         (y-melds (+ y-sd h 26))
+         (melds-area (if show-table (+ (* (max 1 (length melds)) meld-rowh) 16) 6))
+         (y-hand (+ y-melds melds-area))
+         (height (+ y-hand h 30))
+         (meld-maxw (if melds
+                        (apply #'max 0
+                               (mapcar (lambda (m)
+                                         (+ label-w
+                                            (let ((k (length (cdr m))))
+                                              (if (> k 0) (+ (* (1- k) mstep) w) w))))
+                                       melds))
+                      0))
+         (width (max (+ fanw (* 2 pad)) (+ meld-maxw (* 2 pad)) 640))
+         (svg (svg-create width height))
+         (lc (cg-color 'shadow :foreground "gray50"))
+         (regions '()))
+    (cl-labels ((txt (str x y &optional sz bold)
+                     (apply #'svg-text svg str :x x :y y :font-size (or sz 12) :fill lc
+                            :font-family cg-svg-font-family
+                            (and bold '(:font-weight "bold"))))
+                (drow (specs x y stp)
+                      (let ((xx x))
+                        (dolist (sp specs)
+                          (if sp (cg-svg-card svg xx y :rank (car sp) :suit (cdr sp))
+                            (cg-svg-card svg xx y :gap t))
+                          (setq xx (+ xx stp))))))
+      (txt title pad (+ y-title 12) 13 t)
+      (let ((yy (+ y-info 4)))
+        (dolist (line infos) (txt line pad yy 12) (setq yy (+ yy 16))))
+      (cg-svg-card svg pad y-sd :down (> stock 0) :gap (= stock 0))
+      (txt (format "Stock %d" stock) pad (+ y-sd h 13) 11)
+      (let ((dx (+ pad w gap 24)))
+        (if discard
+            (let ((sp (cg-rummy--card-spec discard)))
+              (cg-svg-card svg dx y-sd :rank (car sp) :suit (cdr sp)))
+          (cg-svg-card svg dx y-sd :gap t))
+        (txt "Discard" dx (+ y-sd h 13) 11))
+      (when show-table
+        (txt "Table" pad (- y-melds 4) 11)
+        (if (null melds)
+            (txt "(no melds yet)" (+ pad label-w) (+ y-melds (round (* h 0.5))) 11)
+          (let ((yy y-melds))
+            (dolist (m melds)
+              (txt (car m) pad (+ yy (round (* h 0.55))) 11)
+              (drow (mapcar #'cg-rummy--card-spec (cdr m)) (+ pad label-w) yy mstep)
+              (setq yy (+ yy meld-rowh))))))
+      (txt "Your hand" pad (- y-hand 6) 11)
+      (let ((x (max pad (- (/ width 2) (/ fanw 2)))) (i 0))
+        (dolist (c hand)
+          (let ((sp (cg-rummy--card-spec c))
+                (curp (= i cursor))
+                (markp (and marks (memq i marks)))
+                (hintp (and hint-fn (funcall hint-fn c))))
+            (cg-svg-card svg x y-hand :rank (car sp) :suit (cdr sp)
+                         :highlight curp :hint hintp)
+            (when markp
+              (svg-rectangle svg (- x 3) (- y-hand 3) (+ w 6) (+ h 6)
+                             :rx 8 :fill "none" :stroke "#4a90d9" :stroke-width 3))
+            (push (cons (list x y-hand (if (= i (1- n)) w step) h) (cons 'hand i)) regions))
+          (setq x (+ x step) i (1+ i))))
+      (txt msg pad (- height 8) 12))
+    (propertize "*" 'display (cg-svg-image svg (cg-scale))
+                'cg-regions (nreverse regions))))
+
 (defun cg-rummy--melds-string (melds)
   "Return a one-line depiction of MELDS (a list of card-lists)."
   (mapconcat (lambda (m) (mapconcat #'cg-rummy-card-string m " "))
@@ -465,8 +557,36 @@ and carries a card-size slider.  Draws SVG cards on a graphical display
 
 (defvar-local cg-gin--game nil "The Gin Rummy game in the current buffer.")
 
+(defun cg-gin--svg (game)
+  "Return an SVG board for the Gin GAME."
+  (let* ((scores (cg-get game :scores)) (reveal (cg-get game :reveal))
+         (hand (cg-rummy--hand game 0)) (infos '()))
+    (push (format "Opponent: %d cards    score %d"
+                  (length (cg-rummy--hand game 1)) (aref scores 1)) infos)
+    (when reveal
+      (let ((pp (cg-rummy-best-partition (cg-rummy--hand game 1))))
+        (push (format "  melds %s   deadwood %s (%d)"
+                      (cg-rummy--melds-string (plist-get pp :melds))
+                      (mapconcat #'cg-rummy-card-string (plist-get pp :deadwood) " ")
+                      (plist-get pp :count))
+              infos)))
+    (push (format "You: deadwood %d   score %d"
+                  (cg-gin--deadwood hand) (aref scores 0)) infos)
+    (cg-rummy--board-svg
+     :title (format "Gin Rummy   (first to %d)" cg-gin-target)
+     :infos (nreverse infos) :melds 'none
+     :discard (cg-rummy--top game) :stock (length (cg-get game :stock))
+     :hand hand :cursor (cg-get game :cursor)
+     :message (cg-get game :message))))
+
 (cl-defmethod cg-render ((game cg-gin-game))
-  "Return a propertized depiction of the Gin GAME for a text display."
+  "Return a depiction of the Gin GAME: SVG board if graphical, else text."
+  (if (and cg-rummy-svg-cards (display-graphic-p))
+      (cg-gin--svg game)
+    (cg-gin--render-text game)))
+
+(defun cg-gin--render-text (game)
+  "Return a plain-text depiction of the Gin GAME."
   (let* ((out '()) (scores (cg-get game :scores))
          (reveal (cg-get game :reveal))
          (hand (cg-rummy--hand game 0)) (cursor (cg-get game :cursor)))

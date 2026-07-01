@@ -351,8 +351,38 @@ Deep-pickup games show the whole pile with depth indices (0 = top)."
                                              :ace-high (cg-tm--ace-high game)))
                 (cg-get game :table))))
 
+(defun cg-tm--svg (game)
+  "Return an SVG board for the table-meld GAME."
+  (let* ((scores (cg-get game :scores)) (laid (cg-get game :laid))
+         (meldp (oref game score-style)))
+    (cg-rummy--board-svg
+     :title (format "%s   (target %d)" (oref game vname) (oref game target))
+     :infos (let (out)
+              (dotimes (s (cg-get game :nplayers))
+                (unless (= s 0)
+                  (push (format "Player %d: %d cards   score %d%s"
+                                s (length (cg-rummy--hand game s)) (aref scores s)
+                                (if (eq meldp 'meld-points)
+                                    (format "   laid %d" (aref laid s)) ""))
+                        out)))
+              (nreverse out))
+     :melds (mapcar (lambda (rec)
+                      (cons (if (= (car rec) 0) "you" (format "P%d" (car rec)))
+                            (cdr rec)))
+                    (cg-get game :table))
+     :discard (cg-rummy--top game) :stock (length (cg-get game :stock))
+     :hand (cg-rummy--hand game 0) :cursor (cg-get game :cursor)
+     :marks (cg-get game :marks) :hint-fn (cg-tm--layoff-hint game)
+     :message (cg-get game :message))))
+
 (cl-defmethod cg-render ((game cg-tablemeld-game))
-  "Return a propertized depiction of the table-meld GAME."
+  "Return a depiction of the table-meld GAME: SVG board if graphical, else text."
+  (if (and cg-rummy-svg-cards (display-graphic-p))
+      (cg-tm--svg game)
+    (cg-tm--render-text game)))
+
+(defun cg-tm--render-text (game)
+  "Return a plain-text depiction of the table-meld GAME."
   (let* ((out '()) (scores (cg-get game :scores))
          (laid (cg-get game :laid)) (meldp (oref game score-style))
          (hand (cg-rummy--hand game 0)) (cursor (cg-get game :cursor)))

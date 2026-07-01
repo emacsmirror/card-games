@@ -39,6 +39,10 @@ the mouse as well as the keyboard.
     the middle, and your fanned hand, with the legal cards you may play
     ringed.  Click a card to play it.  Set ~cg-trick-svg-cards~ to nil
     for the plain-text board.
+  - Full SVG board for the rummy games (Gin Rummy, Rummy, Rummy 500):
+    the stock and discard, the melds already down on the table, and your
+    fanned hand with cursor, marks, and lay-off hints; click a card to
+    select it.  Honours ~cg-rummy-svg-cards~.
 
 ** Rummy-family rules completed
   - Rummy 500: take a card from anywhere in the discard pile (key ~T~) --

@@ -352,9 +352,241 @@ usual game otherwise.  Other games do not yet consult it.  Set it with
 @node Solitaire Games
 @chapter Solitaire Games
 
-@c TODO(pass 3): Klondike, FreeCell, Spider, Yukon, Canfield, Forty
-@c Thieves, Scorpion, Golf, TriPeaks, Pyramid, Gaps/Montana, Hell's
-@c Half-Acre, Russian Bank (patience) -- object, rules, strategy, keys.
+@cindex solitaire
+@cindex patience
+The one-player games.  Most are @dfn{tableau builders} that share the
+same controls; the pile games (Golf, TriPeaks, Pyramid) and the gaps
+games (Gaps, Hell's Half-Acre) play a little differently and say so in
+their own sections.
+
+@cindex solitaire, controls
+The shared keys for the tableau builders are:
+
+@table @kbd
+@item @key{LEFT} @key{RIGHT}
+Move the cursor between piles.
+@item @key{RET} @r{(or} @key{SPC}@r{)}
+Pick up the card, or the movable run, under the cursor; press again on a
+destination to drop it.  On the stock, deal cards to the waste (or, when
+the stock is empty, recycle the waste where the game allows).
+@item f
+Send the card under the cursor to a foundation.
+@item a
+Auto-play the cards that plainly belong on the foundations.
+@item u
+Undo the last move.
+@item n @r{/} g @r{/} ? @r{/} q
+New deal, redraw, describe the keys, and return to the menu.
+@end table
+
+@noindent
+With @code{cg-keys} set to @code{classic} the vi keys @kbd{h} @kbd{j}
+@kbd{k} @kbd{l} move as well (@pxref{Keys}).
+
+@menu
+* Klondike::                    The classic.
+* FreeCell::                    A game of pure skill.
+* Spider::                      Two decks; clear eight suited runs.
+* Yukon::                       Klondike, but move any group.
+* Canfield::                    A reserve and a wrapping base rank.
+* Forty Thieves::               Two decks, no redeal, and hard.
+* Scorpion::                    Free four buried runs.
+* Russian Bank Solitaire::      Houses and a feeding reserve.
+* Golf::                        One rank up or down.
+* TriPeaks::                    Golf with wrapping chains.
+* Pyramid::                     Remove pairs that sum to thirteen.
+* Gaps::                        Order the rows through the gaps.
+* Hell's Half-Acre::            Gaps, built the other way.
+@end menu
+
+@node Klondike
+@section Klondike
+
+@findex cg-klondike
+@cindex Klondike
+The classic.  Build the four foundations up in suit, Ace to King.  Seven
+columns hold a descending, alternating-colour tableau; move a card or an
+ordered run onto the next-higher card of the other colour, and fill an
+empty column with a King (or a King-headed run).  Turn cards from the
+stock to the waste --- one at a time by default --- and recycle the
+waste when the stock runs out.
+
+@vindex cg-sol-klondike-draw
+Set @code{cg-sol-klondike-draw} to @code{3} for the harder
+turn-three variant.
+
+@cindex strategy, Klondike
+@strong{Strategy.}  Uncover face-down cards before anything else, and
+keep a column open for a King.  Do not rush low cards to the foundations
+if you may still need them to receive tableau cards.
+
+@node FreeCell
+@section FreeCell
+
+@findex cg-freecell
+@cindex FreeCell
+Every card is dealt face up into eight columns, and four @dfn{free cells}
+each hold a single card.  Build the tableau down in alternating colour
+and the foundations up in suit.  How large a run you can shift at once
+depends on how many cells and empty columns are free.  Almost every deal
+can be won --- this is a game of skill, not luck.
+
+@strong{Strategy.}  Plan several moves ahead, free the aces early, and
+resist filling all four cells; an empty column is worth more than a full
+cell.
+
+@node Spider
+@section Spider
+
+@findex cg-spider
+@cindex Spider
+Two decks, ten columns, no separate foundations.  Build down regardless
+of suit, but only a same-suit run moves as a block.  Complete a
+King-to-Ace run in one suit and it is lifted off the table; clear all
+eight to win.  Press @key{RET} on the stock to deal one card to every
+column --- but only when no column is empty.
+
+@strong{Strategy.}  Build in suit whenever you have the choice, and empty
+a column as soon as you can: it is the key to untangling the rest.
+
+@node Yukon
+@section Yukon
+
+@findex cg-yukon
+@cindex Yukon
+Klondike's layout, dealt mostly face up, with one liberating difference:
+you may move @emph{any} face-up card, together with everything piled on
+top of it, onto a card one higher of the other colour --- the group need
+not be in order.  There is no stock.
+
+@strong{Strategy.}  Expose the face-down cards; the freedom to lift
+buried groups wins many deals that Klondike would lose.
+
+@node Canfield
+@section Canfield
+
+@findex cg-canfield
+@cindex Canfield
+A thirteen-card @dfn{reserve}, four tableau columns, and a stock dealt
+three at a time.  The first card sets the base rank for the foundations,
+which build up in suit and wrap from King round to Ace.  The tableau
+builds down in alternating colour, and an empty column refills from the
+reserve.
+
+@strong{Strategy.}  Clear the reserve --- it is the bottleneck --- and
+keep the wrapping base rank in mind when you choose what to bank.
+
+@node Forty Thieves
+@section Forty Thieves
+
+@findex cg-forty-thieves
+@cindex Forty Thieves
+Two decks, ten columns, eight foundations.  The tableau builds down
+@emph{in suit} and moves one card at a time; the foundations build up in
+suit; the stock deals to the waste with no redeal.  A hard, skilful game.
+
+@strong{Strategy.}  Be patient, keep the waste short, and avoid burying
+the low cards you will need.
+
+@node Scorpion
+@section Scorpion
+
+@findex cg-scorpion
+@cindex Scorpion
+Seven columns, built down in suit.  As in Yukon you may move any card
+with everything on top of it, ordered or not.  Free four King-to-Ace runs
+to win.  A small stock deals onto the first columns when you are stuck.
+
+@strong{Strategy.}  Dig the buried low cards out early, and think about
+which King you can afford to complete first.
+
+@node Russian Bank Solitaire
+@section Russian Bank
+
+@findex cg-russian-bank
+@cindex Russian Bank, solitaire
+The one-player patience: eight @dfn{houses} built down in alternating
+colour, four foundations built up in suit from the Ace, and a
+thirteen-card reserve that feeds an empty house.  (For the competitive
+two-player game, @pxref{Russian Bank}.)
+
+@strong{Strategy.}  Play to the foundations first and empty the reserve;
+the houses are just working space.
+
+@node Golf
+@section Golf
+
+@findex cg-golf
+@cindex Golf
+A layout of thirty-five cards over a single waste pile.  Play any exposed
+card onto the waste when it is one rank above @emph{or} below the waste's
+top card; the sequence does @emph{not} wrap, so nothing follows a King.
+Turn a fresh card from the stock when you are stuck.  Clear the whole
+layout to win.
+
+@cindex controls, pile games
+Use the arrow keys or the mouse to choose a card, @key{RET} to play it
+(or, on the stock, to deal), @kbd{u} to undo, and @kbd{n} for a new deal.
+
+@strong{Strategy.}  Look for long up-and-down chains before you spend a
+card from the stock.
+
+@node TriPeaks
+@section TriPeaks
+
+@findex cg-tripeaks
+@cindex TriPeaks
+Golf played over three overlapping peaks, with one change: the sequence
+@emph{wraps}, so an Ace follows a King and a King follows an Ace.  That
+lets you run long chains across the peaks.  Clear all three to win.  The
+keys are the same as Golf.
+
+@strong{Strategy.}  Plan the chain that uncovers the most cards, and hold
+the stock in reserve for when the board truly stalls.
+
+@node Pyramid
+@section Pyramid
+
+@findex cg-pyramid
+@cindex Pyramid
+A twenty-eight-card pyramid.  Remove pairs of exposed cards whose ranks
+sum to thirteen --- Ace counts 1, Jack 11, Queen 12, and a King is 13, so
+a King leaves on its own.  Mark one card and then its partner to remove
+them, and deal from the stock for more matches.  Clear the pyramid to
+win.
+
+@strong{Strategy.}  Free the cards that block two others at once, and do
+not strand a card whose only partner is already gone.
+
+@node Gaps
+@section Gaps
+
+@findex cg-montana
+@findex cg-gaps
+@cindex Gaps
+@cindex Montana
+Also called Montana.  The pack is dealt into four rows with gaps between
+the cards.  Each row is built as one suit, with a Two at the head, rising
+Two, Three, @dots{}, up to the King.  Move a card into a gap when it
+continues the row --- the card one higher, in the same suit, than the
+card to the gap's left.  Fillable gaps are ringed and marked with a green
+@samp{+}.
+
+When no move remains, @kbd{r} reshuffles the misplaced cards for another
+try; you get a limited number of these redeals.  @kbd{v} toggles the
+full-window layout.  Order every row to win.
+
+@strong{Strategy.}  Open the gaps that let a Two, then a Three, begin
+each row, and spend redeals only when you are truly stuck.
+
+@node Hell's Half-Acre
+@section Hell's Half-Acre
+
+@findex cg-hells-half-acre
+@cindex Hell's Half-Acre
+The same game as Gaps, built the other way: a King anchors the head of
+each row and the rows descend King, Queen, @dots{}, down to the Two.  The
+controls are identical.
 
 @node Trick-Taking Games
 @chapter Trick-Taking Games

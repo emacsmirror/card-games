@@ -104,6 +104,25 @@ host must reach the client bare."
         (cg-net-disconnect)
         (cg-net-host-stop)))))
 
+(ert-deftest cgt-net-host-loopback-default ()
+  "Hosting binds to this machine only unless deliberately widened.
+Finding 1 of the 2026-07-29 review: the default of
+`cg-net-host-address' is loopback, and the listening socket really
+binds it -- wider exposure is a setting the user turns on, not a
+silent default."
+  (should (equal "127.0.0.1" (default-value 'cg-net-host-address)))
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe4" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+         (srv (cg-net-host-start hgame 0)))
+    (unwind-protect
+        (should (equal [127 0 0 1]
+                       (substring (process-contact srv :local) 0 4)))
+      (cg-net-host-stop))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

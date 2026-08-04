@@ -60,6 +60,23 @@
   "Default TCP port used to host or join a game."
   :type 'integer :group 'cg-net)
 
+(defcustom cg-net-host-address "127.0.0.1"
+  "Address the host's listening socket binds when hosting a game.
+The default, \"127.0.0.1\", accepts connections only from this
+machine; remote players reach it through a tunnel they were
+deliberately given (for example ssh port forwarding), which also
+encrypts the traffic in transit.
+
+Setting this to \"0.0.0.0\" listens on every network interface, which
+means anyone able to reach this machine's port can take a seat: there
+is no password and no encryption on the wire.  That can be a
+reasonable choice on a trusted LAN, but it is a choice -- make it
+deliberately."
+  :type '(choice (const :tag "This machine only (recommended)" "127.0.0.1")
+                 (const :tag "Every interface (anyone who can reach you)" "0.0.0.0")
+                 (string :tag "A specific interface address"))
+  :group 'cg-net)
+
 (defvar cg-net-state-functions nil
   "Abnormal hook run on a client after the game state is updated.
 Each function is called with the client's game object.")
@@ -157,11 +174,12 @@ properties stripped (`cg-net--scrub') before HANDLER sees them."
   (and cg-net--host (process-live-p (cg-net-host-server cg-net--host))))
 
 (defun cg-net-host-start (game &optional port)
-  "Begin hosting GAME on PORT (default `cg-net-port').  Return the server process."
+  "Begin hosting GAME on PORT (default `cg-net-port').  Return the server process.
+The socket binds `cg-net-host-address' -- by default, this machine only."
   (let* ((port (or port cg-net-port))
          (server (make-network-process
                   :name "cg-host" :server t :service port
-                  :host "0.0.0.0" :family 'ipv4 :coding 'utf-8
+                  :host cg-net-host-address :family 'ipv4 :coding 'utf-8
                   :log #'cg-net--host-accept)))
     (setq cg-net--host (cg-net--host-make :server server :game game))
     server))

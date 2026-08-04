@@ -254,16 +254,22 @@ With no seed the order is unpredictable (system `random')."
 
 ;;;; Shared faces
 
-(defface card-games-red-suit '((t :foreground "red3"))
+(defface card-games-red-suit
+  '((((background dark))  :foreground "#ff7961")
+    (t :foreground "red3"))
   "Face for red-suited cards." :group 'card-games)
 
 (defface card-games-cursor '((t :inverse-video t))
   "Face for the cell or card under the cursor." :group 'card-games)
 
-(defface card-games-gap '((t :foreground "gray50"))
+(defface card-games-gap
+  '((((background dark))  :foreground "#a6a6a6")
+    (t :foreground "#595959"))
   "Face for an empty slot." :group 'card-games)
 
-(defface card-games-hint '((t :foreground "green3" :weight bold))
+(defface card-games-hint
+  '((((background dark))  :foreground "green3" :weight bold)
+    (t :foreground "#207a3f" :weight bold))
   "Face for a valid move target (a fillable gap)." :group 'card-games)
 
 (defun card-games-color (face attribute fallback)

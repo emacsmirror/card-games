@@ -138,7 +138,7 @@ hearts red."
 
 (defvar card-games-svg-red-color   "#c0392b" "Colour for red suits.")
 (defvar card-games-svg-black-color "#2c3e50" "Colour for black suits.")
-(defvar card-games-svg-club-color "#1a8a3c" "Clubs colour in a four-colour deck.")
+(defvar card-games-svg-club-color "#166534" "Clubs colour in a four-colour deck.")
 (defvar card-games-svg-diamond-color "#3b3fb0" "Diamonds colour in a four-colour deck.")
 (defvar card-games-svg-joker-color "#8e44ad" "Colour for the Joker.")
 (defvar card-games-svg-face-color  "#fdfdfb" "Card face fill.")
@@ -147,7 +147,7 @@ hearts red."
 (defvar card-games-svg-back-color  "#27496d" "Card back fill.")
 (defvar card-games-svg-back-trim   "#9fb3cf" "Card back inner trim/dots.")
 (defvar card-games-svg-highlight-color "#f1c40f" "Cursor/selection highlight.")
-(defvar card-games-svg-gap-color   "#95a5a6" "Empty-slot outline colour.")
+(defvar card-games-svg-gap-color   "#cbd5e1" "Empty-slot outline colour.")
 
 (defun card-games-svg--highlight ()
   "Resolve the cursor/selection ring colour.
@@ -170,7 +170,7 @@ each redraw.  Customize `card-games-svg-highlight-color' to change it."
         ((card-games-red-suit-p suit) "#fbeceb")
         (t "#eef2f6")))
 
-(defvar card-games-svg-hint-color "#27ae60" "Colour ringing a valid move target.")
+(defvar card-games-svg-hint-color "#7cf59a" "Colour ringing a valid move target.")
 
 (defun card-games-svg--hint ()
   "Resolve the valid-move hint colour (theme-aware)."
@@ -406,15 +406,29 @@ HIGHLIGHT draws a glowing cursor ring around the card."
      (down (card-games-svg--draw-back svg x y w h r))
      (t (card-games-svg--draw-face svg x y w h r rank suit)))
     (when hint
+      ;; Haloed dashed ring: a dark backing reads on the light card faces and
+      ;; the bright ring reads on the (green) felt -- one colour cannot do
+      ;; both.  Dashed (vs the solid cursor ring) keeps it distinct by shape,
+      ;; not colour alone.
+      (svg-rectangle svg (- x 3) (- y 3) (+ w 6) (+ h 6) :rx (+ r 2)
+                     :fill "none" :stroke "#101010" :stroke-opacity 0.55
+                     :stroke-width 4 :stroke-dasharray "3,3")
       (svg-rectangle svg (- x 2) (- y 2) (+ w 4) (+ h 4) :rx (+ r 1)
                      :fill "none" :stroke (card-games-svg--hint) :stroke-width 2
                      :stroke-dasharray "3,3"))
     (when highlight
       (let ((hl (card-games-svg--highlight)))
-        (svg-rectangle svg (- x 4) (- y 4) (+ w 8) (+ h 8) :rx (+ r 3)
-                       :fill "none" :stroke hl :stroke-opacity 0.45 :stroke-width 6)
+        ;; Haloed ring so the cursor reads on both the near-white card faces
+        ;; (dark edges) and the dark felt (bright ring): no single colour
+        ;; meets 3:1 on both, so pair a bright ring with dark edges.
+        (svg-rectangle svg (- x 5) (- y 5) (+ w 10) (+ h 10) :rx (+ r 4)
+                       :fill "none" :stroke "#101010" :stroke-opacity 0.6
+                       :stroke-width 6)
         (svg-rectangle svg (- x 3) (- y 3) (+ w 6) (+ h 6) :rx (+ r 2)
-                       :fill "none" :stroke hl :stroke-width 2.5)))))
+                       :fill "none" :stroke hl :stroke-width 3.5)
+        (svg-rectangle svg (- x 1) (- y 1) (+ w 2) (+ h 2) :rx (+ r 1)
+                       :fill "none" :stroke "#101010" :stroke-opacity 0.55
+                       :stroke-width 1.5)))))
 
 (defun card-games-svg--draw-spec (svg x y spec highlight &optional hint)
   "Draw SPEC onto SVG at X, Y, with HIGHLIGHT and optional HINT ring.

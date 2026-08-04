@@ -1,11 +1,10 @@
-;;; cg-render.el --- Renderer "skins" for card games  -*- lexical-binding: t; -*-
+;;; card-games-render.el --- Renderer "skins" for card games  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026  Corwin Brust
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
 ;; Version: 1.0.91
-;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -24,103 +23,103 @@
 
 ;;; Commentary:
 
-;; Concrete display treatments ("skins") built on the `cg-renderer'
-;; protocol from cg-core.  Each treatment is a small EIEIO class that
+;; Concrete display treatments ("skins") built on the `card-games-renderer'
+;; protocol from card-games-core.  Each treatment is a small EIEIO class that
 ;; registers itself by name:
 ;;
 ;;   text      plain UNICODE text (works in a terminal and on Android)
 ;;   svg       SVG cards on a graphical display
 ;;   svg-fill  a full-window SVG table that grows with the window
 ;;
-;; A game draws itself by calling `cg-render-game', which selects the
+;; A game draws itself by calling `card-games-render-game', which selects the
 ;; game's current renderer (falling back to a default treatment chosen
-;; for the display) and dispatches `cg-renderer-draw'.  The actual,
+;; for the display) and dispatches `card-games-renderer-draw'.  The actual,
 ;; game-specific drawing is supplied as methods specialised on a
 ;; (TREATMENT GAME) pair in the individual game files.
 
 ;;; Code:
 
-(require 'cg-core)
+(require 'card-games-core)
 
-(defgroup cg-render nil
+(defgroup card-games-render nil
   "Display treatments (\"skins\") for card games."
   :group 'card-games
-  :prefix "cg-render-")
+  :prefix "card-games-render-")
 
-(defclass cg-text-renderer (cg-renderer)
+(defclass card-games-text-renderer (card-games-renderer)
   ((name :initform 'text))
   "Plain UNICODE text treatment.")
 
-(defclass cg-svg-renderer (cg-renderer)
+(defclass card-games-svg-renderer (card-games-renderer)
   ((name :initform 'svg))
   "SVG cards on a graphical display.")
 
-(defclass cg-svg-fill-renderer (cg-svg-renderer)
+(defclass card-games-svg-fill-renderer (card-games-svg-renderer)
   ((name :initform 'svg-fill))
   "Full-window SVG table that grows to fill the window.")
 
-(cg-register-renderer 'text     'cg-text-renderer)
-(cg-register-renderer 'svg      'cg-svg-renderer)
-(cg-register-renderer 'svg-fill 'cg-svg-fill-renderer)
+(card-games-register-renderer 'text     'card-games-text-renderer)
+(card-games-register-renderer 'svg      'card-games-svg-renderer)
+(card-games-register-renderer 'svg-fill 'card-games-svg-fill-renderer)
 
-(defcustom cg-render-default-treatment 'auto
+(defcustom card-games-render-default-treatment 'auto
   "Default display treatment for games.
 The value `auto' chooses `svg' on a graphical display and `text'
 otherwise.  It may instead name a treatment registered in
-`cg-renderers', such as `text', `svg', or `svg-fill'."
+`card-games-renderers', such as `text', `svg', or `svg-fill'."
   :type '(choice (const :tag "Automatic (svg if graphical, else text)" auto)
                  (const text) (const svg) (const svg-fill)
                  (symbol :tag "Other registered treatment"))
-  :group 'cg-render)
+  :group 'card-games-render)
 
-(defun cg-render-resolve-treatment (&optional name)
+(defun card-games-render-resolve-treatment (&optional name)
   "Return a concrete treatment name, resolving `auto' and NAME for this display.
-NAME defaults to `cg-render-default-treatment'."
-  (let ((n (or name cg-render-default-treatment)))
+NAME defaults to `card-games-render-default-treatment'."
+  (let ((n (or name card-games-render-default-treatment)))
     (if (eq n 'auto)
         (if (display-graphic-p) 'svg 'text)
       n)))
 
-(defun cg-render-game (game)
+(defun card-games-render-game (game)
   "Draw GAME with its current renderer, creating a default one if needed.
-The default treatment comes from `cg-render-resolve-treatment'."
+The default treatment comes from `card-games-render-resolve-treatment'."
   (let ((r (or (oref game renderer)
-               (let ((new (cg-make-renderer (cg-render-resolve-treatment))))
+               (let ((new (card-games-make-renderer (card-games-render-resolve-treatment))))
                  (oset game renderer new)
                  new))))
-    (cg-renderer-draw r game)))
+    (card-games-renderer-draw r game)))
 
-(defun cg-render-set-treatment (game name)
+(defun card-games-render-set-treatment (game name)
   "Switch GAME to the treatment NAME and return its new renderer."
-  (oset game renderer (cg-make-renderer name)))
+  (oset game renderer (card-games-make-renderer name)))
 
-(cl-defgeneric cg-render-text (game)
+(cl-defgeneric card-games-render-text (game)
   "Return the plain-text display string for GAME.
-The default falls back to the game's `cg-render' method."
-  (cg-render game))
+The default falls back to the game's `card-games-render' method."
+  (card-games-render game))
 
-(cl-defgeneric cg-render-svg (game)
+(cl-defgeneric card-games-render-svg (game)
   "Return (DISPLAY-STRING . REGIONS) for GAME's SVG treatment.
-The default falls back to the `cg-render' string with no click regions."
-  (cons (cg-render game) nil))
+The default falls back to the `card-games-render' string with no click regions."
+  (cons (card-games-render game) nil))
 
-(cl-defmethod cg-renderer-draw ((r cg-text-renderer) (game cg-game))
+(cl-defmethod card-games-renderer-draw ((r card-games-text-renderer) (game card-games-game))
   "Draw GAME as plain text on renderer R, clearing any click regions."
   (oset r regions nil)
-  (insert (cg-render-text game)))
+  (insert (card-games-render-text game)))
 
-(cl-defmethod cg-renderer-draw ((r cg-svg-renderer) (game cg-game))
+(cl-defmethod card-games-renderer-draw ((r card-games-svg-renderer) (game card-games-game))
   "Draw GAME as SVG and record its click regions on R."
-  (let ((res (cg-render-svg game)))
+  (let ((res (card-games-render-svg game)))
     (oset r regions (cdr res))
     (insert (car res))))
 
-(cl-defmethod cg-renderer-hit ((r cg-svg-renderer) (game cg-game) position)
+(cl-defmethod card-games-renderer-hit ((r card-games-svg-renderer) (game card-games-game) position)
   "Map POSITION to a GAME action via R regions from the last draw."
   (ignore game)
-  (let ((xy (posn-object-x-y position)) (sc (cg-scale)))
-    (and xy (cg-regions-hit (oref r regions)
+  (let ((xy (posn-object-x-y position)) (sc (card-games-scale)))
+    (and xy (card-games-regions-hit (oref r regions)
                             (round (/ (car xy) sc)) (round (/ (cdr xy) sc))))))
 
-(provide 'cg-render)
-;;; cg-render.el ends here
+(provide 'card-games-render)
+;;; card-games-render.el ends here

@@ -1,11 +1,10 @@
-;;; cg-net.el --- Networked multiplayer for card games  -*- lexical-binding: t; -*-
+;;; card-games-net.el --- Networked multiplayer for card games  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026  Corwin Brust
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
 ;; Version: 1.0.91
-;; Package-Requires: ((emacs "26.1"))
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -42,25 +41,25 @@
 ;;   host -> client:  (:type welcome :seat N)
 ;;                    (:type state  :state SEXP)
 ;;
-;; A game plugs in by defining methods on `cg-net-apply-move' (host
+;; A game plugs in by defining methods on `card-games-net-apply-move' (host
 ;; side) and, if its state is not just the env plist, on
-;; `cg-net-game-state' / `cg-net-set-game-state'.  Clients add a
-;; redraw function to `cg-net-state-functions'.
+;; `card-games-net-game-state' / `card-games-net-set-game-state'.  Clients add a
+;; redraw function to `card-games-net-state-functions'.
 
 ;;; Code:
 
-(require 'cg-core)
+(require 'card-games-core)
 
-(defgroup cg-net nil
+(defgroup card-games-net nil
   "Networked play for card games."
   :group 'card-games
-  :prefix "cg-net-")
+  :prefix "card-games-net-")
 
-(defcustom cg-net-port 7500
+(defcustom card-games-net-port 7500
   "Default TCP port used to host or join a game."
-  :type 'integer :group 'cg-net)
+  :type 'integer :group 'card-games-net)
 
-(defcustom cg-net-host-address "127.0.0.1"
+(defcustom card-games-net-host-address "127.0.0.1"
   "Address the host's listening socket binds when hosting a game.
 The default, \"127.0.0.1\", accepts connections only from this
 machine; remote players reach it through a tunnel they were
@@ -75,62 +74,62 @@ deliberately."
   :type '(choice (const :tag "This machine only (recommended)" "127.0.0.1")
                  (const :tag "Every interface (anyone who can reach you)" "0.0.0.0")
                  (string :tag "A specific interface address"))
-  :group 'cg-net)
+  :group 'card-games-net)
 
-(defcustom cg-net-max-line 65536
+(defcustom card-games-net-max-line 65536
   "Longest unterminated line accepted from a connection, in bytes.
 Messages in this protocol are short; 64 KiB is generous.  A connection
 whose pending (newline-less) data exceeds this is closed, so one peer
 cannot grow the line buffer until memory runs out."
-  :type 'integer :group 'cg-net)
+  :type 'integer :group 'card-games-net)
 
-(defcustom cg-net-max-connections 8
+(defcustom card-games-net-max-connections 8
   "Most simultaneous client connections a host will accept.
 A table seats four, so the default leaves headroom without letting the
 client list grow unboundedly.  Connections beyond the limit are closed
 as they arrive."
-  :type 'integer :group 'cg-net)
+  :type 'integer :group 'card-games-net)
 
-(defvar cg-net-state-functions nil
+(defvar card-games-net-state-functions nil
   "Abnormal hook run on a client after the game state is updated.
 Each function is called with the client's game object.")
 
-(defvar cg-net-connect-functions nil
+(defvar card-games-net-connect-functions nil
   "Abnormal hook run on the host when a client connects.
-Each function is called with (HOST SEAT): the `cg-net-host' struct and
+Each function is called with (HOST SEAT): the `card-games-net-host' struct and
 the seat number just assigned to the new connection.")
 
 ;;;; Game integration points
 
-(cl-defgeneric cg-net-apply-move (game seat move)
+(cl-defgeneric card-games-net-apply-move (game seat move)
   "Apply MOVE made by SEAT to GAME on the host.
 Return non-nil when the move was accepted (and state should broadcast).")
 
-(cl-defgeneric cg-net-game-state (game &optional seat)
+(cl-defgeneric card-games-net-game-state (game &optional seat)
   "Return a `read'able representation of GAME's shared state for SEAT.
 SEAT is the recipient's seat number, letting a game hide other players'
 private information; nil requests the full host view.")
 
-(cl-defmethod cg-net-game-state ((game cg-game) &optional _seat)
+(cl-defmethod card-games-net-game-state ((game card-games-game) &optional _seat)
   "Default: return GAME's env plist (no per-seat filtering)."
   (oref game env))
 
-(cl-defgeneric cg-net-set-game-state (game state)
+(cl-defgeneric card-games-net-set-game-state (game state)
   "Replace GAME's shared state with STATE on a client.")
 
-(cl-defmethod cg-net-set-game-state ((game cg-game) state)
+(cl-defmethod card-games-net-set-game-state ((game card-games-game) state)
   "Default: install STATE as GAME's env plist."
   (oset game env state))
 
 ;;;; Wire protocol
 
-(defun cg-net--send (proc msg)
+(defun card-games-net--send (proc msg)
   "Send MSG (a sexp) to PROC as one newline-terminated line."
   (when (process-live-p proc)
     (let ((print-length nil) (print-level nil))
       (process-send-string proc (concat (prin1-to-string msg) "\n")))))
 
-(defun cg-net--scrub (x)
+(defun card-games-net--scrub (x)
   "Return X with text properties removed from every string inside it.
 Walks conses and vectors, tolerating shared and circular structure.
 Everything arriving over the network passes through this: text
@@ -157,15 +156,15 @@ redisplay, and there is never a reason to honour a remote peer's."
                    (t v))))
       (walk x))))
 
-(defconst cg-net-max-nodes 20000
+(defconst card-games-net-max-nodes 20000
   "Upper bound on the number of nodes accepted in one wire message.")
 
-(defun cg-net--valid-p (msg types)
+(defun card-games-net--valid-p (msg types)
   "Return non-nil when MSG is a well-shaped protocol message.
 TYPES is the list of message-type symbols accepted from this peer.
 MSG must be a proper plist whose `:type' is in TYPES, built only from
 conses, vectors, strings, numbers and symbols, with no shared or
-circular structure and at most `cg-net-max-nodes' nodes.  Accept what
+circular structure and at most `card-games-net-max-nodes' nodes.  Accept what
 is recognised rather than trying to spot what is bad: parsed text can
 carry self-references that hang code walking them, and objects that
 impersonate internal record types."
@@ -173,7 +172,7 @@ impersonate internal record types."
         (nodes 0))
     (cl-labels ((clean-p (v)
                   (cond
-                   ((> (cl-incf nodes) cg-net-max-nodes) nil)
+                   ((> (cl-incf nodes) card-games-net-max-nodes) nil)
                    ((consp v)
                     (and (not (gethash v seen))
                          (progn (puthash v t seen)
@@ -190,14 +189,14 @@ impersonate internal record types."
            (cl-evenp (length msg))            ; of key/value pairs
            (memq (plist-get msg :type) types)))))
 
-(defun cg-net--filter (handler types)
+(defun card-games-net--filter (handler types)
   "Return a process filter dispatching each complete line to HANDLER.
 HANDLER is called with (PROC MSG) for each line that parses into a
-well-shaped message (`cg-net--valid-p') whose type is in TYPES;
+well-shaped message (`card-games-net--valid-p') whose type is in TYPES;
 strings inside MSG have their text properties stripped first, by
-`cg-net--scrub'.  Anything else is dropped where it lands."
+`card-games-net--scrub'.  Anything else is dropped where it lands."
   (lambda (proc string)
-    (let ((buf (concat (or (process-get proc 'cg-net-buf) "") string))
+    (let ((buf (concat (or (process-get proc 'card-games-net-buf) "") string))
           (start 0) nl)
       (while (setq nl (cl-search "\n" buf :start2 start))
         (let ((line (substring buf start nl)))
@@ -205,148 +204,148 @@ strings inside MSG have their text properties stripped first, by
           (unless (string-empty-p line)
             (condition-case err
                 (let ((msg (car (read-from-string line))))
-                  (if (cg-net--valid-p msg types)
-                      (funcall handler proc (cg-net--scrub msg))
-                    (message "cg-net: dropped malformed message")))
-              (error (message "cg-net: bad message: %S" err))))))
+                  (if (card-games-net--valid-p msg types)
+                      (funcall handler proc (card-games-net--scrub msg))
+                    (message "card-games-net: dropped malformed message")))
+              (error (message "card-games-net: bad message: %S" err))))))
       (let ((rest (substring buf start)))
-        (if (> (length rest) cg-net-max-line)
+        (if (> (length rest) card-games-net-max-line)
             (progn
-              (process-put proc 'cg-net-buf nil)
-              (message "cg-net: dropping %s (line over %d bytes)"
-                       (process-name proc) cg-net-max-line)
+              (process-put proc 'card-games-net-buf nil)
+              (message "card-games-net: dropping %s (line over %d bytes)"
+                       (process-name proc) card-games-net-max-line)
               (delete-process proc))
-          (process-put proc 'cg-net-buf rest))))))
+          (process-put proc 'card-games-net-buf rest))))))
 
 ;;;; Host
 
-(cl-defstruct (cg-net-host (:constructor cg-net--host-make))
+(cl-defstruct (card-games-net-host (:constructor card-games-net--host-make))
   server game (clients nil) (next-seat 0))
 
-(defvar cg-net--host nil
-  "The running `cg-net-host', or nil when not hosting.")
+(defvar card-games-net--host nil
+  "The running `card-games-net-host', or nil when not hosting.")
 
-(defun cg-net-hosting-p ()
+(defun card-games-net-hosting-p ()
   "Return non-nil when this Emacs is hosting a game."
-  (and cg-net--host (process-live-p (cg-net-host-server cg-net--host))))
+  (and card-games-net--host (process-live-p (card-games-net-host-server card-games-net--host))))
 
-(defun cg-net-host-start (game &optional port)
-  "Begin hosting GAME on PORT (default `cg-net-port').  Return the server process.
-The socket binds `cg-net-host-address' -- by default, this machine only."
-  (let* ((port (or port cg-net-port))
+(defun card-games-net-host-start (game &optional port)
+  "Begin hosting GAME on PORT (default `card-games-net-port').  Return the server process.
+The socket binds `card-games-net-host-address' -- by default, this machine only."
+  (let* ((port (or port card-games-net-port))
          (server (make-network-process
-                  :name "cg-host" :server t :service port
-                  :host cg-net-host-address :family 'ipv4 :coding 'utf-8
-                  :log #'cg-net--host-accept)))
-    (setq cg-net--host (cg-net--host-make :server server :game game))
+                  :name "card-games-host" :server t :service port
+                  :host card-games-net-host-address :family 'ipv4 :coding 'utf-8
+                  :log #'card-games-net--host-accept)))
+    (setq card-games-net--host (card-games-net--host-make :server server :game game))
     server))
 
-(defun cg-net-host-stop ()
+(defun card-games-net-host-stop ()
   "Stop hosting and close all client connections."
-  (when cg-net--host
-    (dolist (c (cg-net-host-clients cg-net--host))
+  (when card-games-net--host
+    (dolist (c (card-games-net-host-clients card-games-net--host))
       (when (process-live-p c) (delete-process c)))
-    (when (process-live-p (cg-net-host-server cg-net--host))
-      (delete-process (cg-net-host-server cg-net--host)))
-    (setq cg-net--host nil)))
+    (when (process-live-p (card-games-net-host-server card-games-net--host))
+      (delete-process (card-games-net-host-server card-games-net--host)))
+    (setq card-games-net--host nil)))
 
-(defun cg-net--host-sentinel (proc _event)
+(defun card-games-net--host-sentinel (proc _event)
   "Reap PROC from the client list when its connection has ended.
 Without this, departed players stay listed forever and the host keeps
 sending to them.  Seat numbers are deliberately not reused: a stale
 seat must not be inherited by a stranger mid-game."
   (unless (process-live-p proc)
-    (when cg-net--host
-      (setf (cg-net-host-clients cg-net--host)
-            (delq proc (cg-net-host-clients cg-net--host))))))
+    (when card-games-net--host
+      (setf (card-games-net-host-clients card-games-net--host)
+            (delq proc (card-games-net-host-clients card-games-net--host))))))
 
-(defun cg-net--host-accept (_server connection _message)
+(defun card-games-net--host-accept (_server connection _message)
   "Set up an accepted CONNECTION: assign a seat and send the current state.
-A connection arriving past `cg-net-max-connections' is closed instead."
+A connection arriving past `card-games-net-max-connections' is closed instead."
   (if (>= (length (cl-remove-if-not #'process-live-p
-                                    (cg-net-host-clients cg-net--host)))
-          cg-net-max-connections)
+                                    (card-games-net-host-clients card-games-net--host)))
+          card-games-net-max-connections)
       (progn
-        (message "cg-net: refusing connection (table is at %d)"
-                 cg-net-max-connections)
+        (message "card-games-net: refusing connection (table is at %d)"
+                 card-games-net-max-connections)
         (delete-process connection))
-    (let ((seat (cg-net-host-next-seat cg-net--host)))
-      (setf (cg-net-host-next-seat cg-net--host) (1+ seat))
-      (push connection (cg-net-host-clients cg-net--host))
-      (process-put connection 'cg-net-seat seat)
+    (let ((seat (card-games-net-host-next-seat card-games-net--host)))
+      (setf (card-games-net-host-next-seat card-games-net--host) (1+ seat))
+      (push connection (card-games-net-host-clients card-games-net--host))
+      (process-put connection 'card-games-net-seat seat)
       (set-process-coding-system connection 'utf-8 'utf-8)
-      (set-process-sentinel connection #'cg-net--host-sentinel)
+      (set-process-sentinel connection #'card-games-net--host-sentinel)
       (set-process-filter connection
-                          (cg-net--filter #'cg-net--host-handle '(hello move)))
-      (cg-net--send connection (list :type 'welcome :seat seat))
-      (cg-net--send connection
+                          (card-games-net--filter #'card-games-net--host-handle '(hello move)))
+      (card-games-net--send connection (list :type 'welcome :seat seat))
+      (card-games-net--send connection
                     (list :type 'state
-                          :state (cg-net-game-state (cg-net-host-game cg-net--host) seat)))
-      (run-hook-with-args 'cg-net-connect-functions cg-net--host seat))))
+                          :state (card-games-net-game-state (card-games-net-host-game card-games-net--host) seat)))
+      (run-hook-with-args 'card-games-net-connect-functions card-games-net--host seat))))
 
-(defun cg-net--host-handle (proc msg)
+(defun card-games-net--host-handle (proc msg)
   "Handle one message MSG from a client PROC on the host."
   (pcase (plist-get msg :type)
-    ('hello (process-put proc 'cg-net-name (plist-get msg :name)))
+    ('hello (process-put proc 'card-games-net-name (plist-get msg :name)))
     ('move
-     (let ((seat (process-get proc 'cg-net-seat))
-           (game (cg-net-host-game cg-net--host)))
-       (when (cg-net-apply-move game seat (plist-get msg :move))
-         (cg-net-host-broadcast))))))
+     (let ((seat (process-get proc 'card-games-net-seat))
+           (game (card-games-net-host-game card-games-net--host)))
+       (when (card-games-net-apply-move game seat (plist-get msg :move))
+         (card-games-net-host-broadcast))))))
 
-(defun cg-net-host-broadcast ()
+(defun card-games-net-host-broadcast ()
   "Send each connected client the game state filtered for its seat."
-  (when cg-net--host
-    (let ((game (cg-net-host-game cg-net--host)))
-      (dolist (c (cg-net-host-clients cg-net--host))
-        (cg-net--send c (list :type 'state
-                              :state (cg-net-game-state
-                                      game (process-get c 'cg-net-seat))))))))
+  (when card-games-net--host
+    (let ((game (card-games-net-host-game card-games-net--host)))
+      (dolist (c (card-games-net-host-clients card-games-net--host))
+        (card-games-net--send c (list :type 'state
+                              :state (card-games-net-game-state
+                                      game (process-get c 'card-games-net-seat))))))))
 
 ;;;; Client
 
-(cl-defstruct (cg-net-client (:constructor cg-net--client-make))
+(cl-defstruct (card-games-net-client (:constructor card-games-net--client-make))
   proc game (seat nil))
 
-(defvar cg-net--client nil
-  "The active `cg-net-client', or nil when not connected.")
+(defvar card-games-net--client nil
+  "The active `card-games-net-client', or nil when not connected.")
 
-(defun cg-net-connected-p ()
+(defun card-games-net-connected-p ()
   "Return non-nil when connected to a host as a client."
-  (and cg-net--client (process-live-p (cg-net-client-proc cg-net--client))))
+  (and card-games-net--client (process-live-p (card-games-net-client-proc card-games-net--client))))
 
-(defun cg-net-connect (host port name game)
+(defun card-games-net-connect (host port name game)
   "Connect to HOST on PORT as NAME, syncing into the local GAME.
-Return the new `cg-net-client'."
+Return the new `card-games-net-client'."
   (let ((proc (make-network-process
-               :name "cg-client" :host host :service port
+               :name "card-games-client" :host host :service port
                :family 'ipv4 :coding 'utf-8)))
-    (setq cg-net--client (cg-net--client-make :proc proc :game game))
+    (setq card-games-net--client (card-games-net--client-make :proc proc :game game))
     (set-process-coding-system proc 'utf-8 'utf-8)
     (set-process-filter proc
-                        (cg-net--filter #'cg-net--client-handle
+                        (card-games-net--filter #'card-games-net--client-handle
                                         '(welcome state full)))
-    (cg-net--send proc (list :type 'hello :name name))
-    cg-net--client))
+    (card-games-net--send proc (list :type 'hello :name name))
+    card-games-net--client))
 
-(defun cg-net-disconnect ()
+(defun card-games-net-disconnect ()
   "Disconnect from the host."
-  (when (and cg-net--client (process-live-p (cg-net-client-proc cg-net--client)))
-    (delete-process (cg-net-client-proc cg-net--client)))
-  (setq cg-net--client nil))
+  (when (and card-games-net--client (process-live-p (card-games-net-client-proc card-games-net--client)))
+    (delete-process (card-games-net-client-proc card-games-net--client)))
+  (setq card-games-net--client nil))
 
-(defun cg-net--client-handle (_proc msg)
+(defun card-games-net--client-handle (_proc msg)
   "Handle one message MSG from the host on a client."
   (pcase (plist-get msg :type)
-    ('welcome (setf (cg-net-client-seat cg-net--client) (plist-get msg :seat)))
+    ('welcome (setf (card-games-net-client-seat card-games-net--client) (plist-get msg :seat)))
     ('state
-     (let ((game (cg-net-client-game cg-net--client)))
-       (cg-net-set-game-state game (plist-get msg :state))
-       (run-hook-with-args 'cg-net-state-functions game)))))
+     (let ((game (card-games-net-client-game card-games-net--client)))
+       (card-games-net-set-game-state game (plist-get msg :state))
+       (run-hook-with-args 'card-games-net-state-functions game)))))
 
-(defun cg-net-send-move (move)
+(defun card-games-net-send-move (move)
   "Send MOVE to the host from this client."
-  (cg-net--send (cg-net-client-proc cg-net--client) (list :type 'move :move move)))
+  (card-games-net--send (card-games-net-client-proc card-games-net--client) (list :type 'move :move move)))
 
-(provide 'cg-net)
-;;; cg-net.el ends here
+(provide 'card-games-net)
+;;; card-games-net.el ends here

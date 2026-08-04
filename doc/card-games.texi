@@ -120,7 +120,7 @@ The competitive duel, Crapette, against the computer.  @xref{Russian
 Bank}.
 @end table
 
-To start, type @kbd{M-x card-game}.
+To start, type @kbd{M-x card-games}.
 
 @node Installation
 @chapter Installation
@@ -143,7 +143,7 @@ graphical Emacs has it); in a terminal the games fall back to text.
 @cindex ELPA
 When the package is available from a package archive, install it the
 usual way with @kbd{M-x package-install @key{RET} card-games @key{RET}}.
-The autoloads let you run @kbd{M-x card-game} straight away.
+The autoloads let you run @kbd{M-x card-games} straight away.
 
 @node From source
 @section From source
@@ -158,7 +158,7 @@ add it to your @code{load-path}, and load the umbrella file:
 @end example
 
 @noindent
-Then @kbd{M-x card-game}.  You can also build an installable tarball with
+Then @kbd{M-x card-games}.  You can also build an installable tarball with
 @kbd{make package} and install it with @kbd{M-x package-install-file}.
 
 @node Building
@@ -182,11 +182,11 @@ Build the installable @file{.tar}.
 @node The Game Menu
 @chapter The Game Menu
 
-@findex card-game
+@findex card-games
 @findex card-games
 @cindex chooser
 @cindex menu
-@kbd{M-x card-game} (also available as @code{card-games}) opens the
+@kbd{M-x card-games} (also available as @code{card-games}) opens the
 chooser: a buffer listing every game with a one-line description.  Move
 between games with @key{TAB} and @kbd{S-@key{TAB}}, or @kbd{n} and
 @kbd{p}, and press @key{RET} --- or click a game's name --- to start it.
@@ -196,7 +196,7 @@ Two controls sit at the top of the list.
 
 @table @asis
 @item AI opponents
-@vindex cg-ai-level
+@vindex card-games-ai-level
 Sets how hard the computer plays: @code{easy}, @code{normal}, or
 @code{hard}.  Click it to cycle, or use @kbd{M-x card-games-set-ai-level}.
 @xref{Opponents}.
@@ -241,7 +241,7 @@ Leave the game and return to the menu (@pxref{The Game Menu}).
 @end table
 
 @cindex zoom
-@vindex cg-card-scale
+@vindex card-games-card-scale
 On a graphical display, @kbd{+} and @kbd{-} (and @kbd{=}) make the cards
 larger and smaller, and @kbd{0} resets the size.  Emacs's own
 @code{text-scale-adjust} works too.  Many boards show a one-line legend
@@ -275,32 +275,32 @@ that have one (Gaps and 500).  You can also cycle it from the menu
 (@pxref{The Game Menu}).  A change takes effect the next time a game is
 drawn; press @kbd{g} to redraw an open game.
 
-@vindex cg-card-scale
-The card size follows @code{cg-card-scale} and the zoom keys
+@vindex card-games-card-scale
+The card size follows @code{card-games-card-scale} and the zoom keys
 (@pxref{Playing}).
 
 @node Cards and colours
 @section Cards and colours
 
-@vindex cg-svg-card-back
-@findex cg-svg-shuffle-card-back
+@vindex card-games-svg-card-back
+@findex card-games-svg-shuffle-card-back
 @cindex card backs
-The pattern on a face-down card is @code{cg-svg-card-back}.  Besides
+The pattern on a face-down card is @code{card-games-svg-card-back}.  Besides
 @code{dots}, @code{rings}, and @code{solid} there are the drawn patterns
 @code{lattice}, @code{waves}, and @code{diamond}, and four backs stamped
 with an Emacs logo: @code{emacs}, @code{emacs-classic}, @code{gnu}, and
 @code{splash}.  The default, @code{random}, chooses a back for the
-session; @kbd{M-x cg-svg-shuffle-card-back} rolls a new one, and
+session; @kbd{M-x card-games-svg-shuffle-card-back} rolls a new one, and
 reopening the menu also re-rolls.
 
-@vindex cg-svg-four-color
+@vindex card-games-svg-four-color
 @cindex four-colour deck
-With @code{cg-svg-four-color} non-@code{nil}, clubs are drawn green and
+With @code{card-games-svg-four-color} non-@code{nil}, clubs are drawn green and
 diamonds blue, so all four suits are told apart by colour.
 
-@vindex cg-symbols
+@vindex card-games-symbols
 @cindex suit glyphs
-@code{cg-symbols} maps each suit to the glyph used for it, in both the
+@code{card-games-symbols} maps each suit to the glyph used for it, in both the
 text and the SVG cards; customize it to use the outlined suits
 @samp{♤ ♧ ♢ ♡}, say, instead of the filled ones.
 
@@ -310,22 +310,22 @@ text and the SVG cards; customize it to use the outlined suits
 @kbd{M-x card-games-set-theme} applies a colour preset ---
 @code{classic}, @code{dark}, or @code{contrast} --- setting the felt
 colour, the card back, and the highlight together.  The individual
-colours (@code{cg-svg-highlight-color}, @code{cg-bid-felt-color}, and the
+colours (@code{card-games-svg-highlight-color}, @code{card-games-bid-felt-color}, and the
 rest) can also be set on their own.
 
-@vindex cg-cursor-type
+@vindex card-games-cursor-type
 @cindex cursor
 Card buffers hide the text cursor by default, since you act on the
-highlighted card rather than on point; @code{cg-cursor-type} can bring it
+highlighted card rather than on point; @code{card-games-cursor-type} can bring it
 back.
 
 @node The Emacs emblem
 @section The Emacs emblem
 
-@vindex cg-svg-emacs-logo
+@vindex card-games-svg-emacs-logo
 @cindex logo
 The full-window tables (500 and Gaps) show an Emacs emblem in a corner.
-@code{cg-svg-emacs-logo} chooses it: @code{modern} (the current Emacs
+@code{card-games-svg-emacs-logo} chooses it: @code{modern} (the current Emacs
 icon, the default), @code{classic} (the older icon), @code{gnu} (a GNU
 head), @code{splash} (the startup image), @code{drawn} (a small built-in
 emblem), or @code{none}.  The image choices embed a logo that ships with
@@ -334,9 +334,9 @@ your Emacs, falling back to the drawn emblem when it cannot be found.
 @node Keys
 @section Keys
 
-@vindex cg-keys
+@vindex card-games-keys
 @cindex key scheme
-@code{cg-keys} selects a movement scheme.  @code{emacs} (the default)
+@code{card-games-keys} selects a movement scheme.  @code{emacs} (the default)
 follows Emacs conventions --- the arrow keys move and @key{RET} acts.
 @code{classic} additionally enables @kbd{h} @kbd{j} @kbd{k} @kbd{l} and
 @key{SPC}.  A change takes effect the next time a game starts.
@@ -344,10 +344,10 @@ follows Emacs conventions --- the arrow keys move and @key{RET} acts.
 @node Opponents
 @section Opponents
 
-@vindex cg-ai-level
+@vindex card-games-ai-level
 @findex card-games-set-ai-level
 @cindex difficulty
-@code{cg-ai-level} sets how hard the computer plays: @code{easy},
+@code{card-games-ai-level} sets how hard the computer plays: @code{easy},
 @code{normal}, or @code{hard}.  Russian Bank plays all three levels; the
 trick-taking games play a random legal card on @code{easy} and their
 usual game otherwise.  Other games do not yet consult it.  Set it with
@@ -384,7 +384,7 @@ New deal, redraw, describe the keys, and return to the menu.
 @end table
 
 @noindent
-With @code{cg-keys} set to @code{classic} the vi keys @kbd{h} @kbd{j}
+With @code{card-games-keys} set to @code{classic} the vi keys @kbd{h} @kbd{j}
 @kbd{k} @kbd{l} move as well (@pxref{Keys}).
 
 @menu
@@ -406,7 +406,7 @@ With @code{cg-keys} set to @code{classic} the vi keys @kbd{h} @kbd{j}
 @node Klondike
 @section Klondike
 
-@findex cg-klondike
+@findex card-games-klondike
 @cindex Klondike
 The classic.  Build the four foundations up in suit, Ace to King.  Seven
 columns hold a descending, alternating-colour tableau; move a card or an
@@ -415,8 +415,8 @@ empty column with a King (or a King-headed run).  Turn cards from the
 stock to the waste --- one at a time by default --- and recycle the
 waste when the stock runs out.
 
-@vindex cg-sol-klondike-draw
-Set @code{cg-sol-klondike-draw} to @code{3} for the harder
+@vindex card-games-sol-klondike-draw
+Set @code{card-games-sol-klondike-draw} to @code{3} for the harder
 turn-three variant.
 
 @cindex strategy, Klondike
@@ -427,7 +427,7 @@ if you may still need them to receive tableau cards.
 @node FreeCell
 @section FreeCell
 
-@findex cg-freecell
+@findex card-games-freecell
 @cindex FreeCell
 Every card is dealt face up into eight columns, and four @dfn{free cells}
 each hold a single card.  Build the tableau down in alternating colour
@@ -442,7 +442,7 @@ cell.
 @node Spider
 @section Spider
 
-@findex cg-spider
+@findex card-games-spider
 @cindex Spider
 Two decks, ten columns, no separate foundations.  Build down regardless
 of suit, but only a same-suit run moves as a block.  Complete a
@@ -456,7 +456,7 @@ a column as soon as you can: it is the key to untangling the rest.
 @node Yukon
 @section Yukon
 
-@findex cg-yukon
+@findex card-games-yukon
 @cindex Yukon
 Klondike's layout, dealt mostly face up, with one liberating difference:
 you may move @emph{any} face-up card, together with everything piled on
@@ -469,7 +469,7 @@ buried groups wins many deals that Klondike would lose.
 @node Canfield
 @section Canfield
 
-@findex cg-canfield
+@findex card-games-canfield
 @cindex Canfield
 A thirteen-card @dfn{reserve}, four tableau columns, and a stock dealt
 three at a time.  The first card sets the base rank for the foundations,
@@ -483,7 +483,7 @@ keep the wrapping base rank in mind when you choose what to bank.
 @node Forty Thieves
 @section Forty Thieves
 
-@findex cg-forty-thieves
+@findex card-games-forty-thieves
 @cindex Forty Thieves
 Two decks, ten columns, eight foundations.  The tableau builds down
 @emph{in suit} and moves one card at a time; the foundations build up in
@@ -495,7 +495,7 @@ the low cards you will need.
 @node Scorpion
 @section Scorpion
 
-@findex cg-scorpion
+@findex card-games-scorpion
 @cindex Scorpion
 Seven columns, built down in suit.  As in Yukon you may move any card
 with everything on top of it, ordered or not.  Free four King-to-Ace runs
@@ -507,7 +507,7 @@ which King you can afford to complete first.
 @node Russian Bank Solitaire
 @section Russian Bank
 
-@findex cg-russian-bank
+@findex card-games-russian-bank
 @cindex Russian Bank, solitaire
 The one-player patience: eight @dfn{houses} built down in alternating
 colour, four foundations built up in suit from the Ace, and a
@@ -520,7 +520,7 @@ the houses are just working space.
 @node Golf
 @section Golf
 
-@findex cg-golf
+@findex card-games-golf
 @cindex Golf
 A layout of thirty-five cards over a single waste pile.  Play any exposed
 card onto the waste when it is one rank above @emph{or} below the waste's
@@ -538,7 +538,7 @@ card from the stock.
 @node TriPeaks
 @section TriPeaks
 
-@findex cg-tripeaks
+@findex card-games-tripeaks
 @cindex TriPeaks
 Golf played over three overlapping peaks, with one change: the sequence
 @emph{wraps}, so an Ace follows a King and a King follows an Ace.  That
@@ -551,7 +551,7 @@ the stock in reserve for when the board truly stalls.
 @node Pyramid
 @section Pyramid
 
-@findex cg-pyramid
+@findex card-games-pyramid
 @cindex Pyramid
 A twenty-eight-card pyramid.  Remove pairs of exposed cards whose ranks
 sum to thirteen --- Ace counts 1, Jack 11, Queen 12, and a King is 13, so
@@ -565,8 +565,8 @@ not strand a card whose only partner is already gone.
 @node Gaps
 @section Gaps
 
-@findex cg-montana
-@findex cg-gaps
+@findex card-games-montana
+@findex card-games-gaps
 @cindex Gaps
 @cindex Montana
 Also called Montana.  The pack is dealt into four rows with gaps between
@@ -586,7 +586,7 @@ each row, and spend redeals only when you are truly stuck.
 @node Hell's Half-Acre
 @section Hell's Half-Acre
 
-@findex cg-hells-half-acre
+@findex card-games-hells-half-acre
 @cindex Hell's Half-Acre
 The same game as Gaps, built the other way: a King anchors the head of
 each row and the rows descend King, Queen, @dots{}, down to the Two.  The
@@ -640,7 +640,7 @@ have richer boards and a few keys of their own, noted below.
 @node 500
 @section 500
 
-@findex cg-bid
+@findex card-games-bid
 @cindex 500
 Australia's national card game, and the flagship of this collection.  You
 and North play against East and West.  After the deal there is an
@@ -680,7 +680,7 @@ Misère for a hand too weak to win a single trick.
 @node Hearts
 @section Hearts
 
-@findex cg-hearts
+@findex card-games-hearts
 @cindex Hearts
 An avoidance game with no trump.  Every heart costs one point and the
 Queen of Spades costs thirteen, and you want as few as possible.  Before
@@ -699,7 +699,7 @@ hand that cannot be stopped.
 @node Spades
 @section Spades
 
-@findex cg-spades
+@findex card-games-spades
 @cindex Spades
 Spades are always trump.  Each player bids the number of tricks they
 expect to win, and the two partners' bids are added: your side must make
@@ -714,7 +714,7 @@ partner's Nil when you can.
 @node Whist
 @section Whist
 
-@findex cg-whist
+@findex card-games-whist
 @cindex Whist
 The old English ancestor of Bridge, with no bidding.  The dealer's last
 card is turned for trump.  Follow the suit led if you can; trumps beat the
@@ -727,7 +727,7 @@ trumps, and remember the cards that have gone.
 @node Oh Hell
 @section Oh Hell
 
-@findex cg-ohhell
+@findex card-games-ohhell
 @cindex Oh Hell
 The hand shrinks every deal, from seven cards down to one, and a card is
 turned for trump.  Each player bids the @emph{exact} number of tricks
@@ -741,7 +741,7 @@ low one a sure miss; do not be afraid to bid zero and duck everything.
 @node Euchre
 @section Euchre
 
-@findex cg-euchre
+@findex card-games-euchre
 @cindex Euchre
 A brisk 24-card game (Nine to Ace).  The Jack of the trump suit (the
 @dfn{right bower}) and the other Jack of the same colour (the @dfn{left
@@ -759,7 +759,7 @@ score.
 @node Pitch
 @section Pitch
 
-@findex cg-pitch
+@findex card-games-pitch
 @cindex Pitch
 Auction Pitch.  Players bid for the right to @dfn{pitch}, and the
 pitcher's first lead sets the trump suit.  Thereafter follow the led suit
@@ -772,7 +772,7 @@ Jack or with both the highest and lowest trumps.
 @node Briscola
 @section Briscola
 
-@findex cg-briscola
+@findex card-games-briscola
 @cindex Briscola
 A 40-card Italian game.  One card is turned to fix the trump, the
 @dfn{briscola}, and --- unusually --- there is no need to follow suit: you
@@ -786,7 +786,7 @@ lead worthless cards to coax points out of them.
 @node Contract Bridge
 @section Bridge
 
-@findex cg-bridge
+@findex card-games-bridge
 @cindex Bridge
 @cindex Contract Bridge
 The full game: the auction, then the play with the dummy exposed, and
@@ -832,7 +832,7 @@ a kind, and @dfn{runs} of three or more cards in one suit.
 @node Gin Rummy
 @section Gin Rummy
 
-@findex cg-gin
+@findex card-games-gin
 @cindex Gin Rummy
 @cindex deadwood
 @cindex knock
@@ -849,7 +849,7 @@ early against a slow hand, and note which cards your opponent takes.
 @node Rummy
 @section Rummy
 
-@findex cg-rummy-basic
+@findex card-games-rummy-basic
 @cindex Rummy
 Draw and discard, and lay your melds down on the table.  Mark the cards
 of a meld with @key{SPC} and lay it down with @kbd{m}; add a single card
@@ -869,7 +869,7 @@ rearranged, and they tell your opponents what you hold.
 @node Rummy 500
 @section Rummy 500
 
-@findex cg-rum500
+@findex card-games-rum500
 @cindex Rummy 500
 Rummy played for points over many hands, first past 500.  You score the
 cards you lay down and lose the ones left in your hand.  Besides the top
@@ -883,7 +883,7 @@ pile when the reward outweighs the cards it puts in your hand.
 @node Hand & Foot
 @section Hand & Foot
 
-@findex cg-handfoot
+@findex card-games-handfoot
 @cindex Hand and Foot
 A partnership cousin of Canasta.  You are dealt a @dfn{hand} and a
 @dfn{foot}; play out the hand, then take up the foot.  Build @dfn{books}
@@ -911,7 +911,7 @@ Two light games of collecting and shedding, good for a quick sit-down.
 @node Go Fish
 @section Go Fish
 
-@findex cg-go-fish
+@findex card-games-go-fish
 @cindex Go Fish
 @cindex books
 Collect @dfn{books} of four of a kind.  On your turn pick a rank you hold
@@ -927,7 +927,7 @@ who holds what.
 @node Old Maid
 @section Old Maid
 
-@findex cg-old-maid
+@findex card-games-old-maid
 @cindex Old Maid
 One Queen is set aside, so a single Queen is left without a partner.
 Throw out every pair in your hand, then draw a card, unseen, from the next
@@ -954,7 +954,7 @@ under the cursor.
 @node Scopa
 @section Scopa
 
-@findex cg-scopa
+@findex card-games-scopa
 @cindex Scopa
 A 40-card Italian game.  The card you play captures a single table card of
 the same value, or a set of table cards that add up to its value.
@@ -969,7 +969,7 @@ your opponent unable to make the capture that would sweep it.
 @node Casino
 @section Casino
 
-@findex cg-casino
+@findex card-games-casino
 @cindex Casino
 The 52-card cousin of Scopa.  Number cards capture by value as in Scopa;
 face cards capture only by matching rank.  Score the @dfn{big casino}
@@ -995,7 +995,7 @@ what is already on the table.
 @node President
 @section President
 
-@findex cg-president
+@findex card-games-president
 @cindex President
 @cindex Scum
 Also called Scum.  The leader plays one to four cards of a rank; the next
@@ -1013,7 +1013,7 @@ your Twos and your pairs to grab the lead back when it matters.
 @node Spite & Malice
 @section Spite & Malice
 
-@findex cg-spite
+@findex card-games-spite
 @cindex Spite and Malice
 @cindex Cat and Mouse
 Race to empty your @dfn{goal} pile.  Four shared centre piles are built up
@@ -1029,7 +1029,7 @@ keep your discard piles in order so you can unload them in turn.
 @node Cribbage
 @chapter Cribbage
 
-@findex cg-cribbage
+@findex card-games-cribbage
 @cindex Cribbage
 @cindex pegging
 @cindex the crib
@@ -1049,8 +1049,8 @@ crib, and always be counting toward the next fifteen and thirty-one.
 @node Russian Bank
 @chapter Russian Bank
 
-@findex cg-crapette
-@findex cg-russian-bank-duel
+@findex card-games-crapette
+@findex card-games-russian-bank-duel
 @cindex Russian Bank
 @cindex Crapette
 Russian Bank, also called Crapette, is the competitive two-player
@@ -1080,13 +1080,13 @@ or waste, when it is the same suit and one rank higher or lower.
 @end itemize
 
 @cindex stop rule
-@vindex cg-crapette-stops
+@vindex card-games-crapette-stops
 @strong{Foundation priority and ``Stop''.}  A card that can go to a
 foundation must be played there before anything else.  If you build a
 house, load your opponent, turn a card, or end your turn while a
 foundation play is waiting, your opponent calls ``Stop!'' and your turn
 ends at once --- the piles that owe a foundation play are ringed to warn
-you.  Set @code{cg-crapette-stops} to @code{nil} for a gentler mode that
+you.  Set @code{card-games-crapette-stops} to @code{nil} for a gentler mode that
 simply blocks the slip instead of ending your turn.
 
 When you can do no more, turn the top of your hand: if it fits somewhere
@@ -1111,7 +1111,7 @@ Undo, new game, and the menu.
 @end table
 
 @noindent
-@code{cg-ai-level} sets how hard North plays (@pxref{Opponents}): on
+@code{card-games-ai-level} sets how hard North plays (@pxref{Opponents}): on
 @code{hard} it even looks a move ahead to rearrange the houses.
 
 @strong{Strategy.}  Play to the foundations first, and empty your reserve
@@ -1122,18 +1122,18 @@ a sequence.
 @node Networked Play
 @chapter Networked Play
 
-@findex cg-bid-host
-@findex cg-bid-join
+@findex card-games-bid-host
+@findex card-games-bid-join
 @cindex networked play
 @cindex multiplayer
 500 can be played live against other people over a TCP connection.  One
 player hosts the game and the others join it.
 
 @table @kbd
-@item M-x cg-bid-host @key{RET} @var{port} @key{RET}
+@item M-x card-games-bid-host @key{RET} @var{port} @key{RET}
 Start a game as the host.  You take the South seat and wait for others to
 connect.
-@item M-x cg-bid-join @key{RET} @var{host} @key{RET} @var{port} @key{RET} @var{name} @key{RET}
+@item M-x card-games-bid-join @key{RET} @var{host} @key{RET} @var{port} @key{RET} @var{name} @key{RET}
 Connect to a host at @var{host} and @var{port} under a display
 @var{name}.
 @end table
@@ -1143,8 +1143,8 @@ The game starts automatically once four people have joined.  The host may
 also press @kbd{s} to start early, with the computer filling any empty
 seats.
 
-@vindex cg-bid-shuffle-partners
-With @code{cg-bid-shuffle-partners} non-@code{nil}, the joining players
+@vindex card-games-bid-shuffle-partners
+With @code{card-games-bid-shuffle-partners} non-@code{nil}, the joining players
 are dealt randomly among the seats.  Each player's view is rotated so
 they sit South, so the ordinary controls (@pxref{500}) work unchanged.
 Play is turn-based and the host is authoritative; a client can join from
@@ -1158,7 +1158,7 @@ anywhere Emacs can open a network connection.
 Card Games for Emacs was written by Corwin Brust.
 
 The rules of the trickier games were checked against public references,
-chiefly Wikipedia and John McLeod's card-game site, Pagat
+chiefly Wikipedia and John McLeod's card-games site, Pagat
 (@url{https://www.pagat.com/}).  Thanks are due to the playtesters whose
 feedback shaped the controls and the display.
 

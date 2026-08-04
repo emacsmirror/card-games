@@ -10,39 +10,39 @@
 (require 'cl-lib)
 (require 'card-games)
 
-;;;; cg-core
+;;;; card-games-core
 
 (ert-deftest cgt-core-color-fallback ()
-  (should (equal "#123456" (cg-color 'no-such-face-xyzzy :background "#123456"))))
+  (should (equal "#123456" (card-games-color 'no-such-face-xyzzy :background "#123456"))))
 
 (ert-deftest cgt-core-suit-glyph ()
-  (let ((cg-symbols '((0 . "S") (1 . "C") (2 . "D") (3 . "H") (joker . "JK"))))
-    (should (equal "S" (cg-suit-glyph 0)))
-    (should (equal "JK" (cg-suit-glyph 'joker))))
-  (should (equal "♠" (cg-suit-glyph 0))))
+  (let ((card-games-symbols '((0 . "S") (1 . "C") (2 . "D") (3 . "H") (joker . "JK"))))
+    (should (equal "S" (card-games-suit-glyph 0)))
+    (should (equal "JK" (card-games-suit-glyph 'joker))))
+  (should (equal "♠" (card-games-suit-glyph 0))))
 
 ;;;; Renderer skins
 
 (ert-deftest cgt-render-registry ()
-  (should (memq 'text (cg-renderer-names)))
-  (should (memq 'svg (cg-renderer-names)))
-  (should (memq 'svg-fill (cg-renderer-names)))
-  (should (object-of-class-p (cg-make-renderer 'svg) 'cg-svg-renderer))
-  (should (object-of-class-p (cg-make-renderer 'svg-fill) 'cg-svg-renderer))
-  (should-not (cg-make-renderer 'no-such-treatment)))
+  (should (memq 'text (card-games-renderer-names)))
+  (should (memq 'svg (card-games-renderer-names)))
+  (should (memq 'svg-fill (card-games-renderer-names)))
+  (should (object-of-class-p (card-games-make-renderer 'svg) 'card-games-svg-renderer))
+  (should (object-of-class-p (card-games-make-renderer 'svg-fill) 'card-games-svg-renderer))
+  (should-not (card-games-make-renderer 'no-such-treatment)))
 
 (ert-deftest cgt-render-resolve ()
-  (should (eq 'text (cg-render-resolve-treatment 'text)))
-  (should (memq (cg-render-resolve-treatment 'auto) '(text svg))))
+  (should (eq 'text (card-games-render-resolve-treatment 'text)))
+  (should (memq (card-games-render-resolve-treatment 'auto) '(text svg))))
 
 ;;;; Networking
 
-(defclass cgt-net-game (cg-game)
+(defclass cgt-net-game (card-games-game)
   ((env :initarg :env :initform '(:counter 0)))
   "Throwaway game whose only move adds to a counter.")
 
-(cl-defmethod cg-net-apply-move ((g cgt-net-game) _seat move)
-  (cg-put g :counter (+ (or (cg-get g :counter) 0) move))
+(cl-defmethod card-games-net-apply-move ((g cgt-net-game) _seat move)
+  (card-games-put g :counter (+ (or (card-games-get g :counter) 0) move))
   t)
 
 (ert-deftest cgt-net-loopback ()
@@ -53,20 +53,20 @@
                              :host "127.0.0.1" :family 'ipv4))
     (error (ert-skip "TCP not available")))
   (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-         (srv (cg-net-host-start hgame 0))
+         (srv (card-games-net-host-start hgame 0))
          (port (process-contact srv :service))
          (cgame (make-instance 'cgt-net-game :env (list :counter 0))))
     (unwind-protect
         (progn
-          (cg-net-connect "127.0.0.1" port "Test" cgame)
+          (card-games-net-connect "127.0.0.1" port "Test" cgame)
           (dotimes (_ 12) (accept-process-output nil 0.05))
-          (should (= 0 (cg-get cgame :counter)))
-          (cg-net-send-move 7)
+          (should (= 0 (card-games-get cgame :counter)))
+          (card-games-net-send-move 7)
           (dotimes (_ 12) (accept-process-output nil 0.05))
-          (should (= 7 (cg-get hgame :counter)))
-          (should (= 7 (cg-get cgame :counter))))
-      (cg-net-disconnect)
-      (cg-net-host-stop))))
+          (should (= 7 (card-games-get hgame :counter)))
+          (should (= 7 (card-games-get cgame :counter))))
+      (card-games-net-disconnect)
+      (card-games-net-host-stop))))
 
 (ert-deftest cgt-net-strips-properties ()
   "Text properties on wire strings are stripped at the boundary, both ways.
@@ -80,54 +80,54 @@ host must reach the client bare."
     (error (ert-skip "TCP not available")))
   (cl-flet ((pump () (dotimes (_ 12) (accept-process-output nil 0.05))))
     (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-           (srv (cg-net-host-start hgame 0))
+           (srv (card-games-net-host-start hgame 0))
            (port (process-contact srv :service))
            (cgame (make-instance 'cgt-net-game :env (list :counter 0))))
       (unwind-protect
           (progn
-            (cg-net-connect "127.0.0.1" port
+            (card-games-net-connect "127.0.0.1" port
                             (propertize "Eve" 'keymap '(keymap)) cgame)
             (pump)
             ;; client -> host: the hello name arrives with no attachments
-            (let* ((conn (car (cg-net-host-clients cg-net--host)))
-                   (name (process-get conn 'cg-net-name)))
+            (let* ((conn (car (card-games-net-host-clients card-games-net--host)))
+                   (name (process-get conn 'card-games-net-name)))
               (should (equal name "Eve"))
               (should-not (text-properties-at 0 name)))
             ;; host -> client: a state string arrives with no attachments
-            (cg-put hgame :message
+            (card-games-put hgame :message
                     (propertize "hi" 'keymap '(keymap) 'help-echo "boo"))
-            (cg-net-host-broadcast)
+            (card-games-net-host-broadcast)
             (pump)
-            (let ((m (cg-get cgame :message)))
+            (let ((m (card-games-get cgame :message)))
               (should (equal m "hi"))
               (should-not (text-properties-at 0 m))))
-        (cg-net-disconnect)
-        (cg-net-host-stop)))))
+        (card-games-net-disconnect)
+        (card-games-net-host-stop)))))
 
 (ert-deftest cgt-net-host-loopback-default ()
   "Hosting binds to this machine only unless deliberately widened.
 Finding 1 of the 2026-07-29 review: the default of
-`cg-net-host-address' is loopback, and the listening socket really
+`card-games-net-host-address' is loopback, and the listening socket really
 binds it -- wider exposure is a setting the user turns on, not a
 silent default."
-  (should (equal "127.0.0.1" (default-value 'cg-net-host-address)))
+  (should (equal "127.0.0.1" (default-value 'card-games-net-host-address)))
   (condition-case _
       (delete-process
        (make-network-process :name "cgt-probe4" :server t :service 0
                              :host "127.0.0.1" :family 'ipv4))
     (error (ert-skip "TCP not available")))
   (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-         (srv (cg-net-host-start hgame 0)))
+         (srv (card-games-net-host-start hgame 0)))
     (unwind-protect
         (should (equal [127 0 0 1]
                        (substring (process-contact srv :local) 0 4)))
-      (cg-net-host-stop))))
+      (card-games-net-host-stop))))
 
 (ert-deftest cgt-net-line-cap ()
   "A connection sending endless bytes with no newline is dropped.
 Finding 4 of the 2026-07-29 review: the partial-line buffer grew
 without limit, so one connection could consume all available memory.
-It is now bounded by `cg-net-max-line'."
+It is now bounded by `card-games-net-max-line'."
   (condition-case _
       (delete-process
        (make-network-process :name "cgt-probe5" :server t :service 0
@@ -135,7 +135,7 @@ It is now bounded by `cg-net-max-line'."
     (error (ert-skip "TCP not available")))
   (cl-flet ((pump () (dotimes (_ 8) (accept-process-output nil 0.05))))
     (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-           (srv (cg-net-host-start hgame 0))
+           (srv (card-games-net-host-start hgame 0))
            (port (process-contact srv :service))
            (raw (make-network-process :name "cgt-flood" :host "127.0.0.1"
                                       :service port :family 'ipv4)))
@@ -149,10 +149,10 @@ It is now bounded by `cg-net-max-line'."
             ;; 80 KiB with no newline: the host must have hung up on us
             (should-not (process-live-p raw)))
         (when (process-live-p raw) (delete-process raw))
-        (cg-net-host-stop)))))
+        (card-games-net-host-stop)))))
 
 (ert-deftest cgt-net-connection-cap ()
-  "Connections beyond `cg-net-max-connections' are refused.
+  "Connections beyond `card-games-net-max-connections' are refused.
 Finding 4's second bound: the client list cannot grow without limit."
   (condition-case _
       (delete-process
@@ -160,9 +160,9 @@ Finding 4's second bound: the client list cannot grow without limit."
                              :host "127.0.0.1" :family 'ipv4))
     (error (ert-skip "TCP not available")))
   (cl-flet ((pump () (dotimes (_ 8) (accept-process-output nil 0.05))))
-    (let* ((cg-net-max-connections 2)
+    (let* ((card-games-net-max-connections 2)
            (hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-           (srv (cg-net-host-start hgame 0))
+           (srv (card-games-net-host-start hgame 0))
            (port (process-contact srv :service))
            (procs nil))
       (unwind-protect
@@ -175,11 +175,11 @@ Finding 4's second bound: the client list cannot grow without limit."
               (pump))
             (should (= 2 (length (cl-remove-if-not
                                   #'process-live-p
-                                  (cg-net-host-clients cg-net--host)))))
+                                  (card-games-net-host-clients card-games-net--host)))))
             ;; the newest connection is the one turned away
             (should-not (process-live-p (car procs))))
         (dolist (p procs) (when (process-live-p p) (delete-process p)))
-        (cg-net-host-stop)))))
+        (card-games-net-host-stop)))))
 
 (ert-deftest cgt-net-reaps-disconnected ()
   "A client that disconnects is removed from the host's client list.
@@ -193,19 +193,19 @@ sending to them.  A process sentinel now reaps them."
     (error (ert-skip "TCP not available")))
   (cl-flet ((pump () (dotimes (_ 12) (accept-process-output nil 0.05))))
     (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-           (srv (cg-net-host-start hgame 0))
+           (srv (card-games-net-host-start hgame 0))
            (port (process-contact srv :service))
            (cgame (make-instance 'cgt-net-game :env (list :counter 0))))
       (unwind-protect
           (progn
-            (cg-net-connect "127.0.0.1" port "Test" cgame)
+            (card-games-net-connect "127.0.0.1" port "Test" cgame)
             (pump)
-            (should (= 1 (length (cg-net-host-clients cg-net--host))))
-            (cg-net-disconnect)
+            (should (= 1 (length (card-games-net-host-clients card-games-net--host))))
+            (card-games-net-disconnect)
             (pump)
-            (should (= 0 (length (cg-net-host-clients cg-net--host)))))
-        (cg-net-disconnect)
-        (cg-net-host-stop)))))
+            (should (= 0 (length (card-games-net-host-clients card-games-net--host)))))
+        (card-games-net-disconnect)
+        (card-games-net-host-stop)))))
 
 (ert-deftest cgt-net-shape-gate ()
   "Malformed messages are dropped before any game code sees them.
@@ -213,7 +213,7 @@ Finding 6 of the 2026-07-29 review: parsing can produce structures
 that hang or confuse code walking them -- self-references, objects
 impersonating internal types.  A message must be a proper plist of a
 known :type built from plain data; anything else never reaches
-`cg-net-apply-move'."
+`card-games-net-apply-move'."
   (condition-case _
       (delete-process
        (make-network-process :name "cgt-probe8" :server t :service 0
@@ -221,10 +221,10 @@ known :type built from plain data; anything else never reaches
     (error (ert-skip "TCP not available")))
   (cl-flet ((pump () (dotimes (_ 10) (accept-process-output nil 0.05))))
     (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
-           (srv (cg-net-host-start hgame 0))
+           (srv (card-games-net-host-start hgame 0))
            (port (process-contact srv :service))
            (applied nil))
-      (cl-letf (((symbol-function 'cg-net-apply-move)
+      (cl-letf (((symbol-function 'card-games-net-apply-move)
                  (lambda (_game _seat move) (push move applied) nil)))
         (let ((raw (make-network-process :name "cgt-shapes" :host "127.0.0.1"
                                          :service port :family 'ipv4)))
@@ -241,26 +241,26 @@ known :type built from plain data; anything else never reaches
                 ;; only the one well-shaped, host-legal move arrived
                 (should (equal applied (list 5))))
             (when (process-live-p raw) (delete-process raw))
-            (cg-net-host-stop)))))))
+            (card-games-net-host-stop)))))))
 
 (ert-deftest cgt-net-valid-p ()
   "Unit contract of the wire-shape check itself."
-  (should (cg-net--valid-p '(:type move :move (bid (7 . 3))) '(hello move)))
-  (should (cg-net--valid-p '(:type hello :name "n") '(hello move)))
+  (should (card-games-net--valid-p '(:type move :move (bid (7 . 3))) '(hello move)))
+  (should (card-games-net--valid-p '(:type hello :name "n") '(hello move)))
   ;; wrong direction: a host does not accept host->client types
-  (should-not (cg-net--valid-p '(:type welcome :seat 1) '(hello move)))
+  (should-not (card-games-net--valid-p '(:type welcome :seat 1) '(hello move)))
   ;; not a plist / unknown / impersonating / shared structure
-  (should-not (cg-net--valid-p 42 '(hello move)))
-  (should-not (cg-net--valid-p '(:type reboot) '(hello move)))
-  (should-not (cg-net--valid-p (list :type 'move :move (make-hash-table))
+  (should-not (card-games-net--valid-p 42 '(hello move)))
+  (should-not (card-games-net--valid-p '(:type reboot) '(hello move)))
+  (should-not (card-games-net--valid-p (list :type 'move :move (make-hash-table))
                                '(hello move)))
-  (should-not (cg-net--valid-p (record 'cg-net-host nil nil nil 0) '(hello move)))
+  (should-not (card-games-net--valid-p (record 'card-games-net-host nil nil nil 0) '(hello move)))
   (let ((shared (list 1 2)))
-    (should-not (cg-net--valid-p (list :type 'move :move (list shared shared))
+    (should-not (card-games-net--valid-p (list :type 'move :move (list shared shared))
                                  '(hello move))))
   (let ((cyc (list 1 2)))
     (setcdr (cdr cyc) cyc)
-    (should-not (cg-net--valid-p (list :type 'move :move cyc) '(hello move)))))
+    (should-not (card-games-net--valid-p (list :type 'move :move cyc) '(hello move)))))
 
 ;;;; Seeded shuffle
 
@@ -268,215 +268,215 @@ known :type built from plain data; anything else never reaches
   "A seeded shuffle is deterministic, portable, and a true permutation;
 the unseeded shuffle keeps its system-random behaviour.  Opening #4."
   (let ((deck (number-sequence 0 51)))
-    ;; same seed -> identical order (FAILS on HEAD: cg-shuffle takes 1 arg)
-    (should (equal (cg-shuffle deck 12345) (cg-shuffle deck 12345)))
+    ;; same seed -> identical order (FAILS on HEAD: card-games-shuffle takes 1 arg)
+    (should (equal (card-games-shuffle deck 12345) (card-games-shuffle deck 12345)))
     ;; still a permutation of the input, nothing dropped or duplicated
-    (should (equal (sort (copy-sequence (cg-shuffle deck 12345)) #'<) deck))
+    (should (equal (sort (copy-sequence (card-games-shuffle deck 12345)) #'<) deck))
     ;; different seeds -> different order (almost surely)
-    (should-not (equal (cg-shuffle deck 1) (cg-shuffle deck 2)))
+    (should-not (equal (card-games-shuffle deck 1) (card-games-shuffle deck 2)))
     ;; the dynamic variable seeds it too, and an explicit seed overrides it
-    (should (equal (let ((cg-shuffle-seed "deal-A")) (cg-shuffle deck))
-                   (let ((cg-shuffle-seed "deal-A")) (cg-shuffle deck))))
-    (should (equal (cg-shuffle deck 7)
-                   (let ((cg-shuffle-seed "ignored")) (cg-shuffle deck 7))))
+    (should (equal (let ((card-games-shuffle-seed "deal-A")) (card-games-shuffle deck))
+                   (let ((card-games-shuffle-seed "deal-A")) (card-games-shuffle deck))))
+    (should (equal (card-games-shuffle deck 7)
+                   (let ((card-games-shuffle-seed "ignored")) (card-games-shuffle deck 7))))
     ;; portability pin: this exact prefix must hold on every platform
-    (should (equal (seq-take (cg-shuffle deck "GOLDEN") 6) '(15 20 35 24 31 23)))))
+    (should (equal (seq-take (card-games-shuffle deck "GOLDEN") 6) '(15 20 35 24 31 23)))))
 
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()
-  (let* ((g (cg-gaps--deal (make-instance 'cg-montana-game)))
-         (b (cg-get g :board)) (cards 0) (gaps 0))
+  (let* ((g (card-games-gaps--deal (make-instance 'card-games-montana-game)))
+         (b (card-games-get g :board)) (cards 0) (gaps 0))
     (dotimes (r 4) (dotimes (c 13)
-      (if (cg-gaps--cell b r c) (cl-incf cards) (cl-incf gaps))))
+      (if (card-games-gaps--cell b r c) (cl-incf cards) (cl-incf gaps))))
     (should (= cards 48)) (should (= gaps 4))))
 
 (ert-deftest cgt-gaps-win ()
-  (let ((g (make-instance 'cg-montana-game)) (b (make-vector 4 nil)))
+  (let ((g (make-instance 'card-games-montana-game)) (b (make-vector 4 nil)))
     (dotimes (r 4)
       (let ((row (make-vector 13 nil)))
         (dotimes (c 12) (aset row c (cons r c)))
         (aset b r row)))
-    (cg-put g :board b)
-    (should (cg-won-p g))))
+    (card-games-put g :board b)
+    (should (card-games-won-p g))))
 
 (ert-deftest cgt-acre-win ()
   ;; King-head descending: row r col c == (suit r . (- 11 c)), gap at col 12
-  (let ((g (make-instance 'cg-acre-game)) (b (make-vector 4 nil)))
+  (let ((g (make-instance 'card-games-acre-game)) (b (make-vector 4 nil)))
     (dotimes (r 4)
       (let ((row (make-vector 13 nil)))
         (dotimes (c 12) (aset row c (cons r (- 11 c))))
         (aset b r row)))
-    (cg-put g :board b)
-    (should (cg-won-p g))
+    (card-games-put g :board b)
+    (should (card-games-won-p g))
     ;; head gap wants a King; right of a Two is dead
-    (should (eq 'head (cg-gaps--needed g b 0 0)))))
+    (should (eq 'head (card-games-gaps--needed g b 0 0)))))
 
 (ert-deftest cgt-acre-needed ()
-  (let ((g (make-instance 'cg-acre-game)) (b (make-vector 4 nil)))
+  (let ((g (make-instance 'card-games-acre-game)) (b (make-vector 4 nil)))
     (dotimes (r 4) (aset b r (make-vector 13 nil)))
     ;; left neighbour King(11) at (0,0): gap (0,1) wants Queen(10) same suit
     (aset (aref b 0) 0 (cons 0 11))
-    (should (equal (cons 0 10) (cg-gaps--needed g b 0 1)))
+    (should (equal (cons 0 10) (card-games-gaps--needed g b 0 1)))
     ;; left neighbour Two(0): nothing follows -> nil (Two is the dead end)
     (aset (aref b 1) 0 (cons 0 0))
-    (should (null (cg-gaps--needed g b 1 1)))))
+    (should (null (card-games-gaps--needed g b 1 1)))))
 
 (ert-deftest cgt-gaps-hit ()
   (dotimes (r 4) (dotimes (c 13)
-    (let ((px (+ cg-gaps--svg-pad (* c (+ cg-gaps--svg-card-w cg-gaps--svg-gap))
-               (/ cg-gaps--svg-card-w 2)))
-          (py (+ cg-gaps--svg-pad (* r (+ cg-gaps--svg-card-h cg-gaps--svg-gap))
-               (/ cg-gaps--svg-card-h 2))))
-      (should (equal (cons r c) (cg-gaps--xy->cell px py)))))))
+    (let ((px (+ card-games-gaps--svg-pad (* c (+ card-games-gaps--svg-card-w card-games-gaps--svg-gap))
+               (/ card-games-gaps--svg-card-w 2)))
+          (py (+ card-games-gaps--svg-pad (* r (+ card-games-gaps--svg-card-h card-games-gaps--svg-gap))
+               (/ card-games-gaps--svg-card-h 2))))
+      (should (equal (cons r c) (card-games-gaps--xy->cell px py)))))))
 
 ;;;; 500
 
-(ert-deftest cgt-bid-deck () (should (= 45 (length (cg-bid--full-deck)))))
+(ert-deftest cgt-bid-deck () (should (= 45 (length (card-games-bid--full-deck)))))
 
 (ert-deftest cgt-bid-power ()
-  (should (> (cg-bid-power cg-bid-joker 0 0) (cg-bid-power '(0 . 7) 0 0)))
-  (should (> (cg-bid-power '(0 . 7) 0 0) (cg-bid-power '(1 . 7) 0 0)))
-  (should (< (cg-bid-power '(2 . 10) 0 3) 100)))
+  (should (> (card-games-bid-power card-games-bid-joker 0 0) (card-games-bid-power '(0 . 7) 0 0)))
+  (should (> (card-games-bid-power '(0 . 7) 0 0) (card-games-bid-power '(1 . 7) 0 0)))
+  (should (< (card-games-bid-power '(2 . 10) 0 3) 100)))
 
 (ert-deftest cgt-bid-trick ()
-  (should (= 2 (cg-bid-trick-winner
+  (should (= 2 (card-games-bid-trick-winner
                 '((0 . (3 . 10)) (1 . (3 . 0)) (2 . (0 . 0)) (3 . (2 . 10))) 0 3))))
 
 (ert-deftest cgt-bid-follow ()
-  (should (equal '((1 . 7)) (cg-bid-legal-cards '((1 . 7) (1 . 0) (3 . 0)) 0 0))))
+  (should (equal '((1 . 7)) (card-games-bid-legal-cards '((1 . 7) (1 . 0) (3 . 0)) 0 0))))
 
 (ert-deftest cgt-bid-sort-display ()
-  (should (cg-bid-joker-p
-           (car (cg-bid-sort-display (list '(3 . 10) cg-bid-joker '(0 . 7)) 0)))))
+  (should (card-games-bid-joker-p
+           (car (card-games-bid-sort-display (list '(3 . 10) card-games-bid-joker '(0 . 7)) 0)))))
 
 (ert-deftest cgt-bid-south-hit ()
   (dolist (n '(1 5 10 15))
-    (cl-destructuring-bind (x0 step y) (cg-bid--south-layout n)
+    (cl-destructuring-bind (x0 step y) (card-games-bid--south-layout n)
       (dotimes (i n)
-        (should (equal i (cg-bid--south-hit (+ x0 (* i step) 2) (+ y 5) n)))))))
+        (should (equal i (card-games-bid--south-hit (+ x0 (* i step) 2) (+ y 5) n)))))))
 
 (ert-deftest cgt-bid-full-game ()
-  (let ((cg-bid--human-seats nil))
+  (let ((card-games-bid--human-seats nil))
     (dotimes (_ 12)
-      (let ((g (cg-bid--deal (make-instance 'cg-bid-game))) (guard 0))
-        (cg-bid--run g)
-        (while (and (not (eq (cg-get g :phase) 'gameover)) (< (cl-incf guard) 4000))
-          (cg-bid--deal g (mod (1+ (cg-get g :dealer)) 4)) (cg-bid--run g))
-        (should (eq 'gameover (cg-get g :phase)))))))
+      (let ((g (card-games-bid--deal (make-instance 'card-games-bid-game))) (guard 0))
+        (card-games-bid--run g)
+        (while (and (not (eq (card-games-get g :phase) 'gameover)) (< (cl-incf guard) 4000))
+          (card-games-bid--deal g (mod (1+ (card-games-get g :dealer)) 4)) (card-games-bid--run g))
+        (should (eq 'gameover (card-games-get g :phase)))))))
 
 (ert-deftest cgt-bid-smart-beats-basic ()
   (let ((w0 0) (w1 0))
     (random "ert-h2h")
     (dotimes (_ 50)
-      (let ((cg-bid--human-seats nil)
-            (cg-bid-ai-policies (vector 'smart 'basic 'smart 'basic))
-            (g (cg-bid--deal (make-instance 'cg-bid-game))) (guard 0))
-        (cg-bid--run g)
-        (while (and (not (eq (cg-get g :phase) 'gameover)) (< (cl-incf guard) 4000))
-          (cg-bid--deal g (mod (1+ (cg-get g :dealer)) 4)) (cg-bid--run g))
-        (pcase (cg-get g :game-over) (0 (cl-incf w0)) (1 (cl-incf w1)))))
+      (let ((card-games-bid--human-seats nil)
+            (card-games-bid-ai-policies (vector 'smart 'basic 'smart 'basic))
+            (g (card-games-bid--deal (make-instance 'card-games-bid-game))) (guard 0))
+        (card-games-bid--run g)
+        (while (and (not (eq (card-games-get g :phase) 'gameover)) (< (cl-incf guard) 4000))
+          (card-games-bid--deal g (mod (1+ (card-games-get g :dealer)) 4)) (card-games-bid--run g))
+        (pcase (card-games-get g :game-over) (0 (cl-incf w0)) (1 (cl-incf w1)))))
     (should (> w0 (* 1.8 w1)))))
 
 ;;;; SVG
 
 (ert-deftest cgt-svg-builds ()
-  (should (stringp (cg-svg-to-string
-                    (cg-svg-grid-svg (list (list (cons "A" 0) (cons nil 'joker) 'down nil))))))
-  (should (stringp (cg-svg-to-string
-                    (cg-bid--table-svg (cg-bid--deal (make-instance 'cg-bid-game)))))))
+  (should (stringp (card-games-svg-to-string
+                    (card-games-svg-grid-svg (list (list (cons "A" 0) (cons nil 'joker) 'down nil))))))
+  (should (stringp (card-games-svg-to-string
+                    (card-games-bid--table-svg (card-games-bid--deal (make-instance 'card-games-bid-game)))))))
 
 ;;;; Chooser
 
 (ert-deftest cgt-chooser-registry ()
   (should (assoc "500 (Bid)" card-games-list))
-  (should (commandp 'card-game)))
+  (should (commandp 'card-games)))
 
 (provide 'card-games-tests)
 ;;; card-games-tests.el ends here
 
 (ert-deftest cgt-ai-step ()
   ;; ai-step advances within a hand; the caller deals the next hand at 'done.
-  (let ((cg-bid--human-seats nil)
-        (g (cg-bid--deal (make-instance 'cg-bid-game))) (guard 0))
-    (while (and (not (eq (cg-get g :phase) 'gameover)) (< (cl-incf guard) 6000))
-      (unless (cg-bid--ai-step g)
-        (cg-bid--deal g (mod (1+ (cg-get g :dealer)) 4))))
-    (should (eq 'gameover (cg-get g :phase)))))
+  (let ((card-games-bid--human-seats nil)
+        (g (card-games-bid--deal (make-instance 'card-games-bid-game))) (guard 0))
+    (while (and (not (eq (card-games-get g :phase) 'gameover)) (< (cl-incf guard) 6000))
+      (unless (card-games-bid--ai-step g)
+        (card-games-bid--deal g (mod (1+ (card-games-get g :dealer)) 4))))
+    (should (eq 'gameover (card-games-get g :phase)))))
 
 (ert-deftest cgt-card-back-presets ()
-  (dolist (cg-svg-card-back '(dots rings solid))
-    (should (stringp (cg-svg-to-string
-                      (cg-svg-cards-svg (list 'down)))))))
+  (dolist (card-games-svg-card-back '(dots rings solid))
+    (should (stringp (card-games-svg-to-string
+                      (card-games-svg-cards-svg (list 'down)))))))
 
 (ert-deftest cgt-set-theme ()
   (let ((inhibit-message t))            ; keep the theme banner out of test output
     (card-games-set-theme 'dark)
-    (should (equal "#23272e" cg-bid-felt-color))
+    (should (equal "#23272e" card-games-bid-felt-color))
     (card-games-set-theme 'classic)
-    (should (equal "#15692f" cg-bid-felt-color))))
+    (should (equal "#15692f" card-games-bid-felt-color))))
 
 (ert-deftest cgt-scale ()
   (require 'face-remap)
-  (let ((text-scale-mode-amount 0)) (should (= 1.0 (cg-scale))))
-  (let ((text-scale-mode-amount 2)) (should (> (cg-scale) 1.0)))
-  (let ((text-scale-mode-amount -2)) (should (< (cg-scale) 1.0))))
+  (let ((text-scale-mode-amount 0)) (should (= 1.0 (card-games-scale))))
+  (let ((text-scale-mode-amount 2)) (should (> (card-games-scale) 1.0)))
+  (let ((text-scale-mode-amount -2)) (should (< (card-games-scale) 1.0))))
 
 (ert-deftest cgt-mode-line-announce ()
-  (let ((g (cg-bid--deal (make-instance 'cg-bid-game))))
-    (should (stringp (cg-bid--mode-line g)))
-    (should (string-match-p "bid" (cg-bid--mode-line g)))))
+  (let ((g (card-games-bid--deal (make-instance 'card-games-bid-game))))
+    (should (stringp (card-games-bid--mode-line g)))
+    (should (string-match-p "bid" (card-games-bid--mode-line g)))))
 
 (ert-deftest cgt-gaps-mode-line ()
-  (let ((g (cg-gaps--deal (make-instance 'cg-montana-game))))
-    (should (string-match-p "moves" (cg-gaps--mode-line g)))))
+  (let ((g (card-games-gaps--deal (make-instance 'card-games-montana-game))))
+    (should (string-match-p "moves" (card-games-gaps--mode-line g)))))
 
 (ert-deftest cgt-keys-default ()
-  (should (eq cg-keys 'emacs))
-  (should (commandp 'cg-gaps-redraw))
-  (should (commandp 'cg-bid-redraw))
+  (should (eq card-games-keys 'emacs))
+  (should (commandp 'card-games-gaps-redraw))
+  (should (commandp 'card-games-bid-redraw))
   ;; g redraws (not new)
-  (should (eq 'cg-gaps-redraw (lookup-key cg-gaps-mode-map "g")))
-  (should (eq 'cg-bid-redraw (lookup-key cg-bid-mode-map "g"))))
+  (should (eq 'card-games-gaps-redraw (lookup-key card-games-gaps-mode-map "g")))
+  (should (eq 'card-games-bid-redraw (lookup-key card-games-bid-mode-map "g"))))
 
 (ert-deftest cgt-keys-classic ()
   ;; emacs map has no h/SPC binding; classic adds them
-  (should-not (lookup-key cg-gaps-mode-map "h"))
-  (should (eq 'cg-gaps-left (lookup-key (cg-gaps--classic-keymap) "h")))
-  (should (eq 'cg-bid-left (lookup-key (cg-bid--classic-keymap) "h"))))
+  (should-not (lookup-key card-games-gaps-mode-map "h"))
+  (should (eq 'card-games-gaps-left (lookup-key (card-games-gaps--classic-keymap) "h")))
+  (should (eq 'card-games-bid-left (lookup-key (card-games-bid--classic-keymap) "h"))))
 
 (ert-deftest cgt-svgui-builds ()
-  (let ((g (cg-bid--deal (make-instance 'cg-bid-game))))
-    (cg-put g :phase 'auction) (cg-put g :bidder 0)
-    (let ((sr (cg-bid--ui-svg g)))
-      (should (stringp (cg-svg-to-string (car sr))))
+  (let ((g (card-games-bid--deal (make-instance 'card-games-bid-game))))
+    (card-games-put g :phase 'auction) (card-games-put g :bidder 0)
+    (let ((sr (card-games-bid--ui-svg g)))
+      (should (stringp (card-games-svg-to-string (car sr))))
       ;; available bids have clickable rects; a cell centre maps back to its bid
       (let* ((bids (plist-get (cdr sr) :bids)) (e (car bids))
              (r (cdr e)) (cx (+ (nth 0 r) (/ (nth 2 r) 2))) (cy (+ (nth 1 r) (/ (nth 3 r) 2))))
-        (should (eq (car e) (cg-bid--region-bid cx cy (cdr sr))))))))
+        (should (eq (car e) (card-games-bid--region-bid cx cy (cdr sr))))))))
 
 (ert-deftest cgt-gaps-svgui-builds ()
   ;; the full-SVG gaps UI builds, and a cell centre maps back to its (row . col)
-  (let ((g (cg-gaps--deal (make-instance 'cg-montana-game))))
-    (let* ((sr (cg-gaps--ui-svg g 820 380))
+  (let ((g (card-games-gaps--deal (make-instance 'card-games-montana-game))))
+    (let* ((sr (card-games-gaps--ui-svg g 820 380))
            (geom (plist-get (cdr sr) :board))
            (x0 (nth 0 geom)) (y0 (nth 1 geom))
            (cw (nth 2 geom)) (ch (nth 3 geom)) (gp (nth 4 geom)))
-      (should (stringp (cg-svg-to-string (car sr))))
+      (should (stringp (card-games-svg-to-string (car sr))))
       (should (plist-get (cdr sr) :new))   ; control regions present
       (should (equal (cons 2 3)
-                     (cg-gaps--ui-cell (+ x0 (* 3 (+ cw gp)) (/ cw 2))
+                     (card-games-gaps--ui-cell (+ x0 (* 3 (+ cw gp)) (/ cw 2))
                                        (+ y0 (* 2 (+ ch gp)) (/ ch 2))
                                        geom))))))
 
 (ert-deftest cgt-classic-folds-controls ()
   ;; graphical classic UI: one action-button row, no textual key-help
   (with-temp-buffer
-    (cg-bid-mode)
-    (setq cg-bid--game (cg-bid--deal (make-instance 'cg-bid-game)))
-    (let ((cg-bid-svg-ui nil) (inhibit-read-only t))
-      (cg-bid--insert-graphical cg-bid--game)
-      (cg-bid--insert-buttons cg-bid--game))
+    (card-games-bid-mode)
+    (setq card-games-bid--game (card-games-bid--deal (make-instance 'card-games-bid-game)))
+    (let ((card-games-bid-svg-ui nil) (inhibit-read-only t))
+      (card-games-bid--insert-graphical card-games-bid--game)
+      (card-games-bid--insert-buttons card-games-bid--game))
     (let ((s (buffer-string)))
       (should-not (string-match-p "RET\\] play card" s))   ; key-help removed
       (should (string-match-p "Help" s))                    ; button row present
@@ -487,16 +487,16 @@ the unseeded shuffle keeps its system-random behaviour.  Opening #4."
 (ert-deftest cgt-bid-net-filter ()
   "Per-seat 500 state hides others' cards and rotates the viewer South."
   (cl-flet ((ck (h) (sort (mapcar #'prin1-to-string h) #'string<)))
-    (let* ((cg-bid--human-seats '(0 1 2 3))
-           (g (cg-bid--deal (make-instance 'cg-bid-game) 3))
-           (st (cg-net-game-state g 1)))      ; West's viewpoint
+    (let* ((card-games-bid--human-seats '(0 1 2 3))
+           (g (card-games-bid--deal (make-instance 'card-games-bid-game) 3))
+           (st (card-games-net-game-state g 1)))      ; West's viewpoint
       ;; West sees its own ten cards rotated to index 0
       (should (equal (ck (aref (plist-get st :hands) 0))
-                     (ck (cg-bid--hand g 1))))
+                     (ck (card-games-bid--hand g 1))))
       ;; opponents are face-down counts only, not the real cards
       (should (= 10 (length (aref (plist-get st :hands) 1))))
       (should-not (equal (ck (aref (plist-get st :hands) 1))
-                         (ck (cg-bid--hand g 2))))
+                         (ck (card-games-bid--hand g 2))))
       ;; the kitty stays hidden
       (should-not (plist-get st :kitty))
       ;; South (abs 0) bids first; in West's frame that is seat 3
@@ -505,12 +505,12 @@ the unseeded shuffle keeps its system-random behaviour.  Opening #4."
 
 (ert-deftest cgt-bid-net-apply ()
   "The host applies only legal, in-turn moves."
-  (let* ((cg-bid--human-seats '(0 1 2 3))
-         (g (cg-bid--deal (make-instance 'cg-bid-game) 3)))
-    (should-not (cg-net-apply-move g 1 '(pass)))   ; not West's turn yet
-    (should (cg-net-apply-move g 0 '(pass)))       ; South may pass
-    (should (aref (cg-get g :passed) 0))
-    (should-not (cg-net-apply-move g 0 '(play (0 . 0)))) ; wrong phase
+  (let* ((card-games-bid--human-seats '(0 1 2 3))
+         (g (card-games-bid--deal (make-instance 'card-games-bid-game) 3)))
+    (should-not (card-games-net-apply-move g 1 '(pass)))   ; not West's turn yet
+    (should (card-games-net-apply-move g 0 '(pass)))       ; South may pass
+    (should (aref (card-games-get g :passed) 0))
+    (should-not (card-games-net-apply-move g 0 '(play (0 . 0)))) ; wrong phase
     ))
 
 (ert-deftest cgt-bid-net-discard-checked ()
@@ -519,26 +519,26 @@ Finding 3 of the 2026-07-29 review: the other move checks were real,
 but a discard only counted its cards, and cl-set-difference silently
 ignores cards that are not in the hand -- so five phantom discards
 left a 15-card hand in play."
-  (let* ((cg-bid--human-seats '(0 1 2 3))
-         (g (cg-bid--deal (make-instance 'cg-bid-game) 3)))
+  (let* ((card-games-bid--human-seats '(0 1 2 3))
+         (g (card-games-bid--deal (make-instance 'card-games-bid-game) 3)))
     ;; put the game where a discard is legal: West won the auction
-    (cg-put g :phase 'kitty)
-    (cg-put g :contractor 1)
-    (cg-bid--set-hand g 1 (append (cg-get g :kitty) (cg-bid--hand g 1)))
-    (let* ((hand (copy-sequence (cg-bid--hand g 1)))
-           (foreign (cl-subseq (cg-bid--hand g 2) 0 5)))
+    (card-games-put g :phase 'kitty)
+    (card-games-put g :contractor 1)
+    (card-games-bid--set-hand g 1 (append (card-games-get g :kitty) (card-games-bid--hand g 1)))
+    (let* ((hand (copy-sequence (card-games-bid--hand g 1)))
+           (foreign (cl-subseq (card-games-bid--hand g 2) 0 5)))
       ;; five cards West does not hold: refused, nothing moves
-      (should-not (cg-net-apply-move g 1 (cons 'discard foreign)))
-      (should (equal hand (cg-bid--hand g 1)))
-      (should (eq 'kitty (cg-get g :phase)))
+      (should-not (card-games-net-apply-move g 1 (cons 'discard foreign)))
+      (should (equal hand (card-games-bid--hand g 1)))
+      (should (eq 'kitty (card-games-get g :phase)))
       ;; one held card named five times: also refused
-      (should-not (cg-net-apply-move g 1
+      (should-not (card-games-net-apply-move g 1
                                      (cons 'discard (make-list 5 (car hand)))))
-      (should (eq 'kitty (cg-get g :phase)))
+      (should (eq 'kitty (card-games-get g :phase)))
       ;; an honest five from the hand is accepted and play begins
-      (should (cg-net-apply-move g 1 (cons 'discard (cl-subseq hand 0 5))))
-      (should (eq 'play (cg-get g :phase)))
-      (should (= 10 (length (cg-bid--hand g 1)))))))
+      (should (card-games-net-apply-move g 1 (cons 'discard (cl-subseq hand 0 5))))
+      (should (eq 'play (card-games-get g :phase)))
+      (should (= 10 (length (card-games-bid--hand g 1)))))))
 
 (ert-deftest cgt-bid-net-loopback ()
   "A 500 move travels client -> host -> filtered broadcast over TCP."
@@ -548,1049 +548,1049 @@ left a 15-card hand in play."
                              :host "127.0.0.1" :family 'ipv4))
     (error (ert-skip "TCP not available")))
   (cl-flet ((pump () (dotimes (_ 16) (accept-process-output nil 0.05))))
-    (let* ((cg-bid--human-seats '(0 1))
-           (hgame (cg-bid--deal (make-instance 'cg-bid-game) 3))
-           (srv (cg-net-host-start hgame 0))
+    (let* ((card-games-bid--human-seats '(0 1))
+           (hgame (card-games-bid--deal (make-instance 'card-games-bid-game) 3))
+           (srv (card-games-net-host-start hgame 0))
            (port (process-contact srv :service))
-           (cgame (make-instance 'cg-bid-game)))
-      (setf (cg-net-host-next-seat cg-net--host) 1) ; reserve South for host
+           (cgame (make-instance 'card-games-bid-game)))
+      (setf (card-games-net-host-next-seat card-games-net--host) 1) ; reserve South for host
       (unwind-protect
           (progn
-            (cg-net-connect "127.0.0.1" port "P1" cgame)
+            (card-games-net-connect "127.0.0.1" port "P1" cgame)
             (pump)
             ;; the client (seat 1) sees its own ten cards at index 0
-            (should (= 10 (length (aref (cg-get cgame :hands) 0))))
+            (should (= 10 (length (aref (card-games-get cgame :hands) 0))))
             (should (equal
-                     (sort (mapcar #'prin1-to-string (aref (cg-get cgame :hands) 0)) #'string<)
-                     (sort (mapcar #'prin1-to-string (cg-bid--hand hgame 1)) #'string<)))
+                     (sort (mapcar #'prin1-to-string (aref (card-games-get cgame :hands) 0)) #'string<)
+                     (sort (mapcar #'prin1-to-string (card-games-bid--hand hgame 1)) #'string<)))
             ;; make it the client's turn, then let it pass
-            (cg-put hgame :bidder 1)
-            (cg-net-host-broadcast)
+            (card-games-put hgame :bidder 1)
+            (card-games-net-host-broadcast)
             (pump)
-            (should (= 0 (cg-get cgame :bidder)))  ; rotated: West sees itself bidding
-            (cg-net-send-move '(pass))
+            (should (= 0 (card-games-get cgame :bidder)))  ; rotated: West sees itself bidding
+            (card-games-net-send-move '(pass))
             (pump)
-            (should (aref (cg-get hgame :passed) 1)))
-        (cg-net-disconnect)
-        (cg-net-host-stop)))))
+            (should (aref (card-games-get hgame :passed) 1)))
+        (card-games-net-disconnect)
+        (card-games-net-host-stop)))))
 
 
 ;;;; --- New games added 2026-06-24: solitaires, trick games, Crazy Eights ---
 
 (ert-deftest cgt-sol-deck ()
-  (should (= 52 (length (cg-sol--make-deck 1))))
-  (should (= 104 (length (cg-sol--make-deck 2)))))
+  (should (= 52 (length (card-games-sol--make-deck 1))))
+  (should (= 104 (length (card-games-sol--make-deck 2)))))
 
 (ert-deftest cgt-sol-klondike-deal ()
-  (let* ((g (cg-sol--deal (cg-klondike-game))))
+  (let* ((g (card-games-sol--deal (card-games-klondike-game))))
     (should (= 7 (oref g ncols)))
     (dotimes (c 7)
-      (should (= (1+ c) (length (cg-sol--col g c))))
-      (should (= c (cg-sol--down g c)))
+      (should (= (1+ c) (length (card-games-sol--col g c))))
+      (should (= c (card-games-sol--down g c)))
       ;; top card is face up
-      (should (cg-sol--col-top g c)))
-    (should (= 24 (length (cg-get g :stock))))
-    (should (cl-every #'null (append (cg-get g :found) nil)))))
+      (should (card-games-sol--col-top g c)))
+    (should (= 24 (length (card-games-get g :stock))))
+    (should (cl-every #'null (append (card-games-get g :found) nil)))))
 
 (ert-deftest cgt-sol-freecell-deal ()
-  (let* ((g (cg-sol--deal (cg-freecell-game)))
+  (let* ((g (card-games-sol--deal (card-games-freecell-game)))
          (total 0))
     (should (= 8 (oref g ncols)))
-    (dotimes (c 8) (cl-incf total (length (cg-sol--col g c)))
-             (should (= 0 (cg-sol--down g c))))
+    (dotimes (c 8) (cl-incf total (length (card-games-sol--col g c)))
+             (should (= 0 (card-games-sol--down g c))))
     (should (= 52 total))
-    (should (null (cg-get g :stock)))
-    (should (= 4 (length (cg-get g :free))))))
+    (should (null (card-games-get g :stock)))
+    (should (= 4 (length (card-games-get g :free))))))
 
 (ert-deftest cgt-sol-spider-deal ()
-  (let* ((g (cg-sol--deal (cg-spider-game)))
+  (let* ((g (card-games-sol--deal (card-games-spider-game)))
          (total 0))
     (should (= 10 (oref g ncols)))
-    (dotimes (c 10) (cl-incf total (length (cg-sol--col g c))))
+    (dotimes (c 10) (cl-incf total (length (card-games-sol--col g c))))
     (should (= 54 total))
-    (should (= 50 (length (cg-get g :stock))))
-    (dotimes (c 4) (should (= 6 (length (cg-sol--col g c)))))
-    (dotimes (k 6) (should (= 5 (length (cg-sol--col g (+ 4 k))))))))
+    (should (= 50 (length (card-games-get g :stock))))
+    (dotimes (c 4) (should (= 6 (length (card-games-sol--col g c)))))
+    (dotimes (k 6) (should (= 5 (length (card-games-sol--col g (+ 4 k))))))))
 
 (ert-deftest cgt-sol-rules-alt ()
-  (let ((g (cg-klondike-game)))
+  (let ((g (card-games-klondike-game)))
     ;; red 6 onto black 7 ok; black 6 onto black 7 no
-    (should (cg-sol--place-p g '(0 . 6) '(3 . 5)))      ; 7s under 6h
-    (should-not (cg-sol--place-p g '(0 . 6) '(1 . 5)))  ; 6c on 7s same color
-    (should (cg-sol--empty-accepts g '(0 . 12)))        ; king
-    (should-not (cg-sol--empty-accepts g '(0 . 11)))))  ; queen
+    (should (card-games-sol--place-p g '(0 . 6) '(3 . 5)))      ; 7s under 6h
+    (should-not (card-games-sol--place-p g '(0 . 6) '(1 . 5)))  ; 6c on 7s same color
+    (should (card-games-sol--empty-accepts g '(0 . 12)))        ; king
+    (should-not (card-games-sol--empty-accepts g '(0 . 11)))))  ; queen
 
 (ert-deftest cgt-sol-rules-spider ()
-  (let ((g (cg-spider-game)))
+  (let ((g (card-games-spider-game)))
     ;; build down any suit
-    (should (cg-sol--place-p g '(0 . 6) '(3 . 5)))
-    (should (cg-sol--place-p g '(0 . 6) '(1 . 5)))
+    (should (card-games-sol--place-p g '(0 . 6) '(3 . 5)))
+    (should (card-games-sol--place-p g '(0 . 6) '(1 . 5)))
     ;; run cohesion requires same suit
-    (should (cg-sol--link-p g '(0 . 6) '(0 . 5)))
-    (should-not (cg-sol--link-p g '(0 . 6) '(1 . 5)))
-    (should (cg-sol--empty-accepts g '(0 . 3)))))
+    (should (card-games-sol--link-p g '(0 . 6) '(0 . 5)))
+    (should-not (card-games-sol--link-p g '(0 . 6) '(1 . 5)))
+    (should (card-games-sol--empty-accepts g '(0 . 3)))))
 
 (ert-deftest cgt-sol-top-run ()
-  (let ((g (cg-klondike-game)))
-    (cg-put g :tableau (vector (list '(0 . 9) '(2 . 8) '(1 . 7))))  ; 9s 8d 7c
-    (cg-put g :down (vector 0))
+  (let ((g (card-games-klondike-game)))
+    (card-games-put g :tableau (vector (list '(0 . 9) '(2 . 8) '(1 . 7))))  ; 9s 8d 7c
+    (card-games-put g :down (vector 0))
     ;; 9s(black) 8d(red) 7c(black) is a valid alt run of 3
-    (should (= 3 (length (cg-sol--top-run g 0))))
+    (should (= 3 (length (card-games-sol--top-run g 0))))
     ;; break color: 9s 8d 7d -> only 8d 7d? 7d red on 8d red invalid -> run is just 7d
-    (cg-put g :tableau (vector (list '(0 . 9) '(2 . 8) '(2 . 7))))
-    (should (= 1 (length (cg-sol--top-run g 0))))))
+    (card-games-put g :tableau (vector (list '(0 . 9) '(2 . 8) '(2 . 7))))
+    (should (= 1 (length (card-games-sol--top-run g 0))))))
 
 (ert-deftest cgt-sol-move-col ()
-  (let ((g (cg-sol--deal (cg-klondike-game))))
+  (let ((g (card-games-sol--deal (card-games-klondike-game))))
     ;; craft: col0 top = 7c(black), col1 top = 6h(red); move 6h onto 7c
-    (cg-put g :tableau (vector (list '(1 . 7)) (list '(3 . 6)) nil nil nil nil nil))
-    (cg-put g :down (vector 0 0 0 0 0 0 0))
-    (let ((cards (last (cg-sol--col g 1) 1)))
-      (should (cg-sol--can-drop g '(col . 0) cards))
-      (cg-sol--take g '(col . 1) 1)
-      (cg-sol--drop g '(col . 0) cards))
-    (should (equal '((1 . 7) (3 . 6)) (cg-sol--col g 0)))
-    (should (null (cg-sol--col g 1)))))
+    (card-games-put g :tableau (vector (list '(1 . 7)) (list '(3 . 6)) nil nil nil nil nil))
+    (card-games-put g :down (vector 0 0 0 0 0 0 0))
+    (let ((cards (last (card-games-sol--col g 1) 1)))
+      (should (card-games-sol--can-drop g '(col . 0) cards))
+      (card-games-sol--take g '(col . 1) 1)
+      (card-games-sol--drop g '(col . 0) cards))
+    (should (equal '((1 . 7) (3 . 6)) (card-games-sol--col g 0)))
+    (should (null (card-games-sol--col g 1)))))
 
 (ert-deftest cgt-sol-foundation-and-win ()
-  (let ((g (cg-sol--deal (cg-klondike-game))))
+  (let ((g (card-games-sol--deal (card-games-klondike-game))))
     ;; empty foundations: place an Ace then a 2 of same suit
-    (should (cg-sol--found-accepts g 0 '(0 . 0)))
-    (cg-sol--drop g '(found . 0) (list '(0 . 0)))
-    (should (cg-sol--found-accepts g 0 '(0 . 1)))
-    (should-not (cg-sol--found-accepts g 0 '(1 . 1)))
+    (should (card-games-sol--found-accepts g 0 '(0 . 0)))
+    (card-games-sol--drop g '(found . 0) (list '(0 . 0)))
+    (should (card-games-sol--found-accepts g 0 '(0 . 1)))
+    (should-not (card-games-sol--found-accepts g 0 '(1 . 1)))
     ;; build a winning state: fill all four foundations A..K
     (let ((found (make-vector 4 nil)))
       (dotimes (s 4)
         (aset found s (cl-loop for r below 13 collect (cons s r))))
-      (cg-put g :found found))
-    (should (cg-won-p g))))
+      (card-games-put g :found found))
+    (should (card-games-won-p g))))
 
 (ert-deftest cgt-sol-spider-harvest ()
-  (let ((g (cg-sol--deal (cg-spider-game))))
+  (let ((g (card-games-sol--deal (card-games-spider-game))))
     ;; put a complete K..A spade run as the whole of column 0
-    (cg-put g :tableau (let ((v (cg-get g :tableau)))
+    (card-games-put g :tableau (let ((v (card-games-get g :tableau)))
                          (aset v 0 (cl-loop for r from 12 downto 0 collect (cons 0 r)))
                          v))
-    (cg-put g :down (let ((v (cg-get g :down))) (aset v 0 0) v))
-    (cg-put g :sets 0)
-    (cg-sol--harvest g)
-    (should (= 1 (cg-get g :sets)))
-    (should (null (cg-sol--col g 0)))))
+    (card-games-put g :down (let ((v (card-games-get g :down))) (aset v 0 0) v))
+    (card-games-put g :sets 0)
+    (card-games-sol--harvest g)
+    (should (= 1 (card-games-get g :sets)))
+    (should (null (card-games-sol--col g 0)))))
 
 (ert-deftest cgt-sol-undo ()
-  (let ((g (cg-sol--deal (cg-klondike-game))))
-    (cg-put g :tableau (vector (list '(1 . 7)) (list '(3 . 6)) nil nil nil nil nil))
-    (cg-put g :down (vector 0 0 0 0 0 0 0))
-    (cg-sol--snapshot g)
-    (let ((cards (last (cg-sol--col g 1) 1)))
-      (cg-sol--take g '(col . 1) 1)
-      (cg-sol--drop g '(col . 0) cards))
-    (should (null (cg-sol--col g 1)))
-    (should (cg-sol--restore g))
-    (should (equal '((3 . 6)) (cg-sol--col g 1)))))
+  (let ((g (card-games-sol--deal (card-games-klondike-game))))
+    (card-games-put g :tableau (vector (list '(1 . 7)) (list '(3 . 6)) nil nil nil nil nil))
+    (card-games-put g :down (vector 0 0 0 0 0 0 0))
+    (card-games-sol--snapshot g)
+    (let ((cards (last (card-games-sol--col g 1) 1)))
+      (card-games-sol--take g '(col . 1) 1)
+      (card-games-sol--drop g '(col . 0) cards))
+    (should (null (card-games-sol--col g 1)))
+    (should (card-games-sol--restore g))
+    (should (equal '((3 . 6)) (card-games-sol--col g 1)))))
 
 (ert-deftest cgt-sol-render-builds ()
-  (dolist (cls '(cg-klondike-game cg-freecell-game cg-spider-game cg-yukon-game))
-    (let ((g (cg-sol--deal (make-instance cls))))
-      (should (stringp (cg-render g))))))
+  (dolist (cls '(card-games-klondike-game card-games-freecell-game card-games-spider-game card-games-yukon-game))
+    (let ((g (card-games-sol--deal (make-instance cls))))
+      (should (stringp (card-games-render g))))))
 
 (defun cgt--init-hearts ()
-  (let ((g (cg-hearts-game)))
-    (cg-put g :scores (make-vector 4 0))
-    (cg-trick--start-hand g) g))
+  (let ((g (card-games-hearts-game)))
+    (card-games-put g :scores (make-vector 4 0))
+    (card-games-trick--start-hand g) g))
 
 (defun cgt--init-spades ()
-  (let ((g (cg-spades-game)))
-    (cg-put g :scores (make-vector 4 0))
-    (cg-put g :bags (make-vector 2 0))
-    (cg-put g :dealer 3)
-    (cg-trick--deal g)
-    (cg-put g :bids (let ((v (make-vector 4 0)))
-                      (dotimes (s 4) (aset v s (cg-trick--ai-bid g s))) v))
-    (cg-trick--leader-init g) g))
+  (let ((g (card-games-spades-game)))
+    (card-games-put g :scores (make-vector 4 0))
+    (card-games-put g :bags (make-vector 2 0))
+    (card-games-put g :dealer 3)
+    (card-games-trick--deal g)
+    (card-games-put g :bids (let ((v (make-vector 4 0)))
+                      (dotimes (s 4) (aset v s (card-games-trick--ai-bid g s))) v))
+    (card-games-trick--leader-init g) g))
 
 (ert-deftest cgt-trick-deal ()
-  (let ((g (cg-trick--deal (cg-hearts-game))))
+  (let ((g (card-games-trick--deal (card-games-hearts-game))))
     (let ((tot 0))
-      (dotimes (s 4) (cl-incf tot (length (cg-trick--hand g s))))
+      (dotimes (s 4) (cl-incf tot (length (card-games-trick--hand g s))))
       (should (= 52 tot)))
-    (dotimes (s 4) (should (= 13 (length (cg-trick--hand g s)))))))
+    (dotimes (s 4) (should (= 13 (length (card-games-trick--hand g s)))))))
 
 (ert-deftest cgt-trick-winner-trump ()
-  (let ((g (cg-spades-game)))
+  (let ((g (card-games-spades-game)))
     ;; play order: S leads 10h, W 13h(K), N 2s(trump), E 12h
-    (cg-put g :trick (list (cons 3 '(3 . 11)) (cons 2 '(0 . 0))
+    (card-games-put g :trick (list (cons 3 '(3 . 11)) (cons 2 '(0 . 0))
                            (cons 1 '(3 . 12)) (cons 0 '(3 . 8))))
     ;; :trick is stored reversed (newest first); winner = North (trump)
-    (should (= 2 (cg-trick--winner g)))))
+    (should (= 2 (card-games-trick--winner g)))))
 
 (ert-deftest cgt-trick-winner-notrump ()
-  (let ((g (cg-hearts-game)))
+  (let ((g (card-games-hearts-game)))
     ;; led hearts; highest heart wins (no trump)
-    (cg-put g :trick (list (cons 3 '(1 . 12)) (cons 2 '(3 . 12))
+    (card-games-put g :trick (list (cons 3 '(1 . 12)) (cons 2 '(3 . 12))
                            (cons 1 '(3 . 5)) (cons 0 '(3 . 8))))
     ;; North played Ace of hearts (3 . 12) -> winner North
-    (should (= 2 (cg-trick--winner g)))))
+    (should (= 2 (card-games-trick--winner g)))))
 
 (ert-deftest cgt-hearts-first-must-be-2c ()
   (let* ((g (cgt--init-hearts))
-         (leader (cg-get g :turn)))
-    (let ((moves (cg-trick--legal-moves g leader)))
+         (leader (card-games-get g :turn)))
+    (let ((moves (card-games-trick--legal-moves g leader)))
       (should (equal moves '((1 . 0)))))))
 
 (ert-deftest cgt-hearts-full-hand ()
   (let ((g (cgt--init-hearts)))
-    (cg-trick--simulate-hand g)
+    (card-games-trick--simulate-hand g)
     ;; 13 tricks distributed
-    (should (= 13 (apply #'+ (append (cg-get g :tricks) nil))))
+    (should (= 13 (apply #'+ (append (card-games-get g :tricks) nil))))
     ;; total points across players is 26 (no moon) or 78 (moon: 3*26)
-    (let ((tot (apply #'+ (append (cg-get g :scores) nil))))
+    (let ((tot (apply #'+ (append (card-games-get g :scores) nil))))
       (should (memq tot '(26 78))))))
 
 (ert-deftest cgt-hearts-many-hands ()
   (let ((g (cgt--init-hearts)) (n 0))
-    (while (and (not (cg-trick--game-over-p g)) (< n 60))
-      (cg-trick--simulate-hand g)
+    (while (and (not (card-games-trick--game-over-p g)) (< n 60))
+      (card-games-trick--simulate-hand g)
       (cl-incf n)
-      (unless (cg-trick--game-over-p g) (cg-trick--start-hand g)))
-    (should (cg-trick--game-over-p g))
-    (should (integerp (cg-trick--winner-seat g)))))
+      (unless (card-games-trick--game-over-p g) (card-games-trick--start-hand g)))
+    (should (card-games-trick--game-over-p g))
+    (should (integerp (card-games-trick--winner-seat g)))))
 
 (ert-deftest cgt-spades-bid-range ()
-  (let ((g (cg-trick--deal (cg-spades-game))))
+  (let ((g (card-games-trick--deal (card-games-spades-game))))
     (dotimes (s 4)
-      (let ((b (cg-trick--ai-bid g s)))
+      (let ((b (card-games-trick--ai-bid g s)))
         (should (and (>= b 1) (<= b 13)))))))
 
 (ert-deftest cgt-spades-full-hand ()
   (let ((g (cgt--init-spades)))
-    (cg-trick--simulate-hand g)
-    (should (= 13 (apply #'+ (append (cg-get g :tricks) nil))))
+    (card-games-trick--simulate-hand g)
+    (should (= 13 (apply #'+ (append (card-games-get g :tricks) nil))))
     ;; teammates share a score
-    (should (= (aref (cg-get g :scores) 0) (aref (cg-get g :scores) 2)))
-    (should (= (aref (cg-get g :scores) 1) (aref (cg-get g :scores) 3)))))
+    (should (= (aref (card-games-get g :scores) 0) (aref (card-games-get g :scores) 2)))
+    (should (= (aref (card-games-get g :scores) 1) (aref (card-games-get g :scores) 3)))))
 
 (ert-deftest cgt-spades-full-game ()
   (let ((g (cgt--init-spades)) (n 0))
-    (while (and (not (cg-trick--game-over-p g)) (< n 80))
-      (cg-trick--simulate-hand g)
+    (while (and (not (card-games-trick--game-over-p g)) (< n 80))
+      (card-games-trick--simulate-hand g)
       (cl-incf n)
-      (unless (cg-trick--game-over-p g)
-        (cg-trick--deal g)
-        (cg-put g :bids (let ((v (make-vector 4 0)))
-                          (dotimes (s 4) (aset v s (cg-trick--ai-bid g s))) v))
-        (cg-trick--leader-init g)))
-    (should (cg-trick--game-over-p g))))
+      (unless (card-games-trick--game-over-p g)
+        (card-games-trick--deal g)
+        (card-games-put g :bids (let ((v (make-vector 4 0)))
+                          (dotimes (s 4) (aset v s (card-games-trick--ai-bid g s))) v))
+        (card-games-trick--leader-init g)))
+    (should (card-games-trick--game-over-p g))))
 
 (ert-deftest cgt-trick-ui-new-and-render ()
-  (dolist (cls '(cg-hearts-game cg-spades-game))
+  (dolist (cls '(card-games-hearts-game card-games-spades-game))
     (let ((noninteractive t)
           (g (make-instance cls)))
-      (cg-trick--new g)            ; spades bids via ai (noninteractive), hearts -> pass phase
-      (should (stringp (cg-render g)))
-      (should (memq (cg-get g :phase) '(pass play))))))
+      (card-games-trick--new g)            ; spades bids via ai (noninteractive), hearts -> pass phase
+      (should (stringp (card-games-render g)))
+      (should (memq (card-games-get g :phase) '(pass play))))))
 (ert-deftest cgt-trick-ui-hearts-pass ()
-  (let* ((noninteractive t) (g (make-instance 'cg-hearts-game)))
-    (cg-trick--new g)
+  (let* ((noninteractive t) (g (make-instance 'card-games-hearts-game)))
+    (card-games-trick--new g)
     ;; hand 1 passes left; mark 3 cards from South and pass
-    (when (eq (cg-get g :phase) 'pass)
-      (cg-put g :marks (cl-subseq (cg-trick--sort (cg-trick--hand g 0)) 0 3))
-      (cg-trick--do-pass g)
-      (should (eq (cg-get g :phase) 'play))
+    (when (eq (card-games-get g :phase) 'pass)
+      (card-games-put g :marks (cl-subseq (card-games-trick--sort (card-games-trick--hand g 0)) 0 3))
+      (card-games-trick--do-pass g)
+      (should (eq (card-games-get g :phase) 'play))
       ;; cards are conserved: hands plus the cards already played this trick
-      (let ((tot (length (cg-get g :trick))))
-        (dotimes (s 4) (cl-incf tot (length (cg-trick--hand g s))))
+      (let ((tot (length (card-games-get g :trick))))
+        (dotimes (s 4) (cl-incf tot (length (card-games-trick--hand g s))))
         (should (= 52 tot))))))
 (ert-deftest cgt-trick-ui-spades-human-play ()
-  (let* ((noninteractive t) (g (make-instance 'cg-spades-game)))
-    (cg-trick--new g)              ; runs AI until South's turn
-    (should (eq (cg-get g :phase) 'play))
-    (should (= 0 (cg-get g :turn)))
+  (let* ((noninteractive t) (g (make-instance 'card-games-spades-game)))
+    (card-games-trick--new g)              ; runs AI until South's turn
+    (should (eq (card-games-get g :phase) 'play))
+    (should (= 0 (card-games-get g :turn)))
     ;; play a legal card for South, then run; eventually hand completes/scores
     (let ((guard 0))
-      (while (and (eq (cg-get g :phase) 'play) (< guard 20)
-                  (= 0 (cg-get g :turn)))
-        (let ((card (car (cg-trick--legal-moves g 0))))
-          (cg-trick--play g 0 card)
-          (cg-trick--run g))
+      (while (and (eq (card-games-get g :phase) 'play) (< guard 20)
+                  (= 0 (card-games-get g :turn)))
+        (let ((card (car (card-games-trick--legal-moves g 0))))
+          (card-games-trick--play g 0 card)
+          (card-games-trick--run g))
         (cl-incf guard)))
-    (should (vectorp (cg-get g :scores)))))
+    (should (vectorp (card-games-get g :scores)))))
 
 (ert-deftest cgt-eights-deal ()
-  (let* ((cg-eights-players 3) (g (cg-eights--deal (cg-eights-game))))
-    (should (= 3 (cg-get g :nplayers)))
-    (dotimes (s 3) (should (= 5 (length (cg-eights--hand g s)))))
-    (should (cg-eights--top g))
-    (should-not (= cg-eights--wild (cdr (cg-eights--top g))))))  ; starter not an eight
+  (let* ((card-games-eights-players 3) (g (card-games-eights--deal (card-games-eights-game))))
+    (should (= 3 (card-games-get g :nplayers)))
+    (dotimes (s 3) (should (= 5 (length (card-games-eights--hand g s)))))
+    (should (card-games-eights--top g))
+    (should-not (= card-games-eights--wild (cdr (card-games-eights--top g))))))  ; starter not an eight
 (ert-deftest cgt-eights-legal ()
-  (let ((g (cg-eights-game)))
-    (cg-put g :discard (list '(0 . 3))) (cg-put g :suit 0)
-    (should (cg-eights--legal-p g '(0 . 8)))      ; same suit (spades)
-    (should (cg-eights--legal-p g '(1 . 3)))      ; same rank
-    (should (cg-eights--legal-p g '(2 . 6)))      ; eight (wild)
-    (should-not (cg-eights--legal-p g '(1 . 4))))) ; neither
+  (let ((g (card-games-eights-game)))
+    (card-games-put g :discard (list '(0 . 3))) (card-games-put g :suit 0)
+    (should (card-games-eights--legal-p g '(0 . 8)))      ; same suit (spades)
+    (should (card-games-eights--legal-p g '(1 . 3)))      ; same rank
+    (should (card-games-eights--legal-p g '(2 . 6)))      ; eight (wild)
+    (should-not (card-games-eights--legal-p g '(1 . 4))))) ; neither
 (ert-deftest cgt-eights-full-game ()
-  (let* ((cg-eights-players 4) (noninteractive t) (g (cg-eights--deal (cg-eights-game)))
+  (let* ((card-games-eights-players 4) (noninteractive t) (g (card-games-eights--deal (card-games-eights-game)))
          (guard 0))
     ;; drive entirely by AI from every seat
-    (while (and (eq (cg-get g :phase) 'play) (< guard 2000))
-      (cg-eights--ai-turn g (cg-get g :turn))
-      (when (>= (cg-get g :passes) (cg-get g :nplayers)) (cg-eights--deadlock g))
+    (while (and (eq (card-games-get g :phase) 'play) (< guard 2000))
+      (card-games-eights--ai-turn g (card-games-get g :turn))
+      (when (>= (card-games-get g :passes) (card-games-get g :nplayers)) (card-games-eights--deadlock g))
       (cl-incf guard))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (integerp (cg-get g :winner)))))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (integerp (card-games-get g :winner)))))
 (ert-deftest cgt-eights-wild-sets-suit ()
-  (let* ((cg-eights-players 2) (g (cg-eights--deal (cg-eights-game))))
-    (cg-eights--set-hand g 0 (list '(3 . 6)))   ; the human holds only an eight
-    (cg-put g :discard (list '(0 . 3))) (cg-put g :suit 0)
-    (cg-eights--play g 0 '(3 . 6) 2)            ; play it, name diamonds (2)
-    (should (= 2 (cg-get g :suit)))
-    (should (eq (cg-get g :phase) 'game-over))))  
+  (let* ((card-games-eights-players 2) (g (card-games-eights--deal (card-games-eights-game))))
+    (card-games-eights--set-hand g 0 (list '(3 . 6)))   ; the human holds only an eight
+    (card-games-put g :discard (list '(0 . 3))) (card-games-put g :suit 0)
+    (card-games-eights--play g 0 '(3 . 6) 2)            ; play it, name diamonds (2)
+    (should (= 2 (card-games-get g :suit)))
+    (should (eq (card-games-get g :phase) 'game-over))))  
 
 ;;;; --- Wave 2 (2026-06-24): Forty Thieves/Scorpion/Canfield, Golf/TriPeaks/Pyramid, Whist/Oh Hell, President ---
 
 (ert-deftest cgt-sol-forty-deal ()
-  (let ((g (cg-sol--deal (cg-forty-game))) (tot 0))
+  (let ((g (card-games-sol--deal (card-games-forty-game))) (tot 0))
     (should (= 10 (oref g ncols)))
-    (dotimes (c 10) (should (= 4 (length (cg-sol--col g c)))) (cl-incf tot 4))
+    (dotimes (c 10) (should (= 4 (length (card-games-sol--col g c)))) (cl-incf tot 4))
     (should (= 8 (oref g nfound)))
-    (should (= 64 (length (cg-get g :stock))))
-    (should (= 104 (+ tot (length (cg-get g :stock)))))))
+    (should (= 64 (length (card-games-get g :stock))))
+    (should (= 104 (+ tot (length (card-games-get g :stock)))))))
 
 (ert-deftest cgt-sol-forty-no-redeal ()
-  (let ((g (cg-sol--deal (cg-forty-game))))
-    (cg-put g :stock nil) (cg-put g :waste '((0 . 0) (1 . 1)))
-    (cg-sol--stock-action g)            ; redeal nil -> stays empty
-    (should (null (cg-get g :stock)))))
+  (let ((g (card-games-sol--deal (card-games-forty-game))))
+    (card-games-put g :stock nil) (card-games-put g :waste '((0 . 0) (1 . 1)))
+    (card-games-sol--stock-action g)            ; redeal nil -> stays empty
+    (should (null (card-games-get g :stock)))))
 
 (ert-deftest cgt-sol-forty-win ()
-  (let ((g (cg-sol--deal (cg-forty-game))) (found (make-vector 8 nil)))
+  (let ((g (card-games-sol--deal (card-games-forty-game))) (found (make-vector 8 nil)))
     (dotimes (i 8) (aset found i (cl-loop for r below 13 collect (cons (mod i 4) r))))
-    (cg-put g :found found)
-    (should (cg-won-p g))))
+    (card-games-put g :found found)
+    (should (card-games-won-p g))))
 
 (ert-deftest cgt-sol-scorpion-deal ()
-  (let ((g (cg-sol--deal (cg-scorpion-game))) (tot 0))
+  (let ((g (card-games-sol--deal (card-games-scorpion-game))) (tot 0))
     (should (= 7 (oref g ncols)))
-    (dotimes (c 7) (should (= 7 (length (cg-sol--col g c)))) (cl-incf tot 7))
-    (dotimes (c 4) (should (= 3 (cg-sol--down g c))))
-    (dotimes (k 3) (should (= 0 (cg-sol--down g (+ 4 k)))))
-    (should (= 3 (length (cg-get g :stock))))
+    (dotimes (c 7) (should (= 7 (length (card-games-sol--col g c)))) (cl-incf tot 7))
+    (dotimes (c 4) (should (= 3 (card-games-sol--down g c))))
+    (dotimes (k 3) (should (= 0 (card-games-sol--down g (+ 4 k)))))
+    (should (= 3 (length (card-games-get g :stock))))
     (should (= 0 (oref g nfound)))))
 
 (ert-deftest cgt-sol-scorpion-harvest-win ()
-  (let ((g (cg-sol--deal (cg-scorpion-game))))
-    (cg-put g :sets 3)
+  (let ((g (card-games-sol--deal (card-games-scorpion-game))))
+    (card-games-put g :sets 3)
     ;; place a complete K..A clubs run as column 0
-    (aset (cg-get g :tableau) 0 (cl-loop for r from 12 downto 0 collect (cons 1 r)))
-    (aset (cg-get g :down) 0 0)
-    (cg-sol--harvest g)
-    (should (= 4 (cg-get g :sets)))
-    (should (cg-won-p g))))
+    (aset (card-games-get g :tableau) 0 (cl-loop for r from 12 downto 0 collect (cons 1 r)))
+    (aset (card-games-get g :down) 0 0)
+    (card-games-sol--harvest g)
+    (should (= 4 (card-games-get g :sets)))
+    (should (card-games-won-p g))))
 
 (ert-deftest cgt-sol-canfield-deal ()
-  (let ((g (cg-sol--deal (cg-canfield-game))))
-    (should (= 13 (length (cg-get g :reserve))))
-    (should (= 1 (length (aref (cg-get g :found) 0))))
-    (dotimes (c 4) (should (= 1 (length (cg-sol--col g c)))))
-    (should (= 34 (length (cg-get g :stock))))
+  (let ((g (card-games-sol--deal (card-games-canfield-game))))
+    (should (= 13 (length (card-games-get g :reserve))))
+    (should (= 1 (length (aref (card-games-get g :found) 0))))
+    (dotimes (c 4) (should (= 1 (length (card-games-sol--col g c)))))
+    (should (= 34 (length (card-games-get g :stock))))
     ;; base equals the rank of the first foundation card
-    (should (= (oref g base) (cdr (car (aref (cg-get g :found) 0)))))))
+    (should (= (oref g base) (cdr (car (aref (card-games-get g :found) 0)))))))
 
 (ert-deftest cgt-sol-canfield-base-wrap ()
-  (let ((g (cg-canfield-game)))
+  (let ((g (card-games-canfield-game)))
     (oset g base 5) (oset g wrap t)
-    (cg-put g :found (make-vector 4 nil))
-    (should (cg-sol--found-accepts g 1 '(2 . 5)))       ; empty -> base rank 5
-    (should-not (cg-sol--found-accepts g 1 '(2 . 6)))
+    (card-games-put g :found (make-vector 4 nil))
+    (should (card-games-sol--found-accepts g 1 '(2 . 5)))       ; empty -> base rank 5
+    (should-not (card-games-sol--found-accepts g 1 '(2 . 6)))
     ;; wrap: a King on top accepts the Ace next
-    (aset (cg-get g :found) 0 (list '(0 . 12)))
-    (should (cg-sol--found-accepts g 0 '(0 . 0)))))
+    (aset (card-games-get g :found) 0 (list '(0 . 12)))
+    (should (card-games-sol--found-accepts g 0 '(0 . 0)))))
 
 (ert-deftest cgt-sol-canfield-autofill ()
-  (let ((g (cg-sol--deal (cg-canfield-game))))
-    (let ((rlen (length (cg-get g :reserve))))
-      (aset (cg-get g :tableau) 0 nil)   ; empty a column
-      (cg-sol--autofill g)
-      (should (= 1 (length (cg-sol--col g 0))))
-      (should (= (1- rlen) (length (cg-get g :reserve)))))))
+  (let ((g (card-games-sol--deal (card-games-canfield-game))))
+    (let ((rlen (length (card-games-get g :reserve))))
+      (aset (card-games-get g :tableau) 0 nil)   ; empty a column
+      (card-games-sol--autofill g)
+      (should (= 1 (length (card-games-sol--col g 0))))
+      (should (= (1- rlen) (length (card-games-get g :reserve)))))))
 
 (ert-deftest cgt-sol-russian-bank-deal ()
-  (let ((g (cg-sol--deal (cg-russian-bank-game))))
+  (let ((g (card-games-sol--deal (card-games-russian-bank-game))))
     (should (= 8 (oref g ncols)))
-    (should (= 13 (length (cg-get g :reserve))))
-    (dotimes (c 8) (should (= 1 (length (cg-sol--col g c)))))
-    (dotimes (i 4) (should (null (aref (cg-get g :found) i))))
-    (should (= 31 (length (cg-get g :stock))))   ; 52 - 13 reserve - 8 houses
+    (should (= 13 (length (card-games-get g :reserve))))
+    (dotimes (c 8) (should (= 1 (length (card-games-sol--col g c)))))
+    (dotimes (i 4) (should (null (aref (card-games-get g :found) i))))
+    (should (= 31 (length (card-games-get g :stock))))   ; 52 - 13 reserve - 8 houses
     ;; Houses build down by alternating colour; foundations up by suit.
-    (should (cg-sol--place-p g '(0 . 6) '(2 . 5)))       ; 7S <- 6D (down, alt)
-    (should-not (cg-sol--place-p g '(0 . 6) '(1 . 5)))   ; 7S <- 6C (same colour)
-    (should (cg-sol--found-accepts g 0 '(3 . 0)))        ; empty foundation takes an Ace
-    (should-not (cg-sol--found-accepts g 0 '(3 . 1)))))  ; but not a Two
+    (should (card-games-sol--place-p g '(0 . 6) '(2 . 5)))       ; 7S <- 6D (down, alt)
+    (should-not (card-games-sol--place-p g '(0 . 6) '(1 . 5)))   ; 7S <- 6C (same colour)
+    (should (card-games-sol--found-accepts g 0 '(3 . 0)))        ; empty foundation takes an Ace
+    (should-not (card-games-sol--found-accepts g 0 '(3 . 1)))))  ; but not a Two
 
 (ert-deftest cgt-sol-russian-bank-autofill ()
-  (let ((g (cg-sol--deal (cg-russian-bank-game))))
-    (let ((rlen (length (cg-get g :reserve))))
-      (aset (cg-get g :tableau) 0 nil)   ; empty a house
-      (cg-sol--autofill g)
-      (should (= 1 (length (cg-sol--col g 0))))
-      (should (= (1- rlen) (length (cg-get g :reserve)))))))
+  (let ((g (card-games-sol--deal (card-games-russian-bank-game))))
+    (let ((rlen (length (card-games-get g :reserve))))
+      (aset (card-games-get g :tableau) 0 nil)   ; empty a house
+      (card-games-sol--autofill g)
+      (should (= 1 (length (card-games-sol--col g 0))))
+      (should (= (1- rlen) (length (card-games-get g :reserve)))))))
 
 ;;;; Russian Bank duel (Crapette)
 
 (ert-deftest cgt-crap-deal ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
     (dotimes (p 2)
-      (should (= 13 (length (cg-crap--reserve g p))))
-      (should (= 35 (length (cg-crap--hand g p))))
-      (should (null (cg-crap--waste g p))))
-    (dotimes (i 8) (should (= 1 (length (cg-crap--house g i)))))
-    (dotimes (i 8) (should (null (cg-crap--found g i))))
-    (should (= 0 (cg-get g :turn)))))
+      (should (= 13 (length (card-games-crap--reserve g p))))
+      (should (= 35 (length (card-games-crap--hand g p))))
+      (should (null (card-games-crap--waste g p))))
+    (dotimes (i 8) (should (= 1 (length (card-games-crap--house g i)))))
+    (dotimes (i 8) (should (null (card-games-crap--found g i))))
+    (should (= 0 (card-games-get g :turn)))))
 
 (ert-deftest cgt-crap-legality ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :found) 0 nil)
-    (should (cg-crap--found-accepts g 0 '(3 . 0)))       ; empty -> Ace
-    (should-not (cg-crap--found-accepts g 0 '(3 . 1)))   ; not a Two
-    (aset (cg-get g :found) 0 (list '(3 . 0)))
-    (should (cg-crap--found-accepts g 0 '(3 . 1)))       ; up in suit
-    (should-not (cg-crap--found-accepts g 0 '(2 . 1)))   ; wrong suit
-    (aset (cg-get g :houses) 0 (list '(0 . 6)))          ; 7 of spades (black)
-    (should (cg-crap--house-accepts g 0 '(2 . 5)))       ; 6 of diamonds (red)
-    (should-not (cg-crap--house-accepts g 0 '(1 . 5)))   ; 6 of clubs (black)
-    (should (cg-crap--load-accepts '(2 . 5) '(2 . 6)))   ; same suit, one up
-    (should (cg-crap--load-accepts '(2 . 5) '(2 . 4)))   ; same suit, one down
-    (should-not (cg-crap--load-accepts '(2 . 5) '(3 . 6))) ; wrong suit
-    (should-not (cg-crap--load-accepts '(2 . 5) '(2 . 7))))) ; not adjacent
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :found) 0 nil)
+    (should (card-games-crap--found-accepts g 0 '(3 . 0)))       ; empty -> Ace
+    (should-not (card-games-crap--found-accepts g 0 '(3 . 1)))   ; not a Two
+    (aset (card-games-get g :found) 0 (list '(3 . 0)))
+    (should (card-games-crap--found-accepts g 0 '(3 . 1)))       ; up in suit
+    (should-not (card-games-crap--found-accepts g 0 '(2 . 1)))   ; wrong suit
+    (aset (card-games-get g :houses) 0 (list '(0 . 6)))          ; 7 of spades (black)
+    (should (card-games-crap--house-accepts g 0 '(2 . 5)))       ; 6 of diamonds (red)
+    (should-not (card-games-crap--house-accepts g 0 '(1 . 5)))   ; 6 of clubs (black)
+    (should (card-games-crap--load-accepts '(2 . 5) '(2 . 6)))   ; same suit, one up
+    (should (card-games-crap--load-accepts '(2 . 5) '(2 . 4)))   ; same suit, one down
+    (should-not (card-games-crap--load-accepts '(2 . 5) '(3 . 6))) ; wrong suit
+    (should-not (card-games-crap--load-accepts '(2 . 5) '(2 . 7))))) ; not adjacent
 
 (ert-deftest cgt-crap-win ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :reserve) 0 nil)
-    (aset (cg-get g :hand) 0 nil)
-    (aset (cg-get g :waste) 0 nil)
-    (should (cg-crap--won-p g 0))
-    (should-not (cg-crap--won-p g 1))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :reserve) 0 nil)
+    (aset (card-games-get g :hand) 0 nil)
+    (aset (card-games-get g :waste) 0 nil)
+    (should (card-games-crap--won-p g 0))
+    (should-not (card-games-crap--won-p g 1))))
 
 (ert-deftest cgt-crap-ai-turn ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
     (cl-flet ((total ()
                 (let ((n 0))
                   (dotimes (i 8)
-                    (setq n (+ n (length (cg-crap--found g i))
-                              (length (cg-crap--house g i)))))
+                    (setq n (+ n (length (card-games-crap--found g i))
+                              (length (card-games-crap--house g i)))))
                   (dotimes (p 2)
-                    (setq n (+ n (length (cg-crap--reserve g p))
-                              (length (cg-crap--waste g p))
-                              (length (cg-crap--hand g p)))))
+                    (setq n (+ n (length (card-games-crap--reserve g p))
+                              (length (card-games-crap--waste g p))
+                              (length (card-games-crap--hand g p)))))
                   n)))
       (should (= 104 (total)))
-      (cg-put g :turn 1)
-      (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
+      (card-games-put g :turn 1)
+      (let ((card-games-crap--recording nil)) (card-games-crap--ai-play g))
       (should (= 104 (total)))              ; the AI turn conserves every card
-      (should-not (eq (cg-get g :winner) 0))))) ; the AI cannot make YOU win
+      (should-not (eq (card-games-get g :winner) 0))))) ; the AI cannot make YOU win
 
 (ert-deftest cgt-crap-ai-plays-foundation ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :reserve) 1 (list '(0 . 0)))   ; AI reserve top = Ace of spades
-    (aset (cg-get g :waste) 1 nil)
-    (aset (cg-get g :hand) 1 nil)
-    (aset (cg-get g :found) 0 nil)
-    (cg-put g :turn 1)
-    (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
-    (should (eq (cg-get g :winner) 1))))     ; plays its last card, wins
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :reserve) 1 (list '(0 . 0)))   ; AI reserve top = Ace of spades
+    (aset (card-games-get g :waste) 1 nil)
+    (aset (card-games-get g :hand) 1 nil)
+    (aset (card-games-get g :found) 0 nil)
+    (card-games-put g :turn 1)
+    (let ((card-games-crap--recording nil)) (card-games-crap--ai-play g))
+    (should (eq (card-games-get g :winner) 1))))     ; plays its last card, wins
 
 (ert-deftest cgt-crap-ai-enabling ()
   ;; reserve 5D cannot be placed until the AI shifts 6H off 6S (crafty rearrange)
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :reserve) 1 (list '(2 . 4)))            ; 5 of diamonds
-    (aset (cg-get g :waste) 1 nil) (aset (cg-get g :hand) 1 nil)
-    (aset (cg-get g :reserve) 0 nil) (aset (cg-get g :waste) 0 nil)
-    (aset (cg-get g :found) 0 nil)
-    (aset (cg-get g :houses) 0 (list '(0 . 5) '(3 . 5)))    ; 6S (bottom), 6H (top)
-    (aset (cg-get g :houses) 1 (list '(1 . 6)))             ; 7C
-    (dotimes (k 6) (aset (cg-get g :houses) (+ 2 k) (list '(2 . 6)))) ; 7D fillers, none empty
-    (cg-put g :turn 1)
-    (let ((cg-ai-level 'hard) (cg-crap--recording nil)) (cg-crap--ai-play g))
-    (should (null (cg-crap--reserve g 1)))))                ; hard unstuck and unloaded
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :reserve) 1 (list '(2 . 4)))            ; 5 of diamonds
+    (aset (card-games-get g :waste) 1 nil) (aset (card-games-get g :hand) 1 nil)
+    (aset (card-games-get g :reserve) 0 nil) (aset (card-games-get g :waste) 0 nil)
+    (aset (card-games-get g :found) 0 nil)
+    (aset (card-games-get g :houses) 0 (list '(0 . 5) '(3 . 5)))    ; 6S (bottom), 6H (top)
+    (aset (card-games-get g :houses) 1 (list '(1 . 6)))             ; 7C
+    (dotimes (k 6) (aset (card-games-get g :houses) (+ 2 k) (list '(2 . 6)))) ; 7D fillers, none empty
+    (card-games-put g :turn 1)
+    (let ((card-games-ai-level 'hard) (card-games-crap--recording nil)) (card-games-crap--ai-play g))
+    (should (null (card-games-crap--reserve g 1)))))                ; hard unstuck and unloaded
 
 (ert-deftest cgt-crap-ai-loads-you ()
   ;; reserve 6D loads onto your reserve top 7D; the AI should prefer that
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :reserve) 1 (list '(2 . 5)))            ; 6D
-    (aset (cg-get g :waste) 1 nil) (aset (cg-get g :hand) 1 nil)
-    (aset (cg-get g :reserve) 0 (list '(2 . 6)))            ; your reserve top 7D
-    (aset (cg-get g :waste) 0 nil) (aset (cg-get g :found) 0 nil)
-    (dotimes (k 8) (aset (cg-get g :houses) k (list '(1 . 10)))) ; nowhere on a house, none empty
-    (cg-put g :turn 1)
-    (let ((cg-crap--recording nil)) (cg-crap--ai-play g))
-    (should (null (cg-crap--reserve g 1)))
-    (should (member '(2 . 5) (cg-crap--reserve g 0)))))     ; loaded onto you
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :reserve) 1 (list '(2 . 5)))            ; 6D
+    (aset (card-games-get g :waste) 1 nil) (aset (card-games-get g :hand) 1 nil)
+    (aset (card-games-get g :reserve) 0 (list '(2 . 6)))            ; your reserve top 7D
+    (aset (card-games-get g :waste) 0 nil) (aset (card-games-get g :found) 0 nil)
+    (dotimes (k 8) (aset (card-games-get g :houses) k (list '(1 . 10)))) ; nowhere on a house, none empty
+    (card-games-put g :turn 1)
+    (let ((card-games-crap--recording nil)) (card-games-crap--ai-play g))
+    (should (null (card-games-crap--reserve g 1)))
+    (should (member '(2 . 5) (card-games-crap--reserve g 0)))))     ; loaded onto you
 
 (ert-deftest cgt-svg-logo-smoke ()
   (dolist (choice '(modern classic gnu splash drawn none nonexistent))
-    (let ((cg-svg-emacs-logo choice) (svg (svg-create 200 120)))
-      (cg-svg-draw-logo svg 100 60 1.0)
+    (let ((card-games-svg-emacs-logo choice) (svg (svg-create 200 120)))
+      (card-games-svg-draw-logo svg 100 60 1.0)
       (should (imagep (svg-image svg))))))
 
 (ert-deftest cgt-svg-card-back-smoke ()
   (dolist (b '(dots rings solid lattice waves diamond
                emacs emacs-classic gnu splash random))
-    (let ((cg-svg-card-back b) (svg (svg-create 80 100)))
-      (cg-svg-card svg 12 10 :down t)
+    (let ((card-games-svg-card-back b) (svg (svg-create 80 100)))
+      (card-games-svg-card svg 12 10 :down t)
       (should (imagep (svg-image svg)))))
-  (cg-svg--roll-back)
-  (should (memq cg-svg--random-back cg-svg--card-backs)))
+  (card-games-svg--roll-back)
+  (should (memq card-games-svg--random-back card-games-svg--card-backs)))
 
 (ert-deftest cgt-crap-house-run ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
-    (should (= 3 (length (cg-crap--house-run g 0))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(0 . 6)))  ; 7S breaks colour
-    (should (= 1 (length (cg-crap--house-run g 0))))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
+    (should (= 3 (length (card-games-crap--house-run g 0))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(0 . 6)))  ; 7S breaks colour
+    (should (= 1 (length (card-games-crap--house-run g 0))))))
 
 (ert-deftest cgt-crap-sequence-move ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
-    (aset (cg-get g :houses) 1 (list '(1 . 9)))                    ; 10C
-    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) nil))          ; 6 empty houses
-    (should (eq t (cg-crap--house-move g 0 1)))
-    (should (= 0 (length (cg-crap--house g 0))))
-    (should (= 4 (length (cg-crap--house g 1))))
-    (should (equal '(3 . 6) (cg-crap--top (cg-crap--house g 1))))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
+    (aset (card-games-get g :houses) 1 (list '(1 . 9)))                    ; 10C
+    (dotimes (i 6) (aset (card-games-get g :houses) (+ 2 i) nil))          ; 6 empty houses
+    (should (eq t (card-games-crap--house-move g 0 1)))
+    (should (= 0 (length (card-games-crap--house g 0))))
+    (should (= 4 (length (card-games-crap--house g 1))))
+    (should (equal '(3 . 6) (card-games-crap--top (card-games-crap--house g 1))))))
 
 (ert-deftest cgt-crap-sequence-space ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 3-card run
-    (aset (cg-get g :houses) 1 (list '(1 . 9)))                    ; 10C
-    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) (list '(0 . 0)))) ; no empty houses
-    (should (eq 'space (cg-crap--house-move g 0 1)))               ; too big to relay
-    (should (= 3 (length (cg-crap--house g 0))))))                 ; unchanged
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 3-card run
+    (aset (card-games-get g :houses) 1 (list '(1 . 9)))                    ; 10C
+    (dotimes (i 6) (aset (card-games-get g :houses) (+ 2 i) (list '(0 . 0)))) ; no empty houses
+    (should (eq 'space (card-games-crap--house-move g 0 1)))               ; too big to relay
+    (should (= 3 (length (card-games-crap--house g 0))))))                 ; unchanged
 
 (ert-deftest cgt-crap-stop ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :reserve) 0 (list '(3 . 0)))   ; your reserve top is an Ace
-    (aset (cg-get g :found) 0 nil)
-    (should (cg-crap--forced g 0))
-    (let ((cg-crapette-stops nil))                 ; assist: block, no penalty
-      (cg-put g :turn 0)
-      (should (cg-crap--stop g))
-      (should (= 0 (cg-get g :turn)))
-      (should (string-match-p "foundation first" (cg-get g :message))))
-    (let ((cg-crapette-stops t))                   ; competitive: STOP ends your turn
-      (cg-put g :turn 0)
-      (should (cg-crap--stop g))
-      (should (string-match-p "STOP" (cg-get g :message))))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :reserve) 0 (list '(3 . 0)))   ; your reserve top is an Ace
+    (aset (card-games-get g :found) 0 nil)
+    (should (card-games-crap--forced g 0))
+    (let ((card-games-crapette-stops nil))                 ; assist: block, no penalty
+      (card-games-put g :turn 0)
+      (should (card-games-crap--stop g))
+      (should (= 0 (card-games-get g :turn)))
+      (should (string-match-p "foundation first" (card-games-get g :message))))
+    (let ((card-games-crapette-stops t))                   ; competitive: STOP ends your turn
+      (card-games-put g :turn 0)
+      (should (card-games-crap--stop g))
+      (should (string-match-p "STOP" (card-games-get g :message))))))
 
 (ert-deftest cgt-crap-sequence-partial ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
-    (aset (cg-get g :houses) 1 nil)                                ; empty destination
-    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) nil))          ; plenty of space
-    (should (eq t (cg-crap--house-move g 0 1 2)))                  ; move only the top 2
-    (should (equal '(2 . 8) (cg-crap--top (cg-crap--house g 0))))  ; 9D stays behind
-    (should (= 2 (length (cg-crap--house g 1))))
-    (should (equal '(0 . 7) (car (cg-crap--house g 1))))          ; 8S is the moved bottom
-    (should (equal '(3 . 6) (cg-crap--top (cg-crap--house g 1)))))) ; 7H the top
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; 9D 8S 7H
+    (aset (card-games-get g :houses) 1 nil)                                ; empty destination
+    (dotimes (i 6) (aset (card-games-get g :houses) (+ 2 i) nil))          ; plenty of space
+    (should (eq t (card-games-crap--house-move g 0 1 2)))                  ; move only the top 2
+    (should (equal '(2 . 8) (card-games-crap--top (card-games-crap--house g 0))))  ; 9D stays behind
+    (should (= 2 (length (card-games-crap--house g 1))))
+    (should (equal '(0 . 7) (car (card-games-crap--house g 1))))          ; 8S is the moved bottom
+    (should (equal '(3 . 6) (card-games-crap--top (card-games-crap--house g 1)))))) ; 7H the top
 
 (ert-deftest cgt-crap-partial-space ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; run of 3
-    (aset (cg-get g :houses) 1 nil)                                ; the only empty house
-    (dotimes (i 6) (aset (cg-get g :houses) (+ 2 i) (list '(0 . 0))))
-    (should (eq 'space (cg-crap--house-move g 0 1 3)))             ; 3 needs more space
-    (should (eq t (cg-crap--house-move g 0 1 1)))                  ; but 1 fits
-    (should (= 2 (length (cg-crap--house g 0))))
-    (should (= 1 (length (cg-crap--house g 1))))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; run of 3
+    (aset (card-games-get g :houses) 1 nil)                                ; the only empty house
+    (dotimes (i 6) (aset (card-games-get g :houses) (+ 2 i) (list '(0 . 0))))
+    (should (eq 'space (card-games-crap--house-move g 0 1 3)))             ; 3 needs more space
+    (should (eq t (card-games-crap--house-move g 0 1 1)))                  ; but 1 fits
+    (should (= 2 (length (card-games-crap--house g 0))))
+    (should (= 1 (length (card-games-crap--house g 1))))))
 
 (ert-deftest cgt-crap-svg-smoke ()
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; a run to draw
-    (aset (cg-get g :reserve) 0 (list '(3 . 0)))                   ; a forced foundation
-    (cg-put g :sel '(house . 0)) (cg-put g :sel-n 2) (cg-put g :cursor 3)
-    (let ((res (cg-crap--svg g)))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; a run to draw
+    (aset (card-games-get g :reserve) 0 (list '(3 . 0)))                   ; a forced foundation
+    (card-games-put g :sel '(house . 0)) (card-games-put g :sel-n 2) (card-games-put g :cursor 3)
+    (let ((res (card-games-crap--svg g)))
       (should (stringp (car res)))
       (should (get-text-property 0 'display (car res)))
-      (should (get-text-property 0 'cg-regions (car res)))
+      (should (get-text-property 0 'card-games-regions (car res)))
       ;; every clickable region is a (RECT . SPOT) with a 4-number RECT
       (should (cl-every (lambda (r) (= 4 (length (car r)))) (cdr res)))
       (should (rassoc '(house . 0) (cdr res))))))
 
 (ert-deftest cgt-trick-svg-smoke ()
-  (let ((g (cg-hearts-game)))
-    (cg-trick--deal g)
-    (cg-put g :cursor 0) (cg-put g :phase 'play) (cg-put g :turn 0) (cg-put g :message "x")
-    (cg-put g :trick (list (cons 1 (car (cg-trick--hand g 1)))))   ; West has led
-    (should (stringp (cg-trick--render-text g)))
-    (let ((s (cg-trick--svg g)))
+  (let ((g (card-games-hearts-game)))
+    (card-games-trick--deal g)
+    (card-games-put g :cursor 0) (card-games-put g :phase 'play) (card-games-put g :turn 0) (card-games-put g :message "x")
+    (card-games-put g :trick (list (cons 1 (car (card-games-trick--hand g 1)))))   ; West has led
+    (should (stringp (card-games-trick--render-text g)))
+    (let ((s (card-games-trick--svg g)))
       (should (stringp s))
       (should (get-text-property 0 'display s))
-      (let ((regs (get-text-property 0 'cg-regions s)))
+      (let ((regs (get-text-property 0 'card-games-regions s)))
         (should regs)
         (should (rassoc '(hand . 0) regs))
         (should (cl-every (lambda (r) (= 4 (length (car r)))) regs))))))
 
 (ert-deftest cgt-trick-svg-bidding ()
-  (let ((g (cg-spades-game)))
-    (cg-trick--deal g)
-    (cg-put g :cursor 2) (cg-put g :phase 'bid) (cg-put g :turn 0) (cg-put g :message "bid")
-    (cg-put g :bids (vector 3 nil 4 nil)) (cg-put g :scores (vector 100 50 100 50))
-    (should (stringp (cg-trick--svg g)))))
+  (let ((g (card-games-spades-game)))
+    (card-games-trick--deal g)
+    (card-games-put g :cursor 2) (card-games-put g :phase 'bid) (card-games-put g :turn 0) (card-games-put g :message "bid")
+    (card-games-put g :bids (vector 3 nil 4 nil)) (card-games-put g :scores (vector 100 50 100 50))
+    (should (stringp (card-games-trick--svg g)))))
 
 (ert-deftest cgt-gin-svg-smoke ()
-  (let ((g (cg-gin-game)))
-    (cg-gin--deal g)
-    (cg-put g :cursor 0) (cg-put g :message "x") (cg-put g :scores (vector 0 0))
-    (should (stringp (cg-gin--render-text g)))
-    (let ((sres (cg-gin--svg g)))
+  (let ((g (card-games-gin-game)))
+    (card-games-gin--deal g)
+    (card-games-put g :cursor 0) (card-games-put g :message "x") (card-games-put g :scores (vector 0 0))
+    (should (stringp (card-games-gin--render-text g)))
+    (let ((sres (card-games-gin--svg g)))
       (should (get-text-property 0 'display sres))
-      (should (rassoc '(hand . 0) (get-text-property 0 'cg-regions sres))))))
+      (should (rassoc '(hand . 0) (get-text-property 0 'card-games-regions sres))))))
 
 (ert-deftest cgt-tm-svg-smoke ()
-  (let ((g (cg-rum500-game)))
-    (cg-tm--deal g)
-    (cg-put g :cursor 1) (cg-put g :message "x")
-    (cg-put g :table (list (cons 0 (list '(0 . 0) '(0 . 1) '(0 . 2)))
+  (let ((g (card-games-rum500-game)))
+    (card-games-tm--deal g)
+    (card-games-put g :cursor 1) (card-games-put g :message "x")
+    (card-games-put g :table (list (cons 0 (list '(0 . 0) '(0 . 1) '(0 . 2)))
                            (cons 2 (list '(1 . 5) '(2 . 5) '(3 . 5)))))
-    (cg-put g :marks (list 0 2))
-    (should (stringp (cg-tm--render-text g)))
-    (let ((regs (get-text-property 0 'cg-regions (cg-tm--svg g))))
+    (card-games-put g :marks (list 0 2))
+    (should (stringp (card-games-tm--render-text g)))
+    (let ((regs (get-text-property 0 'card-games-regions (card-games-tm--svg g))))
       (should (rassoc '(hand . 0) regs))
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs)))))
 
 (ert-deftest cgt-hf-svg-smoke ()
-  (let ((g (cg-handfoot-game)))
-    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
-    (cg-hf--deal g)
-    (cg-put g :cursor 0) (cg-put g :message "x")
-    (should (stringp (cg-hf--render-text g)))
-    (let ((regs (get-text-property 0 'cg-regions (cg-hf--svg g))))
+  (let ((g (card-games-handfoot-game)))
+    (card-games-put g :nplayers 4) (card-games-put g :nteams 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-hf--deal g)
+    (card-games-put g :cursor 0) (card-games-put g :message "x")
+    (should (stringp (card-games-hf--render-text g)))
+    (let ((regs (get-text-property 0 'card-games-regions (card-games-hf--svg g))))
       (should (rassoc '(hand . 0) regs))
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs)))))
 
 (ert-deftest cgt-fish-svg-smoke ()
-  (let ((g (cg-scopa-game)))
-    (cg-fish--deal-round g)
-    (cg-put g :cursor 0) (cg-put g :message "x")
-    (should (stringp (cg-fish--render-text g)))
+  (let ((g (card-games-scopa-game)))
+    (card-games-fish--deal-round g)
+    (card-games-put g :cursor 0) (card-games-put g :message "x")
+    (should (stringp (card-games-fish--render-text g)))
     (should (rassoc '(hand . 0)
-                    (get-text-property 0 'cg-regions (cg-fish--svg g))))))
+                    (get-text-property 0 'card-games-regions (card-games-fish--svg g))))))
 
 (ert-deftest cgt-eights-svg-smoke ()
-  (let ((g (cg-eights-game)))
-    (cg-put g :nplayers 3) (cg-put g :scores (make-vector 3 0))
-    (cg-eights--deal g) (cg-put g :cursor 0) (cg-put g :message "x")
-    (should (stringp (cg-eights--render-text g)))
-    (let ((regs (get-text-property 0 'cg-regions (cg-eights--board-svg g))))
+  (let ((g (card-games-eights-game)))
+    (card-games-put g :nplayers 3) (card-games-put g :scores (make-vector 3 0))
+    (card-games-eights--deal g) (card-games-put g :cursor 0) (card-games-put g :message "x")
+    (should (stringp (card-games-eights--render-text g)))
+    (let ((regs (get-text-property 0 'card-games-regions (card-games-eights--board-svg g))))
       (should (rassoc '(hand . 0) regs))
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs)))))
 
 (ert-deftest cgt-spite-svg-smoke ()
-  (let ((g (cg-spite-game)))
-    (cg-put g :nplayers 2) (cg-put g :scores (make-vector 2 0))
-    (cg-spite--deal g) (cg-put g :cursor 0) (cg-put g :message "x")
-    (aset (cg-get g :center) 0 (cons 3 (list '(1 . 3))))
-    (should (stringp (cg-spite--render-text g)))
+  (let ((g (card-games-spite-game)))
+    (card-games-put g :nplayers 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-spite--deal g) (card-games-put g :cursor 0) (card-games-put g :message "x")
+    (aset (card-games-get g :center) 0 (cons 3 (list '(1 . 3))))
+    (should (stringp (card-games-spite--render-text g)))
     (should (rassoc '(hand . 0)
-                    (get-text-property 0 'cg-regions (cg-spite--board-svg g))))))
+                    (get-text-property 0 'card-games-regions (card-games-spite--board-svg g))))))
 
 (ert-deftest cgt-om-svg-smoke ()
-  (let ((g (cg-old-maid-game)))
-    (cg-om--deal g)
-    (cg-put g :phase 'play) (cg-put g :turn 0) (cg-put g :message "x")
-    (should (stringp (cg-om--render-text g)))
-    (should (stringp (cg-om--svg g)))))
+  (let ((g (card-games-old-maid-game)))
+    (card-games-om--deal g)
+    (card-games-put g :phase 'play) (card-games-put g :turn 0) (card-games-put g :message "x")
+    (should (stringp (card-games-om--render-text g)))
+    (should (stringp (card-games-om--svg g)))))
 
 (ert-deftest cgt-crib-svg-smoke ()
-  (let ((g (cg-cribbage-game)))
-    (cg-put g :scores (make-vector 2 0))
-    (cg-crib--deal g)
-    (cg-put g :cursor 0) (cg-put g :message "x")
-    (should (stringp (cg-crib--render-text g)))
-    (let ((regs (get-text-property 0 'cg-regions (cg-crib--svg g))))
+  (let ((g (card-games-cribbage-game)))
+    (card-games-put g :scores (make-vector 2 0))
+    (card-games-crib--deal g)
+    (card-games-put g :cursor 0) (card-games-put g :message "x")
+    (should (stringp (card-games-crib--render-text g)))
+    (let ((regs (get-text-property 0 'card-games-regions (card-games-crib--svg g))))
       (should (rassoc '(hand . 0) regs))
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs))))
-  (let ((g (cg-cribbage-game)))
-    (cg-put g :scores (vector 60 90))
-    (cg-crib--deal g)
-    (cg-put g :phase 'play) (cg-put g :starter '(2 . 4)) (cg-put g :total 15)
-    (cg-put g :play (vector (cg-crib--hand g 0) (cg-crib--hand g 1)))
-    (cg-put g :seq (list '(0 . 6) '(3 . 8))) (cg-put g :message "x")
-    (should (stringp (cg-crib--svg g)))))
+  (let ((g (card-games-cribbage-game)))
+    (card-games-put g :scores (vector 60 90))
+    (card-games-crib--deal g)
+    (card-games-put g :phase 'play) (card-games-put g :starter '(2 . 4)) (card-games-put g :total 15)
+    (card-games-put g :play (vector (card-games-crib--hand g 0) (card-games-crib--hand g 1)))
+    (card-games-put g :seq (list '(0 . 6) '(3 . 8))) (card-games-put g :message "x")
+    (should (stringp (card-games-crib--svg g)))))
 
 (ert-deftest cgt-bridge-svg-smoke ()
-  (let ((g (cg-bridge-game)))
-    (cg-bridge--deal g)
-    (cg-put g :cursor 0) (cg-put g :turn 0) (cg-put g :bid-level 1) (cg-put g :bid-strain 0)
-    (cg-put g :message "x")
-    (should (stringp (cg-bridge--render-text g)))
+  (let ((g (card-games-bridge-game)))
+    (card-games-bridge--deal g)
+    (card-games-put g :cursor 0) (card-games-put g :turn 0) (card-games-put g :bid-level 1) (card-games-put g :bid-strain 0)
+    (card-games-put g :message "x")
+    (should (stringp (card-games-bridge--render-text g)))
     (should (rassoc '(hand . 0)
-                    (get-text-property 0 'cg-regions (cg-bridge--svg g)))))
-  (let ((g (cg-bridge-game)))
-    (cg-bridge--deal g)
-    (cg-put g :phase 'play) (cg-put g :turn 0) (cg-put g :cursor 0)
-    (cg-put g :declarer 0) (cg-put g :dummy 2) (cg-put g :exposed t) (cg-put g :tricks 0)
-    (cg-put g :contract '(3 . 3)) (cg-put g :doubled nil)
-    (cg-put g :trick (list (cons 1 (car (cg-bridge--hand g 1)))))
-    (cg-put g :message "x")
-    (should (stringp (cg-bridge--svg g)))))
+                    (get-text-property 0 'card-games-regions (card-games-bridge--svg g)))))
+  (let ((g (card-games-bridge-game)))
+    (card-games-bridge--deal g)
+    (card-games-put g :phase 'play) (card-games-put g :turn 0) (card-games-put g :cursor 0)
+    (card-games-put g :declarer 0) (card-games-put g :dummy 2) (card-games-put g :exposed t) (card-games-put g :tricks 0)
+    (card-games-put g :contract '(3 . 3)) (card-games-put g :doubled nil)
+    (card-games-put g :trick (list (cons 1 (car (card-games-bridge--hand g 1)))))
+    (card-games-put g :message "x")
+    (should (stringp (card-games-bridge--svg g)))))
 
 (ert-deftest cgt-pat-golf-deal ()
-  (let ((g (cg-pat--deal (cg-golf-game))))
-    (should (= 35 (length (cg-get g :cards))))
-    (should (= 16 (length (cg-get g :stock))))
-    (should (= 1 (length (cg-get g :waste))))
-    (should (= 7 (length (cg-pat--exposed g))))))   ; one per column (r=4)
+  (let ((g (card-games-pat--deal (card-games-golf-game))))
+    (should (= 35 (length (card-games-get g :cards))))
+    (should (= 16 (length (card-games-get g :stock))))
+    (should (= 1 (length (card-games-get g :waste))))
+    (should (= 7 (length (card-games-pat--exposed g))))))   ; one per column (r=4)
 
 (ert-deftest cgt-pat-tripeaks-deal ()
-  (let ((g (cg-pat--deal (cg-tripeaks-game))))
-    (should (= 28 (length (cg-get g :cards))))
-    (should (= 23 (length (cg-get g :stock))))
-    (should (equal (number-sequence 18 27) (cg-pat--exposed g)))   ; base row
-    (should-not (cg-pat--exposed-p g 0))))                          ; apex covered
+  (let ((g (card-games-pat--deal (card-games-tripeaks-game))))
+    (should (= 28 (length (card-games-get g :cards))))
+    (should (= 23 (length (card-games-get g :stock))))
+    (should (equal (number-sequence 18 27) (card-games-pat--exposed g)))   ; base row
+    (should-not (card-games-pat--exposed-p g 0))))                          ; apex covered
 
 (ert-deftest cgt-pat-pyramid-deal ()
-  (let ((g (cg-pat--deal (cg-pyramid-game))))
-    (should (= 28 (length (cg-get g :cards))))
-    (should (= 24 (length (cg-get g :stock))))
-    (should (null (cg-get g :waste)))
-    (should (equal (number-sequence 21 27) (cg-pat--exposed g)))   ; base row r=6
-    (should-not (cg-pat--exposed-p g 0))))                          ; apex covered by 1,2
+  (let ((g (card-games-pat--deal (card-games-pyramid-game))))
+    (should (= 28 (length (card-games-get g :cards))))
+    (should (= 24 (length (card-games-get g :stock))))
+    (should (null (card-games-get g :waste)))
+    (should (equal (number-sequence 21 27) (card-games-pat--exposed g)))   ; base row r=6
+    (should-not (card-games-pat--exposed-p g 0))))                          ; apex covered by 1,2
 
 (ert-deftest cgt-pat-exposed-reveal ()
-  (let ((g (cg-pat--deal (cg-golf-game))))
+  (let ((g (card-games-pat--deal (card-games-golf-game))))
     ;; clear column 0's lower cards; slot 0 (top) becomes exposed
-    (dolist (i '(4 3 2 1)) (cg-pat--remove-slot g i))
-    (should (cg-pat--exposed-p g 0))))
+    (dolist (i '(4 3 2 1)) (card-games-pat--remove-slot g i))
+    (should (card-games-pat--exposed-p g 0))))
 
 (ert-deftest cgt-pat-build-and-win ()
-  (let ((g (cg-pat--deal (cg-golf-game))))
+  (let ((g (card-games-pat--deal (card-games-golf-game))))
     ;; reduce to one exposed card adjacent to the waste top
-    (cg-put g :cards (let ((v (make-vector 35 nil))) (aset v 34 '(0 . 5)) v))
-    (cg-put g :waste (list '(1 . 4)))           ; 5 of clubs, rank 4; 6s is adjacent
-    (cg-put g :stock nil) (cg-put g :cursor 0)
+    (card-games-put g :cards (let ((v (make-vector 35 nil))) (aset v 34 '(0 . 5)) v))
+    (card-games-put g :waste (list '(1 . 4)))           ; 5 of clubs, rank 4; 6s is adjacent
+    (card-games-put g :stock nil) (card-games-put g :cursor 0)
     (with-temp-buffer
-      (setq cg-pat--game g)
-      (cg-pat-act))                              ; plays slot 34 onto the waste
-    (should (null (aref (cg-get g :cards) 34)))
-    (should (cg-won-p g))))
+      (setq card-games-pat--game g)
+      (card-games-pat-act))                              ; plays slot 34 onto the waste
+    (should (null (aref (card-games-get g :cards) 34)))
+    (should (card-games-won-p g))))
 
 (ert-deftest cgt-pat-sum13 ()
-  (let ((g (cg-pat--deal (cg-pyramid-game))))
+  (let ((g (card-games-pat--deal (card-games-pyramid-game))))
     ;; King value is 13
-    (should (= 13 (cg-pat--value '(0 . 12))))
+    (should (= 13 (card-games-pat--value '(0 . 12))))
     ;; mark two base cards summing to 13 -> both removed
-    (cg-put g :cards (let ((v (make-vector 28 nil)))
+    (card-games-put g :cards (let ((v (make-vector 28 nil)))
                        (aset v 21 '(0 . 4)) (aset v 22 '(1 . 7)) v))  ; 5 (val5) + 8 (val8) = 13
-    (cg-put g :marks nil)
-    (cg-pat--toggle-mark g '(slot . 21))
-    (cg-pat--toggle-mark g '(slot . 22))
-    (should (null (aref (cg-get g :cards) 21)))
-    (should (null (aref (cg-get g :cards) 22)))))
+    (card-games-put g :marks nil)
+    (card-games-pat--toggle-mark g '(slot . 21))
+    (card-games-pat--toggle-mark g '(slot . 22))
+    (should (null (aref (card-games-get g :cards) 21)))
+    (should (null (aref (card-games-get g :cards) 22)))))
 
 (ert-deftest cgt-pat-render ()
-  (dolist (cls '(cg-golf-game cg-tripeaks-game cg-pyramid-game))
-    (let ((g (cg-pat--deal (make-instance cls))))
-      (should (stringp (cg-render g))))))
+  (dolist (cls '(card-games-golf-game card-games-tripeaks-game card-games-pyramid-game))
+    (let ((g (card-games-pat--deal (make-instance cls))))
+      (should (stringp (card-games-render g))))))
 
 (defun cgt--drive (g limit)
   "Play a whole match with AI for every seat, including the human seat 0."
   (let ((n 0))
-    (while (and (not (cg-trick--game-over-p g)) (< n limit))
-      (when (eq (cg-get g :phase) 'play)
-        (cg-trick--play g (cg-get g :turn) (cg-trick--ai-play g (cg-get g :turn)))
-        (cg-trick--run g))
+    (while (and (not (card-games-trick--game-over-p g)) (< n limit))
+      (when (eq (card-games-get g :phase) 'play)
+        (card-games-trick--play g (card-games-get g :turn) (card-games-trick--ai-play g (card-games-get g :turn)))
+        (card-games-trick--run g))
       (cl-incf n))))
 
 (ert-deftest cgt-whist-deal-trump ()
-  (let ((noninteractive t) (g (make-instance 'cg-whist-game)))
-    (cg-trick--new g)
+  (let ((noninteractive t) (g (make-instance 'card-games-whist-game)))
+    (card-games-trick--new g)
     (should (memq (oref g trump) '(0 1 2 3)))
-    (let ((tot (length (cg-get g :trick))))
-      (dotimes (s 4) (cl-incf tot (length (cg-trick--hand g s))))
+    (let ((tot (length (card-games-get g :trick))))
+      (dotimes (s 4) (cl-incf tot (length (card-games-trick--hand g s))))
       (should (= 52 tot)))))
 
 (ert-deftest cgt-whist-full-game ()
-  (let ((noninteractive t) (g (make-instance 'cg-whist-game)))
-    (cg-trick--new g)
+  (let ((noninteractive t) (g (make-instance 'card-games-whist-game)))
+    (card-games-trick--new g)
     (cgt--drive g 400)
-    (should (cg-trick--game-over-p g))
-    (should (integerp (cg-trick--winner-seat g)))))
+    (should (card-games-trick--game-over-p g))
+    (should (integerp (card-games-trick--winner-seat g)))))
 
 (ert-deftest cgt-ohhell-rounds ()
-  (let ((noninteractive t) (g (make-instance 'cg-ohhell-game)))
-    (cg-trick--new g)
+  (let ((noninteractive t) (g (make-instance 'card-games-ohhell-game)))
+    (card-games-trick--new g)
     ;; first round deals 7 cards each
-    (should (= 7 (length (cg-trick--hand g 0))))
+    (should (= 7 (length (card-games-trick--hand g 0))))
     (cgt--drive g 400)
-    (should (cg-trick--game-over-p g))
-    (should (= 7 (cg-get g :round)))            ; seven rounds played
-    (should (integerp (cg-trick--winner-seat g)))))
+    (should (card-games-trick--game-over-p g))
+    (should (= 7 (card-games-get g :round)))            ; seven rounds played
+    (should (integerp (card-games-trick--winner-seat g)))))
 
 (ert-deftest cgt-ohhell-exact-scoring ()
-  (let ((g (make-instance 'cg-ohhell-game)))
-    (cg-put g :scores (make-vector 4 0))
-    (cg-put g :round 0)
-    (cg-put g :bids (vector 2 0 1 3))
-    (cg-put g :tricks (vector 2 1 1 0))         ; seats 0 and 2 made exact bids
-    (cg-trick--score-hand g)
-    (should (= 12 (aref (cg-get g :scores) 0)))  ; 10 + 2
-    (should (= 0 (aref (cg-get g :scores) 1)))   ; bid 0 took 1 -> miss
-    (should (= 11 (aref (cg-get g :scores) 2)))  ; 10 + 1
-    (should (= 0 (aref (cg-get g :scores) 3)))))
+  (let ((g (make-instance 'card-games-ohhell-game)))
+    (card-games-put g :scores (make-vector 4 0))
+    (card-games-put g :round 0)
+    (card-games-put g :bids (vector 2 0 1 3))
+    (card-games-put g :tricks (vector 2 1 1 0))         ; seats 0 and 2 made exact bids
+    (card-games-trick--score-hand g)
+    (should (= 12 (aref (card-games-get g :scores) 0)))  ; 10 + 2
+    (should (= 0 (aref (card-games-get g :scores) 1)))   ; bid 0 took 1 -> miss
+    (should (= 11 (aref (card-games-get g :scores) 2)))  ; 10 + 1
+    (should (= 0 (aref (card-games-get g :scores) 3)))))
 
 (ert-deftest cgt-whist-render ()
-  (let ((noninteractive t) (g (make-instance 'cg-whist-game)))
-    (cg-trick--new g) (should (stringp (cg-render g)))))
+  (let ((noninteractive t) (g (make-instance 'card-games-whist-game)))
+    (card-games-trick--new g) (should (stringp (card-games-render g)))))
 
 (ert-deftest cgt-pres-power ()
-  (should (> (cg-pres--power 0) (cg-pres--power 12)))   ; the Two beats the Ace
-  (should (< (cg-pres--power 1) (cg-pres--power 11))))  ; 3 below King
+  (should (> (card-games-pres--power 0) (card-games-pres--power 12)))   ; the Two beats the Ace
+  (should (< (card-games-pres--power 1) (card-games-pres--power 11))))  ; 3 below King
 
 (ert-deftest cgt-pres-deal ()
-  (let* ((cg-president-players 4) (g (cg-pres--deal (cg-president-game))) (tot 0))
-    (should (= 4 (cg-get g :nplayers)))
-    (dotimes (s 4) (cl-incf tot (length (cg-pres--hand g s))))
+  (let* ((card-games-president-players 4) (g (card-games-pres--deal (card-games-president-game))) (tot 0))
+    (should (= 4 (card-games-get g :nplayers)))
+    (dotimes (s 4) (cl-incf tot (length (card-games-pres--hand g s))))
     (should (= 52 tot))
-    (should (= 0 (cg-get g :count)))))
+    (should (= 0 (card-games-get g :count)))))
 
 (ert-deftest cgt-pres-legal ()
-  (let ((g (cg-president-game)))
-    (cg-put g :hands (vector (list '(0 . 5) '(1 . 5) '(0 . 8)) nil nil nil))
-    (cg-put g :nplayers 4)
+  (let ((g (card-games-president-game)))
+    (card-games-put g :hands (vector (list '(0 . 5) '(1 . 5) '(0 . 8)) nil nil nil))
+    (card-games-put g :nplayers 4)
     ;; leading: any rank ok
-    (cg-put g :count 0) (cg-put g :top -1)
-    (should (= 2 (length (cg-pres--legal-ranks g 0))))   ; ranks 5 and 8
+    (card-games-put g :count 0) (card-games-put g :top -1)
+    (should (= 2 (length (card-games-pres--legal-ranks g 0))))   ; ranks 5 and 8
     ;; following a single of power 5: need power>5 -> only rank 8
-    (cg-put g :count 1) (cg-put g :top 5)
-    (should (equal '(8) (cg-pres--legal-ranks g 0)))
+    (card-games-put g :count 1) (card-games-put g :top 5)
+    (should (equal '(8) (card-games-pres--legal-ranks g 0)))
     ;; following a PAIR: need 2 of a higher rank -> rank 5 has two but power 5 not >5; none
-    (cg-put g :count 2) (cg-put g :top 5)
-    (should (null (cg-pres--legal-ranks g 0)))))
+    (card-games-put g :count 2) (card-games-put g :top 5)
+    (should (null (card-games-pres--legal-ranks g 0)))))
 
 (ert-deftest cgt-pres-full-game ()
-  (let* ((cg-president-players 4) (g (cg-pres--deal (cg-president-game))) (n 0))
-    (while (and (eq (cg-get g :phase) 'play) (< n 5000))
-      (cg-pres--ai-move g (cg-get g :turn))
+  (let* ((card-games-president-players 4) (g (card-games-pres--deal (card-games-president-game))) (n 0))
+    (while (and (eq (card-games-get g :phase) 'play) (< n 5000))
+      (card-games-pres--ai-move g (card-games-get g :turn))
       (cl-incf n))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (= 4 (length (cg-get g :order))))            ; everyone placed
-    (should (= 4 (length (delete-dups (copy-sequence (cg-get g :order)))))))) ; all distinct
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (= 4 (length (card-games-get g :order))))            ; everyone placed
+    (should (= 4 (length (delete-dups (copy-sequence (card-games-get g :order)))))))) ; all distinct
 
 (ert-deftest cgt-pres-exchange ()
-  (let* ((cg-president-players 4) (g (cg-president-game)))
+  (let* ((card-games-president-players 4) (g (card-games-president-game)))
     ;; simulate a prior finishing order, then deal and check the swap happened
-    (cg-put g :order '(2 3 1 0))   ; prez=2, scum=0
-    (cg-pres--deal g)
+    (card-games-put g :order '(2 3 1 0))   ; prez=2, scum=0
+    (card-games-pres--deal g)
     ;; conservation: still 52 cards across 4 hands after the exchange
-    (let ((tot 0)) (dotimes (s 4) (cl-incf tot (length (cg-pres--hand g s))))
+    (let ((tot 0)) (dotimes (s 4) (cl-incf tot (length (card-games-pres--hand g s))))
       (should (= 52 tot)))))
 
 (ert-deftest cgt-pres-render ()
-  (let ((g (cg-pres--deal (cg-president-game)))) (should (stringp (cg-render g)))))
+  (let ((g (card-games-pres--deal (card-games-president-game)))) (should (stringp (card-games-render g)))))
 ;;;; Rummy family
 
 (ert-deftest cgt-rummy-set-run ()
-  (should (cg-rummy-set-p '((0 . 5) (1 . 5) (2 . 5)) :distinct-suits t))
-  (should-not (cg-rummy-set-p '((0 . 5) (0 . 5) (2 . 5)) :distinct-suits t))
-  (should (cg-rummy-run-p '((0 . 3) (0 . 4) (0 . 5))))
-  (should-not (cg-rummy-run-p '((0 . 3) (1 . 4) (0 . 5))))
-  (should (cg-rummy-run-p '((0 . 10) (0 . 11) (0 . 12) (0 . 0)) :ace-high t))
-  (should-not (cg-rummy-run-p '((0 . 11) (0 . 12) (0 . 0))))
-  (should (cg-rummy-run-p '((0 . 0) (0 . 1) (0 . 2)))))
+  (should (card-games-rummy-set-p '((0 . 5) (1 . 5) (2 . 5)) :distinct-suits t))
+  (should-not (card-games-rummy-set-p '((0 . 5) (0 . 5) (2 . 5)) :distinct-suits t))
+  (should (card-games-rummy-run-p '((0 . 3) (0 . 4) (0 . 5))))
+  (should-not (card-games-rummy-run-p '((0 . 3) (1 . 4) (0 . 5))))
+  (should (card-games-rummy-run-p '((0 . 10) (0 . 11) (0 . 12) (0 . 0)) :ace-high t))
+  (should-not (card-games-rummy-run-p '((0 . 11) (0 . 12) (0 . 0))))
+  (should (card-games-rummy-run-p '((0 . 0) (0 . 1) (0 . 2)))))
 
 (ert-deftest cgt-rummy-best-partition ()
   (let* ((hand '((0 . 2)(0 . 3)(0 . 4) (0 . 6)(1 . 6)(2 . 6)
                  (3 . 8)(3 . 9)(3 . 10) (3 . 12)))
-         (p (cg-rummy-best-partition hand)))
+         (p (card-games-rummy-best-partition hand)))
     (should (= 3 (length (plist-get p :melds))))
     (should (= 10 (plist-get p :count))))
-  (should (= 0 (cg-rummy-deadwood
+  (should (= 0 (card-games-rummy-deadwood
                 '((0 . 0)(0 . 1)(0 . 2) (1 . 4)(1 . 5)(1 . 6)
                   (2 . 8)(2 . 9)(2 . 10)(2 . 11))))))
 
 (ert-deftest cgt-rummy-layoff ()
-  (should (cg-rummy-layoff-p '(3 . 11) '(((3 . 8)(3 . 9)(3 . 10)))))
-  (should-not (cg-rummy-layoff-p '(0 . 4) '(((3 . 8)(3 . 9)(3 . 10))))))
+  (should (card-games-rummy-layoff-p '(3 . 11) '(((3 . 8)(3 . 9)(3 . 10)))))
+  (should-not (card-games-rummy-layoff-p '(0 . 4) '(((3 . 8)(3 . 9)(3 . 10))))))
 
 (ert-deftest cgt-gin-full-game ()
-  (let ((g (cg-gin-game)) (turns 0))
-    (cg-gin--deal g)
-    (while (and (not (eq (cg-get g :phase) 'game-over)) (< turns 100000))
-      (if (eq (cg-get g :phase) 'hand-over)
-          (progn (cg-put g :reveal nil) (cg-gin--deal g))
-        (cg-gin--ai-turn g (cg-get g :turn)) (cl-incf turns)))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (>= (apply #'max (append (cg-get g :scores) nil)) cg-gin-target))))
+  (let ((g (card-games-gin-game)) (turns 0))
+    (card-games-gin--deal g)
+    (while (and (not (eq (card-games-get g :phase) 'game-over)) (< turns 100000))
+      (if (eq (card-games-get g :phase) 'hand-over)
+          (progn (card-games-put g :reveal nil) (card-games-gin--deal g))
+        (card-games-gin--ai-turn g (card-games-get g :turn)) (cl-incf turns)))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (>= (apply #'max (append (card-games-get g :scores) nil)) card-games-gin-target))))
 
-(ert-deftest cgt-gin-render () (let ((g (cg-gin--deal (cg-gin-game))))
-                                 (should (stringp (cg-render g)))))
+(ert-deftest cgt-gin-render () (let ((g (card-games-gin--deal (card-games-gin-game))))
+                                 (should (stringp (card-games-render g)))))
 
 (ert-deftest cgt-tablemeld-games ()
-  (dolist (mk (list (lambda () (cg-rummy-basic-game :nplayers 3 :hand-size 7))
-                    (lambda () (cg-rum500-game :nplayers 3 :hand-size 7))))
+  (dolist (mk (list (lambda () (card-games-rummy-basic-game :nplayers 3 :hand-size 7))
+                    (lambda () (card-games-rum500-game :nplayers 3 :hand-size 7))))
     (let ((g (funcall mk)) (turns 0))
-      (cg-tm--deal g)
-      (while (and (not (eq (cg-get g :phase) 'game-over)) (< turns 200000))
-        (if (eq (cg-get g :phase) 'hand-over)
-            (progn (cg-put g :reveal nil) (cg-tm--deal g))
-          (cg-tm--ai-turn g (cg-get g :turn)) (cl-incf turns)))
-      (should (eq (cg-get g :phase) 'game-over))
-      (should (stringp (cg-render g))))))
+      (card-games-tm--deal g)
+      (while (and (not (eq (card-games-get g :phase) 'game-over)) (< turns 200000))
+        (if (eq (card-games-get g :phase) 'hand-over)
+            (progn (card-games-put g :reveal nil) (card-games-tm--deal g))
+          (card-games-tm--ai-turn g (card-games-get g :turn)) (cl-incf turns)))
+      (should (eq (card-games-get g :phase) 'game-over))
+      (should (stringp (card-games-render g))))))
 
 (ert-deftest cgt-tablemeld-conservation ()
-  (let ((g (cg-rum500-game :nplayers 3 :hand-size 7)))
-    (cg-tm--deal g)
-    (dotimes (_ 30) (when (eq (cg-get g :phase) 'play)
-                      (cg-tm--ai-turn g (cg-get g :turn))))
-    (let ((tot (+ (length (cg-get g :stock)) (length (cg-get g :discard))
-                  (apply #'+ (mapcar (lambda (r) (length (cdr r))) (cg-get g :table))))))
-      (dotimes (s 3) (setq tot (+ tot (length (cg-rummy--hand g s)))))
+  (let ((g (card-games-rum500-game :nplayers 3 :hand-size 7)))
+    (card-games-tm--deal g)
+    (dotimes (_ 30) (when (eq (card-games-get g :phase) 'play)
+                      (card-games-tm--ai-turn g (card-games-get g :turn))))
+    (let ((tot (+ (length (card-games-get g :stock)) (length (card-games-get g :discard))
+                  (apply #'+ (mapcar (lambda (r) (length (cdr r))) (card-games-get g :table))))))
+      (dotimes (s 3) (setq tot (+ tot (length (card-games-rummy--hand g s)))))
       (should (= tot 52)))))
 
 (ert-deftest cgt-handfoot-book ()
-  (should (cg-hf--book-valid-p '((0 . 7)(1 . 7)(2 . 7))))
-  (should (cg-hf--book-valid-p '((0 . 7)(1 . 7)(joker . 0))))      ; dirty
-  (should-not (cg-hf--book-valid-p '((0 . 7)(joker . 0)(joker . 0)))) ; wilds > nats
-  (should-not (cg-hf--book-valid-p '((0 . 2)(1 . 2)(2 . 2))))      ; threes
-  (should (cg-hf--book-complete-p '(a b c d e f g)))
-  (should (cg-hf--book-clean-p '((0 . 7)(1 . 7)(2 . 7))))
-  (should-not (cg-hf--book-clean-p '((0 . 7)(1 . 7)(joker . 0)))))
+  (should (card-games-hf--book-valid-p '((0 . 7)(1 . 7)(2 . 7))))
+  (should (card-games-hf--book-valid-p '((0 . 7)(1 . 7)(joker . 0))))      ; dirty
+  (should-not (card-games-hf--book-valid-p '((0 . 7)(joker . 0)(joker . 0)))) ; wilds > nats
+  (should-not (card-games-hf--book-valid-p '((0 . 2)(1 . 2)(2 . 2))))      ; threes
+  (should (card-games-hf--book-complete-p '(a b c d e f g)))
+  (should (card-games-hf--book-clean-p '((0 . 7)(1 . 7)(2 . 7))))
+  (should-not (card-games-hf--book-clean-p '((0 . 7)(1 . 7)(joker . 0)))))
 
 (ert-deftest cgt-handfoot-full-game ()
-  (let ((g (cg-handfoot-game)) (rounds 0) (turns 0) (expect (* 5 54)))
-    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
-    (cg-hf--deal g)
-    (while (and (not (eq (cg-get g :phase) 'game-over)) (< rounds 60))
-      (cond ((eq (cg-get g :phase) 'round-over)
-             (cg-put g :reveal nil) (cg-hf--deal g) (cl-incf rounds))
-            (t (cg-hf--ai-turn g (cg-get g :turn)) (cl-incf turns)
+  (let ((g (card-games-handfoot-game)) (rounds 0) (turns 0) (expect (* 5 54)))
+    (card-games-put g :nplayers 4) (card-games-put g :nteams 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-hf--deal g)
+    (while (and (not (eq (card-games-get g :phase) 'game-over)) (< rounds 60))
+      (cond ((eq (card-games-get g :phase) 'round-over)
+             (card-games-put g :reveal nil) (card-games-hf--deal g) (cl-incf rounds))
+            (t (card-games-hf--ai-turn g (card-games-get g :turn)) (cl-incf turns)
                (when (> turns 500000) (error "runaway")))))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (stringp (cg-render g)))))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (stringp (card-games-render g)))))
 ;;;; Matching games (Go Fish, Old Maid)
 
 (ert-deftest cgt-gofish-full ()
-  (let ((cg-go-fish-players 4) (g (cg-go-fish-game)) (guard 0))
-    (cg-gf--deal g)
-    (while (and (not (eq (cg-get g :phase) 'game-over)) (< guard 20000))
-      (cg-gf--ai-turn g (cg-get g :turn)) (cl-incf guard))
-    (should (eq (cg-get g :phase) 'game-over))
-    (let ((tot 0)) (dotimes (s 4) (cl-incf tot (cg-gf--books g s)))
+  (let ((card-games-go-fish-players 4) (g (card-games-go-fish-game)) (guard 0))
+    (card-games-gf--deal g)
+    (while (and (not (eq (card-games-get g :phase) 'game-over)) (< guard 20000))
+      (card-games-gf--ai-turn g (card-games-get g :turn)) (cl-incf guard))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (let ((tot 0)) (dotimes (s 4) (cl-incf tot (card-games-gf--books g s)))
       (should (= tot 13)))
-    (should (stringp (cg-render g)))))
+    (should (stringp (card-games-render g)))))
 
 (ert-deftest cgt-oldmaid-full ()
-  (let ((cg-old-maid-players 4) (g (cg-old-maid-game)) (guard 0))
-    (cg-om--deal g)
-    (while (and (not (eq (cg-get g :phase) 'game-over)) (< guard 20000))
-      (cg-om--ai-turn g (cg-get g :turn)) (cl-incf guard))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (= 1 (cg-om--total g)))
-    (should (stringp (cg-render g)))))
+  (let ((card-games-old-maid-players 4) (g (card-games-old-maid-game)) (guard 0))
+    (card-games-om--deal g)
+    (while (and (not (eq (card-games-get g :phase) 'game-over)) (< guard 20000))
+      (card-games-om--ai-turn g (card-games-get g :turn)) (cl-incf guard))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (= 1 (card-games-om--total g)))
+    (should (stringp (card-games-render g)))))
 
 ;;;; Cribbage
 
 (ert-deftest cgt-cribbage-scorer ()
-  (should (= 29 (cg-crib--score-show '((0 . 4)(1 . 4)(3 . 4)(2 . 10)) '(2 . 4))))
-  (should (= 12 (cg-crib--count-pairs '((0 . 4)(1 . 4)(2 . 4)(3 . 4)))))
-  (should (= 5 (cg-crib--count-runs '((0 . 1)(0 . 2)(0 . 3)(0 . 4)(0 . 5)))))
-  (should (= 2 (cg-crib--peg-score '((0 . 10)(0 . 4)) 15)))
-  (should (= 3 (cg-crib--peg-score '((0 . 2)(0 . 3)(0 . 4)) 12)))
-  (should (= 6 (cg-crib--peg-score '((0 . 6)(1 . 6)(2 . 6)) 21))))
+  (should (= 29 (card-games-crib--score-show '((0 . 4)(1 . 4)(3 . 4)(2 . 10)) '(2 . 4))))
+  (should (= 12 (card-games-crib--count-pairs '((0 . 4)(1 . 4)(2 . 4)(3 . 4)))))
+  (should (= 5 (card-games-crib--count-runs '((0 . 1)(0 . 2)(0 . 3)(0 . 4)(0 . 5)))))
+  (should (= 2 (card-games-crib--peg-score '((0 . 10)(0 . 4)) 15)))
+  (should (= 3 (card-games-crib--peg-score '((0 . 2)(0 . 3)(0 . 4)) 12)))
+  (should (= 6 (card-games-crib--peg-score '((0 . 6)(1 . 6)(2 . 6)) 21))))
 
 (ert-deftest cgt-cribbage-full ()
-  (let ((g (cg-cribbage-game)) (deals 0))
-    (cg-put g :dealer 1)
+  (let ((g (card-games-cribbage-game)) (deals 0))
+    (card-games-put g :dealer 1)
     (cl-flet ((ai-deal (g)
-                (cg-crib--deal g)
-                (let ((d0 (cg-crib--ai-discard g 0)) (d1 (cg-crib--ai-discard g 1)))
-                  (cg-crib--set-hand g 0 (cl-set-difference (cg-crib--hand g 0) d0 :test #'equal))
-                  (cg-crib--set-hand g 1 (cl-set-difference (cg-crib--hand g 1) d1 :test #'equal))
-                  (cg-put g :crib (append d0 d1)))
-                (cg-crib--start-play g)
+                (card-games-crib--deal g)
+                (let ((d0 (card-games-crib--ai-discard g 0)) (d1 (card-games-crib--ai-discard g 1)))
+                  (card-games-crib--set-hand g 0 (cl-set-difference (card-games-crib--hand g 0) d0 :test #'equal))
+                  (card-games-crib--set-hand g 1 (cl-set-difference (card-games-crib--hand g 1) d1 :test #'equal))
+                  (card-games-put g :crib (append d0 d1)))
+                (card-games-crib--start-play g)
                 (let ((guard 0))
-                  (while (and (eq (cg-get g :phase) 'play) (not (cg-crib--peg-over-p g))
+                  (while (and (eq (card-games-get g :phase) 'play) (not (card-games-crib--peg-over-p g))
                               (< guard 400))
                     (cl-incf guard)
-                    (let ((s (cg-get g :pturn)))
-                      (if (cg-crib--legal g s) (cg-crib--ai-play g s) (cg-crib--peg-go g s)))))
-                (when (and (eq (cg-get g :phase) 'play) (cg-crib--peg-over-p g))
-                  (cg-crib--show g))))
-      (while (and (not (eq (cg-get g :phase) 'game-over)) (< deals 300))
-        (cg-put g :dealer (- 1 (cg-get g :dealer)))
+                    (let ((s (card-games-get g :pturn)))
+                      (if (card-games-crib--legal g s) (card-games-crib--ai-play g s) (card-games-crib--peg-go g s)))))
+                (when (and (eq (card-games-get g :phase) 'play) (card-games-crib--peg-over-p g))
+                  (card-games-crib--show g))))
+      (while (and (not (eq (card-games-get g :phase) 'game-over)) (< deals 300))
+        (card-games-put g :dealer (- 1 (card-games-get g :dealer)))
         (ai-deal g) (cl-incf deals)))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (stringp (cg-render g)))))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (stringp (card-games-render g)))))
 
 ;;;; Fishing games (Scopa, Casino)
 
 (ert-deftest cgt-fish-capture ()
-  (let ((g (cg-scopa-game)))
-    (cg-put g :table '((0 . 0)(1 . 1)(2 . 3)))
-    (should (equal (sort (mapcar #'cdr (cg-fish--capture g '(3 . 4))) #'<) '(0 3))))
-  (let ((g (cg-casino-game)))
-    (cg-put g :table '((0 . 12)(1 . 12)(2 . 5)))
-    (should (= 1 (length (cg-fish--capture g '(3 . 12)))))))
+  (let ((g (card-games-scopa-game)))
+    (card-games-put g :table '((0 . 0)(1 . 1)(2 . 3)))
+    (should (equal (sort (mapcar #'cdr (card-games-fish--capture g '(3 . 4))) #'<) '(0 3))))
+  (let ((g (card-games-casino-game)))
+    (card-games-put g :table '((0 . 12)(1 . 12)(2 . 5)))
+    (should (= 1 (length (card-games-fish--capture g '(3 . 12)))))))
 
 (ert-deftest cgt-fish-full ()
-  (dolist (mk (list #'cg-scopa-game #'cg-casino-game))
+  (dolist (mk (list #'card-games-scopa-game #'card-games-casino-game))
     (let ((g (funcall mk)) (rounds 0))
-      (cg-fish--deal-round g)
-      (while (and (not (eq (cg-get g :phase) 'game-over)) (< rounds 200))
-        (if (eq (cg-get g :phase) 'round-over)
-            (cg-fish--deal-round g)
-          (cg-fish--ai-play g (cg-get g :turn)) (cl-incf rounds)))
-      (should (eq (cg-get g :phase) 'game-over))
-      (should (stringp (cg-render g))))))
+      (card-games-fish--deal-round g)
+      (while (and (not (eq (card-games-get g :phase) 'game-over)) (< rounds 200))
+        (if (eq (card-games-get g :phase) 'round-over)
+            (card-games-fish--deal-round g)
+          (card-games-fish--ai-play g (card-games-get g :turn)) (cl-incf rounds)))
+      (should (eq (card-games-get g :phase) 'game-over))
+      (should (stringp (card-games-render g))))))
 
 ;;;; Trick extensions (Euchre, Pitch, Briscola)
 
 (ert-deftest cgt-euchre-bowers ()
-  (should (> (cg-euchre--power '(0 . 9) 0 0) (cg-euchre--power '(1 . 9) 0 0)))
-  (should (> (cg-euchre--power '(1 . 9) 0 0) (cg-euchre--power '(0 . 12) 0 0)))
+  (should (> (card-games-euchre--power '(0 . 9) 0 0) (card-games-euchre--power '(1 . 9) 0 0)))
+  (should (> (card-games-euchre--power '(1 . 9) 0 0) (card-games-euchre--power '(0 . 12) 0 0)))
   (should (= 120 (let ((s 0)) (dolist (su '(0 1 2 3))
-                                (dolist (r cg-briscola--ranks)
-                                  (setq s (+ s (cg-bris--points (cons su r)))))) s))))
+                                (dolist (r card-games-briscola--ranks)
+                                  (setq s (+ s (card-games-bris--points (cons su r)))))) s))))
 
 (ert-deftest cgt-trick-ext-full ()
-  (dolist (class '(cg-briscola-game cg-pitch-game cg-euchre-game))
+  (dolist (class '(card-games-briscola-game card-games-pitch-game card-games-euchre-game))
     (let ((g (make-instance class)) (guard 0))
-      (cg-trick--new g)
-      (while (and (not (eq (cg-get g :phase) 'game-over)) (< guard 50000))
+      (card-games-trick--new g)
+      (while (and (not (eq (card-games-get g :phase) 'game-over)) (< guard 50000))
         (cl-incf guard)
-        (if (cg-trick--hand-over-p g)
-            (cg-trick--finish-hand g)
-          (let ((s (cg-get g :turn)))
-            (cg-trick--play g s (cg-trick--ai-play g s)))))
-      (should (eq (cg-get g :phase) 'game-over))
-      (should (stringp (cg-render g))))))
+        (if (card-games-trick--hand-over-p g)
+            (card-games-trick--finish-hand g)
+          (let ((s (card-games-get g :turn)))
+            (card-games-trick--play g s (card-games-trick--ai-play g s)))))
+      (should (eq (card-games-get g :phase) 'game-over))
+      (should (stringp (card-games-render g))))))
 
 ;;;; Spite & Malice
 
 (ert-deftest cgt-spite-legal ()
-  (let ((g (cg-spite-game)))
-    (cg-spite--deal g) (cg-put g :center (make-vector 4 nil))
-    (should (eql 0 (cg-spite--legal-center g '(0 . 0))))   ; Ace starts a pile
-    (should (null (cg-spite--legal-center g '(0 . 1))))    ; a Two cannot
-    (should (eql 0 (cg-spite--legal-center g '(0 . 12))))  ; King is wild
-    (cg-spite--put-center g '(0 . 0) 0)
-    (should (= 1 (cg-spite--needed g 0)))))
+  (let ((g (card-games-spite-game)))
+    (card-games-spite--deal g) (card-games-put g :center (make-vector 4 nil))
+    (should (eql 0 (card-games-spite--legal-center g '(0 . 0))))   ; Ace starts a pile
+    (should (null (card-games-spite--legal-center g '(0 . 1))))    ; a Two cannot
+    (should (eql 0 (card-games-spite--legal-center g '(0 . 12))))  ; King is wild
+    (card-games-spite--put-center g '(0 . 0) 0)
+    (should (= 1 (card-games-spite--needed g 0)))))
 
 (ert-deftest cgt-spite-full ()
-  (let ((cg-spite-goal-size 10) (g (cg-spite-game)) (turns 0))
-    (cg-spite--deal g)
-    (while (and (eq (cg-get g :phase) 'play) (< turns 6000))
-      (cl-incf turns) (cg-spite--ai-turn g (cg-get g :turn)))
-    (should (eq (cg-get g :phase) 'game-over))
-    (should (stringp (cg-render g)))))
+  (let ((card-games-spite-goal-size 10) (g (card-games-spite-game)) (turns 0))
+    (card-games-spite--deal g)
+    (while (and (eq (card-games-get g :phase) 'play) (< turns 6000))
+      (cl-incf turns) (card-games-spite--ai-turn g (card-games-get g :turn)))
+    (should (eq (card-games-get g :phase) 'game-over))
+    (should (stringp (card-games-render g)))))
 ;;;; Bridge
 
 (ert-deftest cgt-bridge-score ()
-  (cl-flet ((b (l s d v tk) (plist-get (cg-bridge--deal-score l s d v tk) :below))
-            (a (l s d v tk) (plist-get (cg-bridge--deal-score l s d v tk) :datk))
-            (f (l s d v tk) (plist-get (cg-bridge--deal-score l s d v tk) :defend)))
+  (cl-flet ((b (l s d v tk) (plist-get (card-games-bridge--deal-score l s d v tk) :below))
+            (a (l s d v tk) (plist-get (card-games-bridge--deal-score l s d v tk) :datk))
+            (f (l s d v tk) (plist-get (card-games-bridge--deal-score l s d v tk) :defend)))
     (should (= 100 (b 3 4 0 nil 9)))     ; 3NT made
     (should (= 120 (b 4 3 0 nil 10)))    ; 4 spades made
     (should (= 180 (b 6 2 0 nil 12)))    ; 6 hearts made
@@ -1598,156 +1598,156 @@ left a 15-card hand in play."
     (should (= 50  (a 1 4 1 nil 7)))     ; 1NT doubled, insult
     (should (= 100 (f 4 3 0 nil 8)))     ; down two undoubled
     (should (= 500 (f 4 3 1 t 8))))      ; down two doubled vulnerable
-  (should (= 1 (cg-bridge--trick-winner
+  (should (= 1 (card-games-bridge--trick-winner
                 '((0 . (0 . 12)) (1 . (3 . 0)) (2 . (0 . 2)) (3 . (0 . 5))) 3))))
 
 (ert-deftest cgt-bridge-full ()
   (let ((scored 0) (passed 0))
     (dotimes (i 12)
-      (let ((g (cg-bridge-game)) (guard 0))
-        (cg-put g :dealer (mod i 4))
-        (cg-bridge--deal g)
-        (while (and (eq (cg-get g :phase) 'auction) (< guard 60))
+      (let ((g (card-games-bridge-game)) (guard 0))
+        (card-games-put g :dealer (mod i 4))
+        (card-games-bridge--deal g)
+        (while (and (eq (card-games-get g :phase) 'auction) (< guard 60))
           (cl-incf guard)
-          (let* ((s (cg-get g :bidder)) (call (cg-bridge--ai-call g s)))
-            (unless (cg-bridge--legal-call-p g call) (setq call 'pass))
-            (cg-bridge--apply-call g s call)
-            (cg-bridge--auction-done-p g)))
-        (if (eq (cg-get g :phase) 'passed-out) (cl-incf passed)
+          (let* ((s (card-games-get g :bidder)) (call (card-games-bridge--ai-call g s)))
+            (unless (card-games-bridge--legal-call-p g call) (setq call 'pass))
+            (card-games-bridge--apply-call g s call)
+            (card-games-bridge--auction-done-p g)))
+        (if (eq (card-games-get g :phase) 'passed-out) (cl-incf passed)
           (let ((p 0))
-            (while (and (eq (cg-get g :phase) 'play) (< p 60))
+            (while (and (eq (card-games-get g :phase) 'play) (< p 60))
               (cl-incf p)
-              (cg-bridge--play-card g (cg-get g :turn) (cg-bridge--ai-play g (cg-get g :turn)))))
-          (when (eq (cg-get g :phase) 'scored)
+              (card-games-bridge--play-card g (card-games-get g :turn) (card-games-bridge--ai-play g (card-games-get g :turn)))))
+          (when (eq (card-games-get g :phase) 'scored)
             (cl-incf scored)
-            (should (cl-every #'null (append (cg-get g :hands) nil)))))
-        (should (memq (cg-get g :phase) '(scored passed-out)))
-        (should (stringp (cg-render g)))))
+            (should (cl-every #'null (append (card-games-get g :hands) nil)))))
+        (should (memq (card-games-get g :phase) '(scored passed-out)))
+        (should (stringp (card-games-render g)))))
     (should (> scored 0))))
 ;;;; Renderer registry / region keystone
 
 (ert-deftest cgt-keystone-regions ()
-  (let* ((g (cg-sol--deal (make-instance 'cg-klondike-game)))
-         (res (cg-render-svg g)))
+  (let* ((g (card-games-sol--deal (make-instance 'card-games-klondike-game)))
+         (res (card-games-render-svg g)))
     (should (stringp (car res)))
     (should (>= (length (cdr res)) 13))           ; 6 top slots + 7 columns
     (let* ((reg (cl-find '(col . 3) (cdr res) :key #'cdr :test #'equal))
            (rect (car reg)))
       (should reg)
       (should (equal '(col . 3)
-                     (cg-regions-hit (cdr res)
+                     (card-games-regions-hit (cdr res)
                                      (+ (nth 0 rect) (/ (nth 2 rect) 2))
                                      (+ (nth 1 rect) 10)))))
-    (should (null (cg-regions-hit (cdr res) -5 -5))))
+    (should (null (card-games-regions-hit (cdr res) -5 -5))))
   (with-temp-buffer
-    (setq cg-sol--game (cg-sol--deal (make-instance 'cg-klondike-game)))
-    (cg-render-game cg-sol--game)
-    (should (oref cg-sol--game renderer))
+    (setq card-games-sol--game (card-games-sol--deal (make-instance 'card-games-klondike-game)))
+    (card-games-render-game card-games-sol--game)
+    (should (oref card-games-sol--game renderer))
     (should (> (buffer-size) 0))
-    (cg-render-apply cg-sol--game '(col . 5))
-    (should (= 11 (cg-get cg-sol--game :cursor)))))   ; spot index of (col . 5)
+    (card-games-render-apply card-games-sol--game '(col . 5))
+    (should (= 11 (card-games-get card-games-sol--game :cursor)))))   ; spot index of (col . 5)
 ;;;; Hand-cluster click regions + card-size slider
 
 (ert-deftest cgt-hand-regions ()
   (let* ((cards '((0 . 0) (0 . 1) (1 . 5)))
-         (str (cg-rummy--svg-row cards 0 nil nil 'hand))
-         (regs (get-text-property 0 'cg-regions str)))
-    (should (= (+ 3 (length cg-svg-slider-stops)) (length regs)))   ; 3 cards + stops
+         (str (card-games-rummy--svg-row cards 0 nil nil 'hand))
+         (regs (get-text-property 0 'card-games-regions str)))
+    (should (= (+ 3 (length card-games-svg-slider-stops)) (length regs)))   ; 3 cards + stops
     (should (equal '(hand . 0) (cdr (car regs))))
     (should (cl-find-if (lambda (r) (eq (car-safe (cdr r)) 'scale)) regs)))
-  (let ((g (cg-gin--deal (cg-gin-game))) (cg-card-scale 1.0))
-    (cg-render-apply g '(hand . 2))
-    (should (= 2 (cg-get g :cursor)))
-    (cg-render-apply g '(scale . 1.5))         ; base method handles scale
-    (should (= 1.5 cg-card-scale))
-    (cg-render-apply g 'zoom-reset)
-    (should (= 1.0 cg-card-scale))))
+  (let ((g (card-games-gin--deal (card-games-gin-game))) (card-games-card-scale 1.0))
+    (card-games-render-apply g '(hand . 2))
+    (should (= 2 (card-games-get g :cursor)))
+    (card-games-render-apply g '(scale . 1.5))         ; base method handles scale
+    (should (= 1.5 card-games-card-scale))
+    (card-games-render-apply g 'zoom-reset)
+    (should (= 1.0 card-games-card-scale))))
 
 ;;;; Rummy 500 deep pickup and Hand & Foot rule completions
 
 (ert-deftest cgt-rum500-deep-pickup ()
   "Taking a buried discard card melds it at once, keeping the cards above."
-  (let ((g (cg-rum500-game :nplayers 2 :hand-size 10)))
-    (cg-put g :nplayers 2) (cg-put g :scores (make-vector 2 0))
-    (cg-put g :hands (vector (list (cons 0 5) (cons 0 6)) nil)) ; 6S 7S
-    (cg-put g :discard (list (cons 1 9) (cons 0 4) (cons 2 3))) ; top 10C, buried 5S
-    (cg-put g :table nil) (cg-put g :laid (make-vector 2 0))
-    (cg-put g :turn 0) (cg-put g :step 'draw) (cg-put g :phase 'play)
-    (should (cg-tm--take-deep g 0 1))
-    (should (equal (cg-get g :table) '((0 (0 . 4) (0 . 5) (0 . 6)))))
-    (should (equal (cg-rummy--hand g 0) '((1 . 9))))
-    (should (= 1 (length (cg-get g :discard))))
+  (let ((g (card-games-rum500-game :nplayers 2 :hand-size 10)))
+    (card-games-put g :nplayers 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-put g :hands (vector (list (cons 0 5) (cons 0 6)) nil)) ; 6S 7S
+    (card-games-put g :discard (list (cons 1 9) (cons 0 4) (cons 2 3))) ; top 10C, buried 5S
+    (card-games-put g :table nil) (card-games-put g :laid (make-vector 2 0))
+    (card-games-put g :turn 0) (card-games-put g :step 'draw) (card-games-put g :phase 'play)
+    (should (card-games-tm--take-deep g 0 1))
+    (should (equal (card-games-get g :table) '((0 (0 . 4) (0 . 5) (0 . 6)))))
+    (should (equal (card-games-rummy--hand g 0) '((1 . 9))))
+    (should (= 1 (length (card-games-get g :discard))))
     ;; a card you cannot use immediately may not be taken
-    (cg-put g :hands (vector (list (cons 3 11)) nil))
-    (cg-put g :discard (list (cons 1 9) (cons 2 2)))
-    (should-not (cg-tm--take-deep g 0 1))))
+    (card-games-put g :hands (vector (list (cons 3 11)) nil))
+    (card-games-put g :discard (list (cons 1 9) (cons 2 2)))
+    (should-not (card-games-tm--take-deep g 0 1))))
 
 (ert-deftest cgt-handfoot-redthree ()
   "Red threes leave the hand on deal and collect to the team pile."
-  (let ((g (cg-handfoot-game)))
-    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
-    (cg-hf--deal g)
+  (let ((g (card-games-handfoot-game)))
+    (card-games-put g :nplayers 4) (card-games-put g :nteams 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-hf--deal g)
     (dotimes (s 4)
-      (should (= 0 (cl-count-if #'cg-hf--red-three-p (cg-rummy--hand g s)))))
-    (cg-put g :redthrees (make-vector 2 nil))
-    (cg-rummy--set-hand g 0 (list (cons 2 2) (cons 0 5))) ; 3 of diamonds + 6S
-    (cg-put g :stock (list (cons 0 9)))
-    (should (= 1 (cg-hf--collect-red-threes g 0)))
-    (should (= 1 (length (aref (cg-get g :redthrees) (cg-hf--team g 0)))))
-    (should-not (cl-find-if #'cg-hf--red-three-p (cg-rummy--hand g 0)))))
+      (should (= 0 (cl-count-if #'card-games-hf--red-three-p (card-games-rummy--hand g s)))))
+    (card-games-put g :redthrees (make-vector 2 nil))
+    (card-games-rummy--set-hand g 0 (list (cons 2 2) (cons 0 5))) ; 3 of diamonds + 6S
+    (card-games-put g :stock (list (cons 0 9)))
+    (should (= 1 (card-games-hf--collect-red-threes g 0)))
+    (should (= 1 (length (aref (card-games-get g :redthrees) (card-games-hf--team g 0)))))
+    (should-not (cl-find-if #'card-games-hf--red-three-p (card-games-rummy--hand g 0)))))
 
 (ert-deftest cgt-handfoot-min-meld ()
   "Initial meld must reach the round minimum; below it is refused."
-  (let ((g (cg-handfoot-game)))
-    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
-    (cg-hf--deal g) (cg-put g :round 0)
-    (cg-put g :down (make-vector 2 nil)) (cg-put g :books (make-vector 2 nil))
-    (cg-put g :hands (vector (list (cons 0 3)(cons 1 3)(cons 2 3)) nil nil nil)) ; three 4s = 15
-    (should-not (cg-hf--initial-meld g 0 (cg-rummy--hand g 0)))
-    (should-not (cg-hf--down-p g 0))
-    (cg-put g :hands (vector (list (cons 0 0)(cons 1 0)(cons 2 0)) nil nil nil)) ; three aces = 60
-    (should (cg-hf--initial-meld g 0 (cg-rummy--hand g 0)))
-    (should (cg-hf--down-p g 0))
-    (should (= 1 (length (cg-hf--books g 0))))))
+  (let ((g (card-games-handfoot-game)))
+    (card-games-put g :nplayers 4) (card-games-put g :nteams 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-hf--deal g) (card-games-put g :round 0)
+    (card-games-put g :down (make-vector 2 nil)) (card-games-put g :books (make-vector 2 nil))
+    (card-games-put g :hands (vector (list (cons 0 3)(cons 1 3)(cons 2 3)) nil nil nil)) ; three 4s = 15
+    (should-not (card-games-hf--initial-meld g 0 (card-games-rummy--hand g 0)))
+    (should-not (card-games-hf--down-p g 0))
+    (card-games-put g :hands (vector (list (cons 0 0)(cons 1 0)(cons 2 0)) nil nil nil)) ; three aces = 60
+    (should (card-games-hf--initial-meld g 0 (card-games-rummy--hand g 0)))
+    (should (card-games-hf--down-p g 0))
+    (should (= 1 (length (card-games-hf--books g 0))))))
 
 (ert-deftest cgt-handfoot-pickup ()
   "Picking up melds the top discard and rakes in the cards beneath it."
-  (let ((g (cg-handfoot-game)))
-    (cg-put g :nplayers 4) (cg-put g :nteams 2) (cg-put g :scores (make-vector 2 0))
-    (cg-hf--deal g)
-    (cg-put g :redthrees (make-vector 2 nil)) (cg-put g :books (make-vector 2 nil))
-    (cg-put g :hands (vector (list (cons 0 8)(cons 1 8)(cons 0 4)) nil nil nil)) ; two 9s + 5S
-    (cg-put g :discard (list (cons 2 8)(cons 3 5)(cons 0 6)(cons 1 7))) ; top 9D + 3 beneath
-    (cg-put g :stock nil)
-    (should (cg-hf--pickup-eligible g 0))
-    (let ((top (cg-hf--pickup g 0)))
+  (let ((g (card-games-handfoot-game)))
+    (card-games-put g :nplayers 4) (card-games-put g :nteams 2) (card-games-put g :scores (make-vector 2 0))
+    (card-games-hf--deal g)
+    (card-games-put g :redthrees (make-vector 2 nil)) (card-games-put g :books (make-vector 2 nil))
+    (card-games-put g :hands (vector (list (cons 0 8)(cons 1 8)(cons 0 4)) nil nil nil)) ; two 9s + 5S
+    (card-games-put g :discard (list (cons 2 8)(cons 3 5)(cons 0 6)(cons 1 7))) ; top 9D + 3 beneath
+    (card-games-put g :stock nil)
+    (should (card-games-hf--pickup-eligible g 0))
+    (let ((top (card-games-hf--pickup g 0)))
       (should (equal top (cons 2 8)))
-      (should (= 1 (length (cg-hf--books g 0))))
-      (should (cg-hf--book-valid-p (car (cg-hf--books g 0))))
-      (should (= 4 (length (cg-rummy--hand g 0))))
-      (should-not (cg-get g :discard)))))
+      (should (= 1 (length (card-games-hf--books g 0))))
+      (should (card-games-hf--book-valid-p (car (card-games-hf--books g 0))))
+      (should (= 4 (length (card-games-rummy--hand g 0))))
+      (should-not (card-games-get g :discard)))))
 
 ;;;; Mouse click-region wiring for eights, president, and the patience boards
 
 (ert-deftest cgt-mouse-regions ()
-  "The newly clickable games attach a `cg-regions' map to their SVG."
-  (let* ((g (cg-pat--deal (cg-golf-game)))
-         (regs (get-text-property 0 'cg-regions (cg-pat--svg g))))
+  "The newly clickable games attach a `card-games-regions' map to their SVG."
+  (let* ((g (card-games-pat--deal (card-games-golf-game)))
+         (regs (get-text-property 0 'card-games-regions (card-games-pat--svg g))))
     (should regs)
     (should (cl-find '(waste . 0) (mapcar #'cdr regs) :test #'equal))
     (should (cl-find '(stock . 0) (mapcar #'cdr regs) :test #'equal))
     (should (cl-find-if (lambda (a) (eq (car a) 'slot)) (mapcar #'cdr regs))))
-  (let ((g (cg-president-game)))
-    (cg-put g :games 0) (cg-pres--deal g)
-    (let ((regs (get-text-property 0 'cg-regions (cg-pres--svg g))))
+  (let ((g (card-games-president-game)))
+    (card-games-put g :games 0) (card-games-pres--deal g)
+    (let ((regs (get-text-property 0 'card-games-regions (card-games-pres--svg g))))
       (should regs)
       (should (cl-find-if (lambda (a) (and (consp a) (eq (car a) 'hand)))
                           (mapcar #'cdr regs)))))
-  (let ((g (cg-eights-game)))
-    (cg-put g :scores (make-vector 3 0)) (cg-eights--deal g)
-    (let* ((img (cg-svg-hand-image (mapcar #'cg-eights--spec (cg-eights--hand g 0))
+  (let ((g (card-games-eights-game)))
+    (card-games-put g :scores (make-vector 3 0)) (card-games-eights--deal g)
+    (let* ((img (card-games-svg-hand-image (mapcar #'card-games-eights--spec (card-games-eights--hand g 0))
                                    :region-tag 'hand))
-           (regs (get-text-property 0 'cg-regions img)))
+           (regs (get-text-property 0 'card-games-regions img)))
       (should regs)
       (should (cl-find-if (lambda (a) (and (consp a) (eq (car a) 'hand)))
                           (mapcar #'cdr regs))))))
@@ -1756,41 +1756,41 @@ left a 15-card hand in play."
 
 (ert-deftest cgt-bid-kitty-cap ()
   "Kitty marking never exceeds five cards, and the UI exposes the controls."
-  (let ((g (cg-bid-game)) (cg-bid--human-seats '(0)))
-    (cg-bid--deal g 3)
-    (cg-put g :phase 'kitty) (cg-put g :contractor 0)
-    (cg-put g :contract (nth 0 cg-bid-schedule))
-    (let ((hand (cg-bid-sort-display (cg-bid--hand g 0) nil)))
-      (cg-put g :sorted-hand hand)
-      (cg-put g :marks (cl-subseq hand 0 5))            ; already five
-      (cg-put g :cursor 5)                              ; a sixth, unmarked
+  (let ((g (card-games-bid-game)) (card-games-bid--human-seats '(0)))
+    (card-games-bid--deal g 3)
+    (card-games-put g :phase 'kitty) (card-games-put g :contractor 0)
+    (card-games-put g :contract (nth 0 card-games-bid-schedule))
+    (let ((hand (card-games-bid-sort-display (card-games-bid--hand g 0) nil)))
+      (card-games-put g :sorted-hand hand)
+      (card-games-put g :marks (cl-subseq hand 0 5))            ; already five
+      (card-games-put g :cursor 5)                              ; a sixth, unmarked
       (with-temp-buffer
-        (setq-local cg-bid--game g)
-        (cg-bid-select)                                 ; must refuse the sixth
-        (should (= 5 (length (cg-get g :marks))))
+        (setq-local card-games-bid--game g)
+        (card-games-bid-select)                                 ; must refuse the sixth
+        (should (= 5 (length (card-games-get g :marks))))
         ;; unmark a card that is actually marked (redisplay may have re-sorted
         ;; the hand by trump, so cursor 0 is not necessarily a marked card)
-        (let* ((sh (cg-get g :sorted-hand)) (mk (cg-get g :marks))
+        (let* ((sh (card-games-get g :sorted-hand)) (mk (card-games-get g :marks))
                (idx (cl-position-if (lambda (c) (member c mk)) sh)))
-          (cg-put g :cursor idx)
-          (cg-bid-select)
-          (should (= 4 (length (cg-get g :marks)))))))
+          (card-games-put g :cursor idx)
+          (card-games-bid-select)
+          (should (= 4 (length (card-games-get g :marks)))))))
     ;; the full-SVG kitty panel exposes a Discard region and a card-size slider
-    (let* ((cg-bid-svg-ui t) (cg-bid-svg-fill t)
-           (rg (cdr (cg-bid--ui-svg g 1100 700))))
+    (let* ((card-games-bid-svg-ui t) (card-games-bid-svg-fill t)
+           (rg (cdr (card-games-bid--ui-svg g 1100 700))))
       (should (plist-get rg :discard))
       (should (plist-get rg :sizer)))))
 
 (ert-deftest cgt-bid-svg-controls ()
   "The full-SVG UI exposes Help and, when open, the overlay's buttons."
-  (let ((g (cg-bid-game)) (cg-bid-svg-ui t) (cg-bid-svg-fill t))
-    (cg-bid--deal g 3)
-    (cg-put g :phase 'auction) (cg-put g :bidder 0)
-    (let ((rg (cdr (cg-bid--ui-svg g 1100 700))))
+  (let ((g (card-games-bid-game)) (card-games-bid-svg-ui t) (card-games-bid-svg-fill t))
+    (card-games-bid--deal g 3)
+    (card-games-put g :phase 'auction) (card-games-put g :bidder 0)
+    (let ((rg (cdr (card-games-bid--ui-svg g 1100 700))))
       (should (plist-get rg :help))
       (should-not (plist-get rg :help-close)))
-    (cg-put g :help-open t)
-    (let ((rg (cdr (cg-bid--ui-svg g 1100 700))))
+    (card-games-put g :help-open t)
+    (let ((rg (cdr (card-games-bid--ui-svg g 1100 700))))
       (should (plist-get rg :help-close))
       (should (plist-get rg :help-classic))
       (should (plist-get rg :help-quit)))))
@@ -1798,29 +1798,29 @@ left a 15-card hand in play."
 
 (ert-deftest cgt-red-suit-boolean ()
   "Two red suits compare equal by colour (the diamond/heart eq bug)."
-  (should (eq (cg-red-suit-p 2) (cg-red-suit-p 3)))     ; both red -> eq
-  (should (eq (cg-red-suit-p 0) (cg-red-suit-p 1)))     ; both black -> eq
-  (should-not (eq (cg-red-suit-p 2) (cg-red-suit-p 0))) ; red vs black
+  (should (eq (card-games-red-suit-p 2) (card-games-red-suit-p 3)))     ; both red -> eq
+  (should (eq (card-games-red-suit-p 0) (card-games-red-suit-p 1)))     ; both black -> eq
+  (should-not (eq (card-games-red-suit-p 2) (card-games-red-suit-p 0))) ; red vs black
   ;; a diamond may NOT sit on a heart in a house (both red)
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :houses) 0 (list '(3 . 5)))          ; 6 of hearts
-    (should-not (cg-crap--house-accepts g 0 '(2 . 4)))   ; 5 of diamonds (both red)
-    (aset (cg-get g :houses) 0 (list '(0 . 5)))          ; 6 of spades (black)
-    (should (cg-crap--house-accepts g 0 '(2 . 4)))))     ; 5 of diamonds ok
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :houses) 0 (list '(3 . 5)))          ; 6 of hearts
+    (should-not (card-games-crap--house-accepts g 0 '(2 . 4)))   ; 5 of diamonds (both red)
+    (aset (card-games-get g :houses) 0 (list '(0 . 5)))          ; 6 of spades (black)
+    (should (card-games-crap--house-accepts g 0 '(2 . 4)))))     ; 5 of diamonds ok
 
 (ert-deftest cgt-ai-level-easy-crapette ()
   "The easy Crapette AI does not rearrange houses, so a stuck card stays."
-  (let ((g (cg-crap--deal (cg-crapette-game))))
-    (aset (cg-get g :reserve) 1 (list '(2 . 4)))
-    (aset (cg-get g :waste) 1 nil) (aset (cg-get g :hand) 1 nil)
-    (aset (cg-get g :reserve) 0 nil) (aset (cg-get g :waste) 0 nil)
-    (aset (cg-get g :found) 0 nil)
-    (aset (cg-get g :houses) 0 (list '(0 . 5) '(3 . 5)))
-    (aset (cg-get g :houses) 1 (list '(1 . 6)))
-    (dotimes (k 6) (aset (cg-get g :houses) (+ 2 k) (list '(2 . 6))))
-    (cg-put g :turn 1)
-    (let ((cg-ai-level 'easy) (cg-crap--recording nil)) (cg-crap--ai-play g))
-    (should (cg-crap--reserve g 1))))
+  (let ((g (card-games-crap--deal (card-games-crapette-game))))
+    (aset (card-games-get g :reserve) 1 (list '(2 . 4)))
+    (aset (card-games-get g :waste) 1 nil) (aset (card-games-get g :hand) 1 nil)
+    (aset (card-games-get g :reserve) 0 nil) (aset (card-games-get g :waste) 0 nil)
+    (aset (card-games-get g :found) 0 nil)
+    (aset (card-games-get g :houses) 0 (list '(0 . 5) '(3 . 5)))
+    (aset (card-games-get g :houses) 1 (list '(1 . 6)))
+    (dotimes (k 6) (aset (card-games-get g :houses) (+ 2 k) (list '(2 . 6))))
+    (card-games-put g :turn 1)
+    (let ((card-games-ai-level 'easy) (card-games-crap--recording nil)) (card-games-crap--ai-play g))
+    (should (card-games-crap--reserve g 1))))
 
 
 (ert-deftest cgt-treatment-set ()
@@ -1830,10 +1830,10 @@ left a 15-card hand in play."
     (unwind-protect
         (progn
           (card-games-set-treatment 'text)
-          (should-not cg-sol-svg-cards) (should-not cg-crapette-svg-cards)
+          (should-not card-games-sol-svg-cards) (should-not card-games-crapette-svg-cards)
           (card-games-set-treatment 'full)
-          (should cg-sol-svg-cards) (should cg-bid-svg-ui) (should cg-gaps-svg-ui)
+          (should card-games-sol-svg-cards) (should card-games-bid-svg-ui) (should card-games-gaps-svg-ui)
           (card-games-set-treatment 'svg)
-          (should cg-sol-svg-cards) (should-not cg-bid-svg-ui))
+          (should card-games-sol-svg-cards) (should-not card-games-bid-svg-ui))
       (dolist (pr saved) (set (car pr) (cdr pr)))
       (setq card-games-treatment savedt))))

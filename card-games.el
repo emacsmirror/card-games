@@ -28,119 +28,119 @@
 ;; SVG cards on a graphical display.  This file is the umbrella: it
 ;; pulls in the individual games and offers a chooser.
 ;;
-;; Run `M-x card-game' for a menu, or start a game directly:
+;; Run `M-x card-games' for a menu, or start a game directly:
 ;;
-;;   `cg-bid'   -- 500, the four-handed partnership trick-taking game,
+;;   `card-games-bid'   -- 500, the four-handed partnership trick-taking game,
 ;;                 played against three computer opponents.
-;;   `cg-gaps'  -- Gaps / Montana / "Hell's Half-Acre" solitaire.
+;;   `card-games-gaps'  -- Gaps / Montana / "Hell's Half-Acre" solitaire.
 ;;
 ;; New games register themselves by adding to `card-games-list'.
 
 ;;; Code:
 
-(require 'cg-core)
-(require 'cg-render)
-(require 'cg-net)
-(require 'cg-gaps)
-(require 'cg-bid-ui)
-(require 'cg-bid-net)
-(require 'cg-solitaire)
-(require 'cg-trick)
-(require 'cg-eights)
-(require 'cg-patience)
-(require 'cg-president)
-(require 'cg-rummy)
-(require 'cg-rum500)
-(require 'cg-handfoot)
-(require 'cg-match)
-(require 'cg-cribbage)
-(require 'cg-scopa)
-(require 'cg-trick-ext)
-(require 'cg-spite)
-(require 'cg-bridge)
-(require 'cg-crapette)
+(require 'card-games-core)
+(require 'card-games-render)
+(require 'card-games-net)
+(require 'card-games-gaps)
+(require 'card-games-bid-ui)
+(require 'card-games-bid-net)
+(require 'card-games-solitaire)
+(require 'card-games-trick)
+(require 'card-games-eights)
+(require 'card-games-patience)
+(require 'card-games-president)
+(require 'card-games-rummy)
+(require 'card-games-rum500)
+(require 'card-games-handfoot)
+(require 'card-games-match)
+(require 'card-games-cribbage)
+(require 'card-games-scopa)
+(require 'card-games-trick-ext)
+(require 'card-games-spite)
+(require 'card-games-bridge)
+(require 'card-games-crapette)
 
 (defvar card-games-list
-  '(("500 (Bid)" cg-bid
+  '(("500 (Bid)" card-games-bid
      "Four-handed partnership trick-taking versus three AI opponents.")
-    ("Gaps  (Montana)" cg-montana
+    ("Gaps  (Montana)" card-games-montana
      "Solitaire: a Two anchors each row; build up 2 through King.")
-    ("Hell's Half-Acre" cg-hells-half-acre
+    ("Hell's Half-Acre" card-games-hells-half-acre
      "Solitaire: a King anchors each row; build down King through 2.")
-    ("Klondike" cg-klondike
+    ("Klondike" card-games-klondike
      "Solitaire: the classic; build the foundations up by suit from the Ace.")
-    ("FreeCell" cg-freecell
+    ("FreeCell" card-games-freecell
      "Solitaire: every card in view, four free cells, a game of skill.")
-    ("Spider" cg-spider
+    ("Spider" card-games-spider
      "Solitaire: two decks; build down and clear eight same-suit runs.")
-    ("Yukon" cg-yukon
+    ("Yukon" card-games-yukon
      "Solitaire: Klondike's layout, all face up; move any buried group.")
-    ("Hearts" cg-hearts
+    ("Hearts" card-games-hearts
      "Trick-taking: dodge every heart and the Queen of Spades.")
-    ("Spades" cg-spades
+    ("Spades" card-games-spades
      "Trick-taking: partnership bidding to 500; spades are always trump.")
-    ("Crazy Eights" cg-eights
+    ("Crazy Eights" card-games-eights
      "Shedding: match the suit or rank; eights are wild.")
-    ("Canfield" cg-canfield
+    ("Canfield" card-games-canfield
      "Solitaire: a 13-card reserve and a shifting foundation base rank.")
-    ("Russian Bank" cg-russian-bank
+    ("Russian Bank" card-games-russian-bank
      "Solitaire: eight houses down by alternating colour; a reserve feeds them.")
-    ("Forty Thieves" cg-forty-thieves
+    ("Forty Thieves" card-games-forty-thieves
      "Solitaire: two decks, ten columns, eight foundations, no redeal.")
-    ("Scorpion" cg-scorpion
+    ("Scorpion" card-games-scorpion
      "Solitaire: build down by suit and free four buried King-to-Ace runs.")
-    ("Golf" cg-golf
+    ("Golf" card-games-golf
      "Solitaire: clear the layout one rank at a time onto the waste.")
-    ("TriPeaks" cg-tripeaks
+    ("TriPeaks" card-games-tripeaks
      "Solitaire: clear three peaks with Ace-King wrapping chains.")
-    ("Pyramid" cg-pyramid
+    ("Pyramid" card-games-pyramid
      "Solitaire: remove pairs of cards that sum to thirteen.")
-    ("Whist" cg-whist
+    ("Whist" card-games-whist
      "Trick-taking: fixed trump, no bidding, race past the book of six.")
-    ("Oh Hell" cg-ohhell
+    ("Oh Hell" card-games-ohhell
      "Trick-taking: shrinking hands; bid the exact tricks you will take.")
-    ("President" cg-president
+    ("President" card-games-president
      "Climbing: shed your hand; first out rules, last out scrubs.")
-    ("Gin Rummy" cg-gin
+    ("Gin Rummy" card-games-gin
      "Rummy: form melds, knock with little deadwood; head to head to 100.")
-    ("Rummy" cg-rummy-basic
+    ("Rummy" card-games-rummy-basic
      "Rummy: meld your whole hand to the table to go out.")
-    ("Rummy 500" cg-rum500
+    ("Rummy 500" card-games-rum500
      "Rummy: score the cards you lay down; race past 500.")
-    ("Hand & Foot" cg-handfoot
+    ("Hand & Foot" card-games-handfoot
      "Rummy: partnership Canasta cousin; build books from hand and foot.")
-    ("Go Fish" cg-go-fish
+    ("Go Fish" card-games-go-fish
      "Matching: ask for ranks and collect books of four.")
-    ("Old Maid" cg-old-maid
+    ("Old Maid" card-games-old-maid
      "Matching: shed pairs and avoid the leftover Queen.")
-    ("Cribbage" cg-cribbage
+    ("Cribbage" card-games-cribbage
      "Pegging and the show: fifteens, pairs, runs, and his nobs to 121.")
-    ("Scopa" cg-scopa
+    ("Scopa" card-games-scopa
      "Capturing: take table cards by value; sweep for a scopa.")
-    ("Casino" cg-casino
+    ("Casino" card-games-casino
      "Capturing: pairs and sums; big and little casino, aces, sweeps.")
-    ("Euchre" cg-euchre
+    ("Euchre" card-games-euchre
      "Trick-taking: 24 cards, bowers, order up; partnership to 10.")
-    ("Pitch" cg-pitch
+    ("Pitch" card-games-pitch
      "Trick-taking: bid, pitch to set trump, score High-Low-Jack-Game.")
-    ("Briscola" cg-briscola
+    ("Briscola" card-games-briscola
      "Trick-taking: fixed trump, no follow; capture the points to 61.")
-    ("Spite & Malice" cg-spite
+    ("Spite & Malice" card-games-spite
      "Climbing patience: race to empty your goal pile; Kings are wild.")
-    ("Bridge" cg-bridge
+    ("Bridge" card-games-bridge
      "Trick-taking: the auction, the dummy, and rubber scoring, to 121.")
-    ("Crapette (Russian Bank)" cg-crapette
+    ("Crapette (Russian Bank)" card-games-crapette
      "Two-player Russian Bank versus the computer; empty your reserve, hand, and waste."))
   "Registry of playable games.
-Each entry is (NAME COMMAND DESCRIPTION); `card-game' lists them.")
+Each entry is (NAME COMMAND DESCRIPTION); `card-games' lists them.")
 
 (defvar card-games--svg-card-vars
-  '(cg-sol-svg-cards cg-trick-svg-cards cg-rummy-svg-cards cg-eights-svg-cards
-    cg-bridge-svg-cards cg-crapette-svg-cards cg-pat-svg-cards cg-pres-svg-cards)
+  '(card-games-sol-svg-cards card-games-trick-svg-cards card-games-rummy-svg-cards card-games-eights-svg-cards
+    card-games-bridge-svg-cards card-games-crapette-svg-cards card-games-pat-svg-cards card-games-pres-svg-cards)
   "Per-game SVG-cards toggles that `card-games-set-treatment' flips together.")
 
 (defvar card-games--full-svg-vars
-  '(cg-gaps-svg-ui cg-bid-svg-ui)
+  '(card-games-gaps-svg-ui card-games-bid-svg-ui)
   "Full-window SVG toggles (Gaps and 500) used by the `full' treatment.")
 
 (defvar card-games-treatment 'svg
@@ -162,32 +162,32 @@ open game.  Gaps and 500 are always graphical on a window system."
   (when (called-interactively-p 'interactive)
     (message "Display treatment: %s" treatment)))
 
-(defun card-game--cycle-treatment (_button)
+(defun card-games--cycle-treatment (_button)
   "Cycle the display treatment and refresh the chooser."
   (card-games-set-treatment
    (pcase card-games-treatment ('text 'svg) ('svg 'full) (_ 'text)))
-  (card-game))
+  (card-games))
 
-(defun card-game--cycle-ai (_button)
-  "Cycle the AI difficulty (`cg-ai-level') and refresh the chooser."
-  (setq cg-ai-level (pcase cg-ai-level ('easy 'normal) ('normal 'hard) (_ 'easy)))
-  (card-game))
+(defun card-games--cycle-ai (_button)
+  "Cycle the AI difficulty (`card-games-ai-level') and refresh the chooser."
+  (setq card-games-ai-level (pcase card-games-ai-level ('easy 'normal) ('normal 'hard) (_ 'easy)))
+  (card-games))
 
 ;;;###autoload
 (defun card-games-set-ai-level (level)
   "Set the computer-opponent difficulty to LEVEL (easy, normal, or hard)."
   (interactive
    (list (intern (completing-read "AI level: " '("easy" "normal" "hard") nil t))))
-  (setq cg-ai-level level)
+  (setq card-games-ai-level level)
   (message "AI level: %s" level))
 
-(defun card-game--launch (button)
+(defun card-games--launch (button)
   "Start the game whose command is stored on BUTTON."
-  (let ((cmd (button-get button 'card-game-command)))
+  (let ((cmd (button-get button 'card-games-command)))
     (quit-window)
     (call-interactively cmd)))
 
-(defvar card-game-mode-map
+(defvar card-games-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map special-mode-map)
     (define-key map "n" #'forward-button)
@@ -195,23 +195,23 @@ open game.  Gaps and 500 are always graphical on a window system."
     (define-key map (kbd "TAB") #'forward-button)
     (define-key map (kbd "<backtab>") #'backward-button)
     map)
-  "Keymap for `card-game-mode'.")
+  "Keymap for `card-games-mode'.")
 
-(define-derived-mode card-game-mode special-mode "Card-Games"
-  "Major mode for the `card-game' chooser."
-  (setq-local cursor-type cg-cursor-type))
+(define-derived-mode card-games-mode special-mode "Card-Games"
+  "Major mode for the `card-games' chooser."
+  (setq-local cursor-type card-games-cursor-type))
 
 ;;;###autoload
-(defun card-game ()
+(defun card-games ()
   "Open a chooser listing the available card games.
 Press RET (or click) on a game to start it."
   (interactive)
-  (when (and (boundp 'cg-svg-card-back) (eq cg-svg-card-back 'random)
-             (fboundp 'cg-svg--roll-back))
-    (cg-svg--roll-back))                 ; a fresh random back per menu visit
+  (when (and (boundp 'card-games-svg-card-back) (eq card-games-svg-card-back 'random)
+             (fboundp 'card-games-svg--roll-back))
+    (card-games-svg--roll-back))                 ; a fresh random back per menu visit
   (let ((buf (get-buffer-create "*Card Games*")))
     (with-current-buffer buf
-      (card-game-mode)
+      (card-games-mode)
       (let ((inhibit-read-only t))
         (erase-buffer)
         (insert (propertize "  Card Games for Emacs\n" 'face 'bold))
@@ -220,17 +220,17 @@ Press RET (or click) on a game to start it."
                  'face 'shadow))
         (insert "  AI opponents: ")
         (insert-text-button
-         (symbol-name cg-ai-level)
+         (symbol-name card-games-ai-level)
          'face 'link
          'help-echo "Click to change the AI difficulty (easy/normal/hard)"
-         'action #'card-game--cycle-ai)
+         'action #'card-games--cycle-ai)
         (insert (propertize "   (click to cycle easy/normal/hard)\n" 'face 'shadow))
         (insert "  Cards: ")
         (insert-text-button
          (symbol-name card-games-treatment)
          'face 'link
          'help-echo "Click to cycle the display: text / svg / full"
-         'action #'card-game--cycle-treatment)
+         'action #'card-games--cycle-treatment)
         (insert (propertize "   (click to cycle text/svg/full)\n\n" 'face 'shadow))
         (dolist (g card-games-list)
           (insert "    ")
@@ -238,17 +238,13 @@ Press RET (or click) on a game to start it."
            (format "%-26s" (nth 0 g))
            'face 'link
            'help-echo (nth 2 g)
-           'card-game-command (nth 1 g)
-           'action #'card-game--launch)
+           'card-games-command (nth 1 g)
+           'action #'card-games--launch)
           (insert (propertize (concat "  " (nth 2 g) "\n") 'face 'shadow)))
         (insert "\n")))
     (switch-to-buffer buf)
     (goto-char (point-min))
     (forward-button 1)))
-
-;;;###autoload
-(defalias 'card-games #'card-game
-  "Alias for `card-game'.")
 
 (defconst card-games-themes
   '((classic  :felt "#15692f" :theme t)
@@ -266,12 +262,12 @@ Press RET (or click) on a game to start it."
                   nil t))))
   (let ((p (alist-get name card-games-themes)))
     (unless p (user-error "No such card-games theme: %s" name))
-    (setq cg-bid-felt-color (plist-get p :felt))
+    (setq card-games-bid-felt-color (plist-get p :felt))
     (when (plist-member p :theme)
-      (setq cg-svg-theme-colors (plist-get p :theme)))
-    (when (plist-get p :back) (setq cg-svg-back-color (plist-get p :back)))
+      (setq card-games-svg-theme-colors (plist-get p :theme)))
+    (when (plist-get p :back) (setq card-games-svg-back-color (plist-get p :back)))
     (when (plist-get p :highlight)
-      (setq cg-svg-highlight-color (plist-get p :highlight)))
+      (setq card-games-svg-highlight-color (plist-get p :highlight)))
     (message "card-games theme: %s" name)))
 
 (provide 'card-games)

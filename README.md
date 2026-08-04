@@ -6,7 +6,7 @@ mouse on a graphical display.
 ![img](doc/images/klondike.png)
 
 On a graphical display the cards are drawn as SVG; in a terminal they
-fall back to UNICODE glyphs (customize `card-game-symbols`).  You can
+fall back to UNICODE glyphs (customize `card-games-symbols`).  You can
 switch how every game is drawn from the menu &ndash; `text` (UNICODE),
 `svg` (drawn cards), or `full` (a full-window SVG table) &ndash; and dial the
 computer opponents between `easy`, `normal`, and `hard`.
@@ -17,79 +17,79 @@ choose **Card Games**, or `M-x info RET (card-games) RET`.
 
 # Games
 
-To open the game menu type `M-x card-game`, or start a game directly
+To open the game menu type `M-x card-games`, or start a game directly
 with its command.  From the menu you can also switch the card treatment
 (text / SVG / full-window) and the AI difficulty.
 
 
 ## Trick-taking
 
--   `cg-bid` &ndash; 500 (Bid).  Win the auction, name the trump suit, then take
+-   `card-games-bid` &ndash; 500 (Bid).  Win the auction, name the trump suit, then take
     tricks with your partner to reach 500 points before the opposing pair.
-    Also playable live over the network (`M-x cg-bid-host` / `cg-bid-join`).
--   `cg-hearts` &ndash; Hearts.  Avoid taking hearts and the Queen of Spades, or
+    Also playable live over the network (`M-x card-games-bid-host` / `card-games-bid-join`).
+-   `card-games-hearts` &ndash; Hearts.  Avoid taking hearts and the Queen of Spades, or
     take them all to "shoot the moon"; lowest score loses.
--   `cg-spades` &ndash; Spades.  Partnership bidding to 500; spades are always
+-   `card-games-spades` &ndash; Spades.  Partnership bidding to 500; spades are always
     trump.  Make your side's combined bid, mind the bags, dare a nil.
--   `cg-whist` &ndash; Whist.  Trump is the turned card, there is no bidding;
+-   `card-games-whist` &ndash; Whist.  Trump is the turned card, there is no bidding;
     score one point for each trick past the book of six.
--   `cg-ohhell` &ndash; Oh Hell.  The hand shrinks each round; bid the exact
+-   `card-games-ohhell` &ndash; Oh Hell.  The hand shrinks each round; bid the exact
     number of tricks you will take, no more and no fewer.
 
 
 ## Solitaire
 
--   `cg-montana` &ndash; Montana (also called Gaps).  Each row is anchored by a
+-   `card-games-montana` &ndash; Montana (also called Gaps).  Each row is anchored by a
     Two and built upward in one suit, 2 through King; slide cards into the
     gaps until all four rows are sorted.
--   `cg-gaps` &ndash; an alias for `cg-montana`.
--   `cg-hells-half-acre` &ndash; the build-down variant: each row is anchored by
+-   `card-games-gaps` &ndash; an alias for `card-games-montana`.
+-   `card-games-hells-half-acre` &ndash; the build-down variant: each row is anchored by
     a King and built downward, King through 2.
--   `cg-klondike` &ndash; Klondike, the classic "Solitaire": build the four
+-   `card-games-klondike` &ndash; Klondike, the classic "Solitaire": build the four
     foundations up by suit from the Ace.
--   `cg-freecell` &ndash; FreeCell: every card in view, four free cells, a game
+-   `card-games-freecell` &ndash; FreeCell: every card in view, four free cells, a game
     of nearly pure skill.
--   `cg-spider` &ndash; Spider (two decks): build down regardless of suit, but
+-   `card-games-spider` &ndash; Spider (two decks): build down regardless of suit, but
     only same-suit runs move; clear eight King-to-Ace runs.
--   `cg-yukon` &ndash; Yukon: Klondike's layout dealt mostly face up, with any
+-   `card-games-yukon` &ndash; Yukon: Klondike's layout dealt mostly face up, with any
     buried group movable and no stock.
--   `cg-canfield` &ndash; Canfield: a 13-card reserve and a foundation base rank
+-   `card-games-canfield` &ndash; Canfield: a 13-card reserve and a foundation base rank
     set by the deal; foundations wrap King to Ace.
--   `cg-forty-thieves` &ndash; Forty Thieves: two decks, ten columns, eight
+-   `card-games-forty-thieves` &ndash; Forty Thieves: two decks, ten columns, eight
     foundations, build down by suit, and no second pass through the stock.
--   `cg-scorpion` &ndash; Scorpion: build down by suit and free any buried group
+-   `card-games-scorpion` &ndash; Scorpion: build down by suit and free any buried group
     to assemble four King-to-Ace runs.
--   `cg-golf` &ndash; Golf: clear the layout by playing exposed cards one rank
+-   `card-games-golf` &ndash; Golf: clear the layout by playing exposed cards one rank
     above or below the waste top.
--   `cg-tripeaks` &ndash; TriPeaks: the same, on three overlapping peaks, with
+-   `card-games-tripeaks` &ndash; TriPeaks: the same, on three overlapping peaks, with
     Ace-King wrapping for long chains.
--   `cg-pyramid` &ndash; Pyramid: remove pairs of exposed cards whose ranks sum
+-   `card-games-pyramid` &ndash; Pyramid: remove pairs of exposed cards whose ranks sum
     to thirteen; Kings go alone.
 
 
 ## Shedding and climbing
 
--   `cg-eights` &ndash; Crazy Eights.  Match the suit or rank of the discard;
+-   `card-games-eights` &ndash; Crazy Eights.  Match the suit or rank of the discard;
     eights are wild and let you name the next suit.
--   `cg-president` &ndash; President (Scum).  Climb: play one to four of a rank,
+-   `card-games-president` &ndash; President (Scum).  Climb: play one to four of a rank,
     beat it or pass; first out rules, last out scrubs, and the roles trade
     cards on the next deal.
 
 
 ## Rummy
 
--   `cg-gin` &ndash; Gin Rummy.  A two-handed duel: draw or take the discard,
+-   `card-games-gin` &ndash; Gin Rummy.  A two-handed duel: draw or take the discard,
     build sets and runs, and knock once your deadwood is ten or less, or go
     gin with none; your opponent then lays off and may undercut you.  First
     to 100 wins.
--   `cg-rummy-basic` &ndash; Rummy.  Meld sets and runs onto the table and lay
+-   `card-games-rummy-basic` &ndash; Rummy.  Meld sets and runs onto the table and lay
     cards off onto them; empty your hand to go out and score the cards left
     in the other hands.
--   `cg-rum500` &ndash; Rummy 500.  As above, but you score the cards you lay
+-   `card-games-rum500` &ndash; Rummy 500.  As above, but you score the cards you lay
     down and lose the cards left in your hand; first past 500 wins.  Take a
     buried discard card with `T`: you take it and every card above it, and
     meld the chosen card at once.
--   `cg-handfoot` &ndash; Hand & Foot.  A partnership Canasta cousin: play a hand
+-   `card-games-handfoot` &ndash; Hand & Foot.  A partnership Canasta cousin: play a hand
     and then a foot, build books of a rank with Twos and Jokers wild, and go
     out once your side has completed two of them.  Each round opens with a
     rising go-down minimum (50, 90, 120, 150); red threes are bonus cards;
@@ -99,48 +99,48 @@ with its command.  From the menu you can also switch the card treatment
 
 ## Matching
 
--   `cg-go-fish` &ndash; Go Fish.  Ask another player for a rank you hold;
+-   `card-games-go-fish` &ndash; Go Fish.  Ask another player for a rank you hold;
     collect all four to lay down a book, and make the most books.
--   `cg-old-maid` &ndash; Old Maid.  One Queen is set aside; discard pairs and
+-   `card-games-old-maid` &ndash; Old Maid.  One Queen is set aside; discard pairs and
     draw blind from your neighbour, and do not be left with the odd Queen.
 
 
 ## Pegging
 
--   `cg-cribbage` &ndash; Cribbage.  Lay two cards to the crib, cut a starter,
+-   `card-games-cribbage` &ndash; Cribbage.  Lay two cards to the crib, cut a starter,
     peg toward 31, then count fifteens, pairs, runs, flushes, and his nobs.
     Two-handed to 121.
 
 
 ## Capturing
 
--   `cg-scopa` &ndash; Scopa.  A 40-card deck; capture table cards by value and
+-   `card-games-scopa` &ndash; Scopa.  A 40-card deck; capture table cards by value and
     sweep the board for a scopa.  Score cards, coins, the sette bello, and
     primiera to 11.
--   `cg-casino` &ndash; Casino.  The full deck; capture by pairs and sums and
+-   `card-games-casino` &ndash; Casino.  The full deck; capture by pairs and sums and
     score cards, spades, the casinos, and aces to 21.
 
 
 ## More trick-taking
 
--   `cg-euchre` &ndash; Euchre.  A 24-card deck with the two bowers; order up or
+-   `card-games-euchre` &ndash; Euchre.  A 24-card deck with the two bowers; order up or
     call trump and take three of five tricks.  Partnership to 10.
--   `cg-pitch` &ndash; Auction Pitch.  Bid for the pitch; your first lead sets
+-   `card-games-pitch` &ndash; Auction Pitch.  Bid for the pitch; your first lead sets
     trump.  Score High, Low, Jack, and Game; first to 7.
--   `cg-briscola` &ndash; Briscola.  A fixed trump turned from the deal and no
+-   `card-games-briscola` &ndash; Briscola.  A fixed trump turned from the deal and no
     obligation to follow suit; capture the Aces and Threes.  Partnership to
     61 of the 120 points.
 
 
 ## Climbing patience
 
--   `cg-spite` &ndash; Spite & Malice.  Race the computer to empty your goal
+-   `card-games-spite` &ndash; Spite & Malice.  Race the computer to empty your goal
     pile onto shared centre piles that build Ace to Queen; Kings are wild.
 
 
 ## Bridge
 
--   `cg-bridge` &ndash; Contract Bridge.  A full auction (bids, pass, double,
+-   `card-games-bridge` &ndash; Contract Bridge.  A full auction (bids, pass, double,
     redouble), play with the dummy exposed, and classic rubber scoring with
     vulnerability.  You are South; when you declare you play the dummy too.
     The bidding AI is a small natural system, sensible but no expert.
@@ -148,7 +148,7 @@ with its command.  From the menu you can also switch the card treatment
 
 ## Two-player patience
 
--   `cg-russian-bank` / `cg-crapette` &ndash; Russian Bank (Crapette).  A race
+-   `card-games-russian-bank` / `card-games-crapette` &ndash; Russian Bank (Crapette).  A race
     against the computer: build the eight shared foundations up by suit,
     build the shared houses down in alternating colour, and empty your
     reserve to win.  Load your cards onto your opponent's piles when the
@@ -160,7 +160,7 @@ with its command.  From the menu you can also switch the card treatment
 
 # TODO 
 
--   [X] make the suit symbols customizable (`cg-symbols`) and obey them
+-   [X] make the suit symbols customizable (`card-games-symbols`) and obey them
 -   [X] a Texinfo manual
 -   [ ] finish `checkdoc` docstrings across the per-game files
     (the shared engine files are clean; `make compile` is warning-free)
@@ -187,9 +187,9 @@ ELPA archive), the whole collection loads from the single `card-games`
 feature:
 
     (use-package card-games
-      :commands (card-game cg-klondike cg-bid cg-hearts cg-gin cg-crapette))
+      :commands (card-games card-games-klondike card-games-bid card-games-hearts card-games-gin card-games-crapette))
 
-Then `M-x card-game` for the menu.
+Then `M-x card-games` for the menu.
 
 
 ## From a local ELPA archive
@@ -203,7 +203,7 @@ Then `M-x card-game` for the menu.
 
 ## Manually
 
-Put the `cg-*.el` and `card-games.el` files on your `load-path` and
+Put the `card-games-*.el` and `card-games.el` files on your `load-path` and
 `(require 'card-games)`.
 
 
@@ -225,7 +225,7 @@ graphical display.
 
 -   500: `b` bid, `p` pass, arrows + `RET` to play (or click a card),
     `n` next hand / new game, `?` help.
--   Gaps: arrows to move (or `hjkl` when `cg-keys` is `classic`), `RET` to
+-   Gaps: arrows to move (or `hjkl` when `card-games-keys` is `classic`), `RET` to
     fill a gap (or click it), `r` redeal, `u` undo, `n` new, `?` help.
 -   Klondike / FreeCell / Spider / Yukon: arrows move between piles, `RET`
     picks up a movable run and drops it, `f` sends a card to a foundation,
@@ -249,8 +249,8 @@ mouse: click cards, board slots, buttons, and the slider.
 This is a 1.0.91 pre-test snapshot.  To try it:
 
 1.  `make compile && make test` &ndash; should be warning-free and all green.
-2.  `M-x card-game` opens the menu, or jump straight in, e.g.
-    `M-x cg-klondike`, `M-x cg-bid` (500), `M-x cg-gin`, `M-x cg-handfoot`.
+2.  `M-x card-games` opens the menu, or jump straight in, e.g.
+    `M-x card-games-klondike`, `M-x card-games-bid` (500), `M-x card-games-gin`, `M-x card-games-handfoot`.
 3.  On a graphical display, press `v` in 500 for the full-window SVG
     table and play entirely with the mouse: click a bid, click five kitty
     cards and the **Discard** button, click cards to play, move the **Card
@@ -262,31 +262,31 @@ finds confusing or unreachable, rules bugs, and rendering glitches.
 
 # Customization
 
-`M-x customize-group RET cg-svg` and `RET card-games`:
+`M-x customize-group RET card-games-svg` and `RET card-games`:
 
--   `cg-ai-level` &ndash; how hard the computer plays: `easy`, `normal`, or
-    `hard` (also on the `M-x card-game` menu, or `M-x
+-   `card-games-ai-level` &ndash; how hard the computer plays: `easy`, `normal`, or
+    `hard` (also on the `M-x card-games` menu, or `M-x
       card-games-set-ai-level`).
 -   `card-games-treatment` &ndash; how the games are drawn: `text`, `svg`, or
     `full` (also on the menu, or `M-x card-games-set-treatment`).
--   `cg-svg-theme-colors` &ndash; derive the highlight ring and card backs
+-   `card-games-svg-theme-colors` &ndash; derive the highlight ring and card backs
     from your theme (on by default).
--   `cg-svg-highlight-color` &ndash; the cursor/selection ring (gold by default).
--   `cg-bid-felt-color` &ndash; the 500 table felt.
--   `cg-svg-card-width`, `cg-svg-card-height`, `cg-svg-card-shadow`,
-    `cg-svg-font-family` &ndash; card appearance.
--   `cg-svg-card-back` &ndash; the card-back design: `dots`, `rings`, `solid`,
+-   `card-games-svg-highlight-color` &ndash; the cursor/selection ring (gold by default).
+-   `card-games-bid-felt-color` &ndash; the 500 table felt.
+-   `card-games-svg-card-width`, `card-games-svg-card-height`, `card-games-svg-card-shadow`,
+    `card-games-svg-font-family` &ndash; card appearance.
+-   `card-games-svg-card-back` &ndash; the card-back design: `dots`, `rings`, `solid`,
     `lattice`, `waves`, `diamond`, an Emacs-logo back (`emacs`,
     `emacs-classic`, `gnu`, `splash`), or `random` (the default &ndash; picks
-    one for the session; `M-x cg-svg-shuffle-card-back` rolls a new one).
--   `cg-svg-emacs-logo` &ndash; the emblem on the full-window table:
+    one for the session; `M-x card-games-svg-shuffle-card-back` rolls a new one).
+-   `card-games-svg-emacs-logo` &ndash; the emblem on the full-window table:
     `modern` (default), `classic`, `gnu`, `splash`, `drawn`, or `none`.
--   `cg-symbols` &ndash; the Unicode suit glyphs (and the joker) drawn on cards.
--   `cg-svg-four-color` &ndash; draw a four-colour deck (clubs green, diamonds
+-   `card-games-symbols` &ndash; the Unicode suit glyphs (and the joker) drawn on cards.
+-   `card-games-svg-four-color` &ndash; draw a four-colour deck (clubs green, diamonds
     blue-purple).
--   `cg-keys` &ndash; `emacs` (default) or `classic` (adds vi-style `hjkl` and
+-   `card-games-keys` &ndash; `emacs` (default) or `classic` (adds vi-style `hjkl` and
     `SPC`).
--   `cg-bid-animate`, `cg-bid-ai-delay`, `cg-bid-trick-pause` &ndash; pace the
+-   `card-games-bid-animate`, `card-games-bid-ai-delay`, `card-games-bid-trick-pause` &ndash; pace the
     500 AI so play is watchable and completed tricks linger.
 -   `M-x card-games-set-theme` &ndash; apply a preset (classic, dark, contrast).
 

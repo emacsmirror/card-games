@@ -109,13 +109,13 @@
   "Bidding schedule, ascending by value.
 Each entry is (LABEL NAME VALUE TRICKS TRUMP [OPEN]).")
 
-(defsubst card-games-bid-label  (bid) (nth 0 bid))
-(defsubst card-games-bid-name   (bid) (nth 1 bid))
-(defsubst card-games-bid-value  (bid) (nth 2 bid))
-(defsubst card-games-bid-tricks (bid) (nth 3 bid))
-(defsubst card-games-bid-trump  (bid) (nth 4 bid))
-(defsubst card-games-bid-open-p (bid) (nth 5 bid))
-(defsubst card-games-bid-nullo-p (bid) (eq (card-games-bid-trump bid) 'nullo))
+(defsubst card-games-bid-label  (bid) "Return BID's label string." (nth 0 bid))
+(defsubst card-games-bid-name   (bid) "Return BID's full name." (nth 1 bid))
+(defsubst card-games-bid-value  (bid) "Return BID's score value." (nth 2 bid))
+(defsubst card-games-bid-tricks (bid) "Return BID's trick target." (nth 3 bid))
+(defsubst card-games-bid-trump  (bid) "Return BID's trump suit." (nth 4 bid))
+(defsubst card-games-bid-open-p (bid) "Return non-nil when BID is an open misère." (nth 5 bid))
+(defsubst card-games-bid-nullo-p (bid) "Return non-nil when BID is a nullo (misère)." (eq (card-games-bid-trump bid) 'nullo))
 
 
 ;;;; Card power and trick logic
@@ -170,7 +170,7 @@ must follow the led suit if able."
       (or follow hand))))
 
 (defun card-games-bid-sort-hand (hand trump)
-  "Return HAND sorted for display: trumps first (by power), then by suit."
+  "Return HAND sorted for display under TRUMP: trumps first, then by suit."
   (sort (copy-sequence hand)
         (lambda (a b)
           (let* (( at (and (numberp trump)
@@ -190,7 +190,7 @@ must follow the led suit if able."
 
 
 (defun card-games-bid--display-key (card trump)
-  "Return an ascending sort key for CARD to group a hand for display.
+  "Return an ascending display sort key for CARD under TRUMP.
 Trumps (and the Joker) sort first, strongest first; the remaining
 suits are grouped spades, hearts, clubs, diamonds, high rank first."
   (cond
@@ -224,8 +224,8 @@ Trumps lead (strongest first), then each side suit runs high to low."
   "Return non-nil when SEAT is played by a human."
   (memq seat card-games-bid--human-seats))
 
-(defsubst card-games-bid--partner (seat) (mod (+ seat 2) 4))
-(defsubst card-games-bid--team (seat) (mod seat 2)) ; 0 -> team 0 (S/N), 1 -> team 1 (W/E)
+(defsubst card-games-bid--partner (seat) "Return SEAT's partner seat." (mod (+ seat 2) 4))
+(defsubst card-games-bid--team (seat) "Return SEAT's team index (0 or 1)." (mod seat 2)) ; 0 -> team 0 (S/N), 1 -> team 1 (W/E)
 
 (cl-defmethod card-games-bid--deal ((game card-games-bid-game) &optional dealer)
   "Deal a fresh hand into GAME.  DEALER defaults to East so South bids first."
@@ -266,25 +266,25 @@ Trumps lead (strongest first), then each side suit runs high to low."
                                                  (card-games-get game :bidder))))
     game))
 
-(defun card-games-bid--hand (game seat) (aref (card-games-get game :hands) seat))
-(defun card-games-bid--set-hand (game seat cards) (aset (card-games-get game :hands) seat cards))
+(defun card-games-bid--hand (game seat) "Return SEAT's hand in GAME." (aref (card-games-get game :hands) seat))
+(defun card-games-bid--set-hand (game seat cards) "Set SEAT's hand in GAME to CARDS." (aset (card-games-get game :hands) seat cards))
 
 
 ;;;; Auction
 
 (defun card-games-bid--legal-bids (game)
-  "Return the schedule entries that outbid the current high bid."
+  "Return GAME's schedule entries that outbid the current high bid."
   (let ((hv (if (card-games-get game :high-bid)
                 (card-games-bid-value (card-games-get game :high-bid)) 0)))
     (cl-remove-if-not (lambda (b) (> (card-games-bid-value b) hv)) card-games-bid-schedule)))
 
 (defun card-games-bid--active-seats (game)
-  "Return the seats that have not passed."
+  "Return GAME's seats that have not passed."
   (cl-loop for s below 4
            unless (aref (card-games-get game :passed) s) collect s))
 
 (defun card-games-bid--next-bidder (game from)
-  "Return the next non-passed seat after FROM, or nil if none."
+  "Return GAME's next non-passed seat after FROM, or nil if none."
   (cl-loop for i from 1 to 4
            for s = (mod (+ from i) 4)
            unless (aref (card-games-get game :passed) s) return s))
@@ -295,7 +295,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
   (card-games-put game :log-scroll 0))
 
 (cl-defmethod card-games-bid--auction-act ((game card-games-bid-game) seat bid)
-  "Record SEAT's action: BID is a schedule entry, or nil to pass."
+  "Record GAME SEAT's action: BID is a schedule entry, or nil to pass."
   (if bid
       (progn (card-games-put game :high-bid bid)
              (card-games-put game :high-bidder seat)
@@ -320,7 +320,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
       (card-games-put game :bidder (card-games-bid--next-bidder game seat))))))
 
 (cl-defmethod card-games-bid--begin-contract ((game card-games-bid-game))
-  "Set the winning contract and move to the kitty phase."
+  "Set GAME's winning contract and move to the kitty phase."
   (let* ((contractor (card-games-get game :high-bidder))
          (bid (card-games-get game :high-bid)))
     (card-games-put game :contractor contractor)
@@ -344,7 +344,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
 ;;;; Kitty discard
 
 (cl-defmethod card-games-bid--discard ((game card-games-bid-game) seat cards)
-  "Have SEAT discard CARDS (a list of 5) and start play."
+  "Have GAME SEAT discard CARDS (a list of 5) and start play."
   (card-games-bid--set-hand game seat
                     (cl-set-difference (card-games-bid--hand game seat) cards
                                        :test #'equal))
@@ -362,24 +362,24 @@ Trumps lead (strongest first), then each side suit runs high to low."
 ;;;; Seat order (a partner sits out during a misère)
 
 (defun card-games-bid--misere-p (game)
-  "Return non-nil when the current contract is a nullo/misère."
+  "Return non-nil when GAME's current contract is a nullo/misère."
   (let ((c (card-games-get game :contract))) (and c (card-games-bid-nullo-p c))))
 
 (defun card-games-bid--sitter (game)
-  "Return the seat sitting out (contractor's partner) in a misère, else nil."
+  "Return GAME's seat sitting out (contractor's partner) in a misère, else nil."
   (and (card-games-bid--misere-p game)
        (card-games-bid--partner (card-games-get game :contractor))))
 
 (defun card-games-bid--in-play-p (game seat)
-  "Return non-nil when SEAT takes part in the current hand's play."
+  "Return non-nil when SEAT takes part in GAME's current hand."
   (not (eql seat (card-games-bid--sitter game))))
 
 (defun card-games-bid--num-players (game)
-  "Return the number of seats playing to each trick (3 in misère, else 4)."
+  "Return GAME's seats playing to each trick (3 in misère, else 4)."
   (if (card-games-bid--misere-p game) 3 4))
 
 (defun card-games-bid--next-seat (game seat)
-  "Return the next in-play seat clockwise from SEAT."
+  "Return GAME's next in-play seat clockwise from SEAT."
   (let ((n (mod (1+ seat) 4)))
     (if (card-games-bid--in-play-p game n) n (mod (1+ n) 4))))
 
@@ -387,7 +387,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
 ;;;; Trick play
 
 (cl-defmethod card-games-bid--play ((game card-games-bid-game) seat card)
-  "Have SEAT play CARD into the current trick and advance."
+  "Have GAME SEAT play CARD into the current trick and advance."
   (let* ((trump (card-games-bid-trump (card-games-get game :contract)))
          (led (card-games-get game :led))
          (lead-p (null (card-games-get game :trick))))
@@ -412,7 +412,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
       (card-games-put game :turn (card-games-bid--next-seat game seat)))))
 
 (defun card-games-bid--nominate-suit (game seat)
-  "Choose the suit nominated when the Joker leads under no-trump."
+  "Choose the suit GAME SEAT nominates when the Joker leads under no-trump."
   (let ((hand (card-games-bid--hand game seat)))
     (if (card-games-bid--human-p seat)
         (let ((ch (read-char-choice
@@ -429,7 +429,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
           best)))))
 
 (cl-defmethod card-games-bid--finish-trick ((game card-games-bid-game))
-  "Resolve the completed trick, award it, and set up the next."
+  "Resolve GAME's completed trick, award it, and set up the next."
   (let* ((trump (card-games-bid-trump (card-games-get game :contract)))
          (led (card-games-get game :led))
          (plays (card-games-get game :trick))
@@ -458,7 +458,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
 ;;;; Scoring
 
 (cl-defmethod card-games-bid--score-hand ((game card-games-bid-game))
-  "Score the completed hand per the Avondale schedule."
+  "Score GAME's completed hand per the Avondale schedule."
   (let* ((bid (card-games-get game :contract))
          (contractor (card-games-get game :contractor))
          (cteam (card-games-bid--team contractor))
@@ -509,7 +509,7 @@ Trumps lead (strongest first), then each side suit runs high to low."
                 (concat result "  —  press n for the next hand."))))))
 
 (cl-defmethod card-games-bid--check-gameover ((game card-games-bid-game) made cteam)
-  "End the game if a side has won (front door) or lost (back door).
+  "End GAME if a side has won (front door) or lost (back door).
 Return the winning team, or nil.  MADE and CTEAM describe the hand
 just scored: a side wins only by reaching 500 on a made contract;
 a side that sinks to -500 loses."
@@ -554,7 +554,7 @@ a side that sinks to -500 loses."
                               (card-games-bid-power b trump led))))))
 
 (defun card-games-bid--trump-cards (hand trump)
-  "Return the cards of HAND that are trumps under TRUMP (incl. Joker, bowers)."
+  "Return HAND's trump cards under TRUMP (Joker and bowers included)."
   (cl-remove-if-not
    (lambda (c) (or (card-games-bid-joker-p c)
                    (and (numberp trump) (eq (card-games-bid-effective-suit c trump) trump))))
@@ -591,7 +591,7 @@ a side that sinks to -500 loses."
     best))
 
 (defun card-games-bid--ai-bid-basic (game seat)
-  "Pick and record a bid (or pass) for AI SEAT using the basic estimate."
+  "Pick and record a bid (or pass) for GAME AI SEAT using the basic estimate."
   (let* ((hand (card-games-bid--hand game seat))
          (best (card-games-bid--ai-best-contract hand))
          (trump (car best))
@@ -608,14 +608,14 @@ a side that sinks to -500 loses."
     (card-games-bid--auction-act game seat choice)))
 
 (defun card-games-bid--ai-discard-basic (game seat)
-  "Discard SEAT's five weakest cards (basic)."
+  "Discard GAME SEAT's five weakest cards (basic)."
   (let* ((trump (card-games-bid-trump (card-games-get game :contract)))
          (sorted (card-games-bid-sort-hand (card-games-bid--hand game seat) trump))
          (discard (last sorted 5)))
     (card-games-bid--discard game seat discard)))
 
 (defun card-games-bid--ai-play-positive (game seat)
-  "Trick-play for AI SEAT under a suit or no-trump contract (basic)."
+  "Trick-play for GAME AI SEAT under a suit or no-trump contract (basic)."
   (let* ((trump (card-games-bid-trump (card-games-get game :contract)))
          (led (card-games-get game :led))
          (hand (card-games-bid--hand game seat))
@@ -683,7 +683,7 @@ a side that sinks to -500 loses."
     best))
 
 (defun card-games-bid--ai-bid-smart (game seat)
-  "Pick and record a bid (or pass) for AI SEAT using the smart evaluation."
+  "Pick and record a bid (or pass) for GAME AI SEAT using the smart evaluation."
   (let* ((hand (card-games-bid--hand game seat))
          (best (card-games-bid--best-smart hand))
          (trump (car best))
@@ -700,7 +700,7 @@ a side that sinks to -500 loses."
     (card-games-bid--auction-act game seat choice)))
 
 (defun card-games-bid--ai-discard-smart (game seat)
-  "Discard to keep trumps and aces and to void short side suits for ruffs."
+  "For GAME SEAT, discard to keep trumps and aces and void short suits for ruffs."
   (let* ((trump (card-games-bid-trump (card-games-get game :contract)))
          (hand (card-games-bid--hand game seat))
          (cand '()))
@@ -721,7 +721,7 @@ a side that sinks to -500 loses."
         (card-games-bid--discard game seat discard)))))
 
 (defun card-games-bid--lead-low-long (hand trump legal)
-  "Lead the lowest card of the player's longest side suit, from LEGAL."
+  "Lead the lowest card of HAND's longest side suit, from LEGAL (TRUMP set)."
   (let ((best-suit nil) (best-len -1))
     (dotimes (s 4)
       (unless (and (numberp trump) (= s trump))
@@ -735,7 +735,7 @@ a side that sinks to -500 loses."
       (card-games-bid--lowest (or cs legal) trump nil))))
 
 (defun card-games-bid--ai-play-smart (game seat)
-  "Trick-play for AI SEAT under a suit/NT contract with simple tactics:
+  "Trick-play for GAME AI SEAT under a suit/NT contract with simple tactics:
 declarer draws trumps and cashes aces; everyone wins as cheaply as
 possible and never overtakes a partner who is already winning."
   (let* ((trump (card-games-bid-trump (card-games-get game :contract)))
@@ -779,25 +779,25 @@ possible and never overtakes a partner who is already winning."
 ;;; dispatch
 
 (cl-defmethod card-games-bid--ai-bid ((game card-games-bid-game) seat)
-  "Pick and record a bid for AI SEAT per its policy."
+  "Pick and record a bid for GAME AI SEAT per its policy."
   (if (eq (card-games-bid--policy seat) 'smart)
       (card-games-bid--ai-bid-smart game seat)
     (card-games-bid--ai-bid-basic game seat)))
 
 (cl-defmethod card-games-bid--ai-discard ((game card-games-bid-game) seat)
-  "Have AI SEAT exchange the kitty per its policy."
+  "Have GAME AI SEAT exchange the kitty per its policy."
   (if (eq (card-games-bid--policy seat) 'smart)
       (card-games-bid--ai-discard-smart game seat)
     (card-games-bid--ai-discard-basic game seat)))
 
 (cl-defmethod card-games-bid--ai-play ((game card-games-bid-game) seat)
-  "Choose and play a card for AI SEAT per its policy."
+  "Choose and play a card for GAME AI SEAT per its policy."
   (cond ((card-games-bid--misere-p game) (card-games-bid--ai-play-misere game seat))
         ((eq (card-games-bid--policy seat) 'smart) (card-games-bid--ai-play-smart game seat))
         (t (card-games-bid--ai-play-positive game seat))))
 
 (defun card-games-bid--ai-play-misere (game seat)
-  "Trick-play for AI SEAT during a misère.
+  "Trick-play for GAME AI SEAT during a misère.
 The contractor sheds its highest card that still loses (or ducks
 lowest when leading); defenders simply play low."
   (let* ((trump 'nullo)

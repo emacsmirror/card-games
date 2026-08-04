@@ -75,7 +75,7 @@
     tot))
 
 (defun card-games-crib--count-runs (cards)
-  "Return points for all runs of three or more in CARDS (with multiplicity)."
+  "Return points for every run of three or more in CARDS (with multiplicity)."
   (let ((cnt (make-vector 13 0)) (total 0) (r 0))
     (dolist (c cards) (aset cnt (cdr c) (1+ (aref cnt (cdr c)))))
     (while (< r 13)
@@ -96,7 +96,7 @@ A crib (IS-CRIB) flush must include the starter."
           (t 4))))
 
 (defun card-games-crib--nobs (hand starter)
-  "Return 1 when HAND holds the Jack of the STARTER's suit, else 0."
+  "Return 1 when HAND has the Jack of the STARTER's suit, else 0."
   (if (cl-find-if (lambda (c) (and (= (cdr c) 10) (= (car c) (car starter)))) hand)
       1 0))
 
@@ -135,12 +135,12 @@ TOTAL is the running count after the play."
 
 ;;;; Setup and flow
 
-(defsubst card-games-crib--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-crib--set-hand (game s v) (aset (card-games-get game :hands) s v))
-(defsubst card-games-crib--play (game s) (aref (card-games-get game :play) s))
-(defsubst card-games-crib--set-play (game s v) (aset (card-games-get game :play) s v))
+(defsubst card-games-crib--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-crib--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
+(defsubst card-games-crib--play (game s) "Return seat S's pegging-play cards in GAME." (aref (card-games-get game :play) s))
+(defsubst card-games-crib--set-play (game s v) "Set seat S's pegging-play cards in GAME to V." (aset (card-games-get game :play) s v))
 
-(defun card-games-crib--who (s) (if (= s 0) "You" "Computer"))
+(defun card-games-crib--who (s) "Return the display name of seat S." (if (= s 0) "You" "Computer"))
 
 (cl-defmethod card-games-crib--deal ((game card-games-cribbage-game))
   "Deal a fresh Cribbage hand into GAME."
@@ -160,7 +160,7 @@ TOTAL is the running count after the play."
     game))
 
 (defun card-games-crib--add (game s pts)
-  "Add PTS to seat S and end the game if it reaches the target."
+  "Add PTS to GAME seat S and end the game if it reaches the target."
   (when (> pts 0)
     (aset (card-games-get game :scores) s (+ (aref (card-games-get game :scores) s) pts))
     (when (>= (aref (card-games-get game :scores) s) card-games-cribbage-target)
@@ -168,7 +168,7 @@ TOTAL is the running count after the play."
       (card-games-put game :winner s))))
 
 (defun card-games-crib--ai-discard (game s)
-  "Return the two cards seat S should lay away (keep the best four)."
+  "Return the two cards GAME seat S should lay away (keep the best four)."
   (let* ((hand (card-games-crib--hand game s)) (best nil) (bestv -1))
     (dolist (combo (card-games-rummy--combinations hand 4))
       (let ((v (card-games-crib--score-show combo '(0 . 0))))   ; rough: no starter
@@ -176,7 +176,7 @@ TOTAL is the running count after the play."
     (cl-set-difference hand best :test #'equal)))
 
 (cl-defmethod card-games-crib--start-play ((game card-games-cribbage-game))
-  "Cut the starter and begin the pegging round."
+  "Cut GAME's starter and begin the pegging round."
   (let* ((deck (card-games-get game :deck))
          (starter (nth (random (length deck)) deck))
          (dealer (card-games-get game :dealer)))
@@ -196,12 +196,12 @@ TOTAL is the running count after the play."
                     (card-games-crib--who (- 1 dealer)) (card-games-rummy-card-string starter)))))
 
 (defun card-games-crib--legal (game s)
-  "Return seat S's play-cards that fit under 31."
+  "Return GAME seat S's play-cards that fit under 31."
   (cl-remove-if (lambda (c) (> (card-games-crib--val c) (- 31 (card-games-get game :total))))
                 (card-games-crib--play game s)))
 
 (defun card-games-crib--peg-play (game s card)
-  "Seat S plays CARD into the pegging round and pegs any points."
+  "Have GAME seat S play CARD into the pegging round, pegging any points."
   (card-games-crib--set-play game s (cl-remove card (card-games-crib--play game s) :test #'equal :count 1))
   (card-games-put game :seq (cons card (card-games-get game :seq)))
   (card-games-put game :total (+ (card-games-get game :total) (card-games-crib--val card)))
@@ -218,18 +218,18 @@ TOTAL is the running count after the play."
     (card-games-put game :pturn (- 1 s))))
 
 (defun card-games-crib--peg-reset (game)
-  "Reset the running count; the player after the last to play leads."
+  "Reset GAME's running count; the player after the last to play leads."
   (card-games-put game :seq nil)
   (card-games-put game :total 0)
   (card-games-put game :go nil)
   (card-games-put game :pturn (- 1 (card-games-get game :last-player))))
 
 (defun card-games-crib--peg-over-p (game)
-  "Return non-nil when both players have played out their cards."
+  "Return non-nil when both GAME players have played out their cards."
   (and (null (card-games-crib--play game 0)) (null (card-games-crib--play game 1))))
 
 (defun card-games-crib--peg-go (game s)
-  "Handle seat S being unable to play (a go)."
+  "Handle GAME seat S being unable to play (a go)."
   (let ((other (- 1 s)))
     (if (card-games-crib--legal game other)
         (card-games-put game :pturn other)          ; opponent plays on
@@ -241,7 +241,7 @@ TOTAL is the running count after the play."
       (card-games-crib--peg-reset game))))
 
 (cl-defmethod card-games-crib--ai-play ((game card-games-cribbage-game) s)
-  "Have AI seat S either play its best pegging card or declare a go."
+  "Have GAME AI seat S play its best pegging card or declare a go."
   (let ((legal (card-games-crib--legal game s)))
     (if (null legal) (card-games-crib--peg-go game s)
       (let ((best (car legal)) (bestv -1))
@@ -256,7 +256,7 @@ TOTAL is the running count after the play."
         (card-games-crib--peg-play game s best)))))
 
 (defun card-games-crib--peg-advance (game)
-  "Run AI pegging turns until it is your turn or the round ends."
+  "Run GAME's AI pegging until your turn or the round ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play) (not (card-games-crib--peg-over-p game))
                 (/= (card-games-get game :pturn) 0) (< guard 200))
@@ -271,7 +271,7 @@ TOTAL is the running count after the play."
     (card-games-crib--show game)))
 
 (cl-defmethod card-games-crib--show ((game card-games-cribbage-game))
-  "Count the hands and the crib, then set up the next deal."
+  "Count GAME's hands and crib, then set up the next deal."
   (let* ((starter (card-games-get game :starter))
          (dealer (card-games-get game :dealer)) (pone (- 1 dealer))
          (h-pone (card-games-crib--hand game pone)) (h-dealer (card-games-crib--hand game dealer))
@@ -404,12 +404,14 @@ TOTAL is the running count after the play."
     (_ (cl-call-next-method))))
 
 (defun card-games-crib--redisplay ()
+  "Redraw the current Cribbage buffer."
   (let ((game card-games-crib--game) (inhibit-read-only t))
         (setq card-games-current-game game card-games-redisplay-function #'card-games-crib--redisplay)
     (setq-local mode-line-process (format " [%s]" (card-games-get game :phase)))
     (erase-buffer) (insert (card-games-render game)) (goto-char (point-min))))
 
 (defun card-games-crib--cur-list (g)
+  "Return seat 0's current card list in G (pegging plays or hand)."
   (if (eq (card-games-get g :phase) 'play) (card-games-crib--play g 0) (card-games-crib--hand g 0)))
 
 (defun card-games-crib-left ()

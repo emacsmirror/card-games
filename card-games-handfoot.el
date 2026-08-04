@@ -110,12 +110,12 @@
          (<= (length wilds) 3)
          (<= (length wilds) (length nats)))))
 
-(defun card-games-hf--book-complete-p (cards) (>= (length cards) 7))
-(defun card-games-hf--book-clean-p (cards) (not (cl-some #'card-games-hf--wild-p cards)))
+(defun card-games-hf--book-complete-p (cards) "Return non-nil when CARDS form a complete (7+ card) book." (>= (length cards) 7))
+(defun card-games-hf--book-clean-p (cards) "Return non-nil when CARDS is a clean book (no wilds)." (not (cl-some #'card-games-hf--wild-p cards)))
 
 ;;;; Setup
 
-(defun card-games-hf--team (game s) (mod s (card-games-get game :nteams)))
+(defun card-games-hf--team (game s) "Return the team index of seat S in GAME." (mod s (card-games-get game :nteams)))
 
 (cl-defmethod card-games-hf--deal ((game card-games-handfoot-game))
   "Deal a fresh round into GAME."
@@ -145,11 +145,11 @@
     (card-games-put game :message "Your turn: s draws two cards.")
     game))
 
-(defun card-games-hf--books (game team) (aref (card-games-get game :books) team))
-(defun card-games-hf--set-books (game team v) (aset (card-games-get game :books) team v))
+(defun card-games-hf--books (game team) "Return TEAM's books in GAME." (aref (card-games-get game :books) team))
+(defun card-games-hf--set-books (game team v) "Set TEAM's books in GAME to V." (aset (card-games-get game :books) team v))
 
 (defun card-games-hf--down-p (game team)
-  "Return non-nil when TEAM has met this round's go-down minimum."
+  "Return non-nil when GAME TEAM has met this round's go-down minimum."
   (aref (card-games-get game :down) team))
 
 (defun card-games-hf--min-for-round (game)
@@ -159,7 +159,7 @@
           (min r (1- (length card-games-handfoot--minimums))))))
 
 (defun card-games-hf--collect-red-threes (game s)
-  "Move seat S's red threes to its team pile, drawing replacements.
+  "Move GAME seat S's red threes to its team pile, drawing replacements.
 Return the number collected."
   (let ((team (card-games-hf--team game s)) (moved 0) (again t))
     (while again
@@ -179,13 +179,13 @@ Return the number collected."
     moved))
 
 (defun card-games-hf--take-foot (game s)
-  "Move seat S onto its foot, collecting any red threes it holds."
+  "Move GAME seat S onto its foot, collecting any red threes it has."
   (aset (card-games-get game :stage) s 1)
   (card-games-rummy--set-hand game s (aref (card-games-get game :feet) s))
   (card-games-hf--collect-red-threes game s))
 
 (defun card-games-hf--pickup-eligible (game s)
-  "Return non-nil when seat S may pick up the discard pile.
+  "Return non-nil when GAME seat S may pick up the discard pile.
 That needs two natural cards in hand matching a meldable top discard."
   (let ((top (card-games-rummy--top game)))
     (and top (not (card-games-hf--wild-p top)) (not (card-games-hf--three-p top))
@@ -195,10 +195,10 @@ That needs two natural cards in hand matching a meldable top discard."
              2))))
 
 (defun card-games-hf--pickup (game s)
-  "Seat S picks up the discard pile, melding its top card.
-Take the top card plus up to `card-games-handfoot-pickup-count' - 1 cards beneath
-it into hand, melding the top with two matching naturals.  Return the top
-card, or nil if ineligible."
+  "Have GAME seat S pick up the discard pile, melding its top card.
+Take the top card plus up to `card-games-handfoot-pickup-count' - 1 cards
+beneath it into hand, melding the top with two matching naturals.  Return
+the top card, or nil if ineligible."
   (when (card-games-hf--pickup-eligible game s)
     (let* ((pile (card-games-get game :discard)) (top (car pile)) (rank (cdr top))
            (team (card-games-hf--team game s)) (books (card-games-hf--books game team))
@@ -257,7 +257,7 @@ Naturals group by rank (each rank needs two), and wilds fill the groups."
           (if (and ok (cl-every #'card-games-hf--book-valid-p books)) books nil))))))
 
 (defun card-games-hf--initial-meld (game s cards)
-  "Lay CARDS as seat S's initial meld, meeting the round minimum.
+  "Lay CARDS as GAME seat S's initial meld, meeting the round minimum.
 Return non-nil when the team goes down."
   (let* ((books (card-games-hf--partition-books cards))
          (team (card-games-hf--team game s)))
@@ -274,7 +274,7 @@ Return non-nil when the team goes down."
       t)))
 
 (defun card-games-hf--ai-go-down (game s)
-  "Try to lay seat S's initial meld meeting the round minimum.
+  "Try to lay GAME seat S's initial meld meeting the round minimum.
 Return non-nil when the team goes down."
   (let* ((hand (card-games-rummy--hand game s))
          (byrank (make-hash-table :test 'eql))
@@ -293,7 +293,7 @@ Return non-nil when the team goes down."
       (card-games-hf--initial-meld game s cards))))
 
 (defun card-games-hf--ai-meld (game s)
-  "Meld for seat S, going down only when the round minimum is met."
+  "Meld for GAME seat S, going down only when the round minimum is met."
   (let ((team (card-games-hf--team game s)))
     (unless (card-games-hf--down-p game team) (card-games-hf--ai-go-down game s))
     (when (card-games-hf--down-p game team) (card-games-hf--ai-extend game s))))
@@ -301,7 +301,7 @@ Return non-nil when the team goes down."
 ;;;; Engine
 
 (defun card-games-hf--draw2 (game s)
-  "Draw two stock cards into seat S's hand.  Return nil if stock runs out."
+  "Draw two of GAME's stock cards into seat S's hand; nil if stock is empty."
   (let ((ok t))
     (dotimes (_ 2)
       (let ((stock (card-games-get game :stock)))
@@ -312,7 +312,7 @@ Return non-nil when the team goes down."
     ok))
 
 (defun card-games-hf--meld (game s cards)
-  "Have seat S lay CARDS as a new book for their team.  Return non-nil on win."
+  "Have GAME seat S lay CARDS as a new team book; non-nil on win."
   (when (and (card-games-hf--book-valid-p cards)
              (cl-subsetp cards (card-games-rummy--hand game s) :test #'equal))
     (let ((team (card-games-hf--team game s)))
@@ -329,7 +329,7 @@ Return non-nil when the team goes down."
     (cl-remove-if (lambda (c) (and (not seen) (equal c card) (setq seen t))) list)))
 
 (defun card-games-hf--layoff (game s card)
-  "Lay CARD off onto a team book it fits.  Return non-nil on success."
+  "Lay CARD off from seat S onto a GAME team book; non-nil on success."
   (let* ((team (card-games-hf--team game s)) (books (card-games-hf--books game team)) (done nil))
     (catch 'hit
       (dolist (bk books)
@@ -343,7 +343,7 @@ Return non-nil when the team goes down."
     done))
 
 (defun card-games-hf--advance (game s)
-  "After a play, take up the foot or finish, then pass the turn."
+  "After a play by GAME seat S, take up the foot or finish, then pass the turn."
   (let ((stage (card-games-get game :stage)))
     (when (and (= (aref stage s) 0) (null (card-games-rummy--hand game s)))
       ;; hand exhausted: pick up the foot
@@ -355,17 +355,17 @@ Return non-nil when the team goes down."
       (card-games-put game :step 'draw))))
 
 (defun card-games-hf--can-go-out-p (game team)
-  "Return non-nil when TEAM owns at least two complete books."
+  "Return non-nil when GAME TEAM owns at least two complete books."
   (>= (cl-count-if #'card-games-hf--book-complete-p (card-games-hf--books game team)) 2))
 
 (defun card-games-hf--discard (game s card)
-  "Discard CARD from seat S and end the play portion of the turn."
+  "Discard CARD from GAME seat S and end the play portion of the turn."
   (card-games-rummy--set-hand game s (card-games-rummy--remove1 card (card-games-rummy--hand game s)))
   (card-games-put game :discard (cons card (card-games-get game :discard)))
   (card-games-hf--advance game s))
 
 (cl-defmethod card-games-hf--score-round ((game card-games-handfoot-game) outseat)
-  "Score the round (OUTSEAT went out, or nil if the stock ran dry)."
+  "Score GAME's round (OUTSEAT went out, or nil if the stock ran dry)."
   (let* ((nt (card-games-get game :nteams)) (scores (card-games-get game :scores)))
     (dotimes (team nt)
       (let ((pts 0))
@@ -411,7 +411,7 @@ Return non-nil when the team goes down."
 ;;;; AI
 
 (defun card-games-hf--ai-extend (game s)
-  "Extend and add books for seat S once the team is down."
+  "Extend and add books for GAME seat S once the team is down."
   ;; lay off naturals onto existing incomplete team books
   (let ((again t))
     (while again
@@ -462,7 +462,7 @@ Return non-nil when the team goes down."
               (setq again t))))))))
 
 (defun card-games-hf--ai-discard-card (game s)
-  "Return the card seat S should discard."
+  "Return the card GAME seat S should discard."
   (let ((hand (card-games-rummy--hand game s)))
     (or (cl-find-if #'card-games-hf--three-p hand)
         ;; a high singleton, else the first card
@@ -477,7 +477,7 @@ Return non-nil when the team goes down."
           best))))
 
 (cl-defmethod card-games-hf--ai-turn ((game card-games-handfoot-game) s)
-  "Play seat S's whole turn."
+  "Play GAME seat S's whole turn."
   (let ((got (or (and (> (length (card-games-get game :stock)) 30)
                       (card-games-hf--pickup-eligible game s)
                       (card-games-hf--pickup game s))
@@ -496,7 +496,7 @@ Return non-nil when the team goes down."
             (card-games-hf--advance game s)))))))
 
 (defun card-games-hf--run (game)
-  "Advance AI seats until it is your turn or the round ends."
+  "Advance GAME's AI seats until your turn or the round ends."
   (while (and (eq (card-games-get game :phase) 'play) (/= (card-games-get game :turn) 0))
     (card-games-hf--ai-turn game (card-games-get game :turn))))
 
@@ -598,12 +598,13 @@ Return non-nil when the team goes down."
     (erase-buffer) (insert (card-games-render game)) (goto-char (point-min))))
 
 (defun card-games-hf--clamp (g)
-  "Keep G's cursor in range and drop stale marks."
+  "Keep G's cursor in range and drop stale marked cards."
   (let ((n (length (card-games-rummy--hand g 0))))
     (card-games-put g :cursor (if (> n 0) (min (card-games-get g :cursor) (1- n)) 0))
     (card-games-put g :marks (cl-remove-if (lambda (i) (>= i n)) (card-games-get g :marks)))))
 
 (defun card-games-hf--my-turn-p (g)
+  "Return non-nil when it is your turn in G."
   (and (eq (card-games-get g :phase) 'play) (= (card-games-get g :turn) 0)))
 
 (defun card-games-hf-left ()

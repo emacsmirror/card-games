@@ -57,7 +57,7 @@
   (if (null card) "·"
     (concat (aref card-games-trick-ranks (cdr card)) (card-games-suit-glyph (car card)))))
 
-(defsubst card-games-trick-red-p (card) (and card (card-games-red-suit-p (car card))))
+(defsubst card-games-trick-red-p (card) "Return non-nil when CARD is red." (and card (card-games-red-suit-p (car card))))
 
 (defun card-games-trick--full-deck ()
   "Return a fresh shuffled 52-card deck."
@@ -114,26 +114,26 @@
     (card-games-put game :trick-no 0)
     game))
 
-(defsubst card-games-trick--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-trick--set-hand (game s v) (aset (card-games-get game :hands) s v))
-(defsubst card-games-trick--partner (s) (mod (+ s 2) 4))
-(defsubst card-games-trick--team (s) (mod s 2))
+(defsubst card-games-trick--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-trick--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
+(defsubst card-games-trick--partner (s) "Return seat S's partner seat." (mod (+ s 2) 4))
+(defsubst card-games-trick--team (s) "Return seat S's team index (0 or 1)." (mod s 2))
 
 ;;;; Trick mechanics
 
 (defun card-games-trick--led-suit (game)
-  "Return the suit led to the current trick, or nil if none yet."
+  "Return the suit led to GAME's current trick, or nil if none yet."
   (let ((tr (card-games-get game :trick)))
     (and tr (car (cdr (car (last tr)))))))   ; first entry played
 
 (defun card-games-trick--first-play (game)
-  "Return the (SEAT . CARD) led to the current trick, or nil."
+  "Return the (SEAT . CARD) led to GAME's current trick, or nil."
   (car (last (card-games-get game :trick))))
 
-(cl-defmethod card-games-trick--has-points-only-p ((_ card-games-trick-game) _hand) nil)
+(cl-defmethod card-games-trick--has-points-only-p ((_ card-games-trick-game) _hand) "By default no trick restricts play to point cards." nil)
 
 (cl-defmethod card-games-trick--legal-p ((game card-games-trick-game) seat card)
-  "Return non-nil when SEAT may legally play CARD now."
+  "Return non-nil when SEAT may legally play CARD in GAME now."
   (let* ((hand (card-games-trick--hand game seat))
          (trick (card-games-get game :trick))
          (restricted (oref game restricted))
@@ -152,12 +152,12 @@
              t)))))
 
 (defun card-games-trick--legal-moves (game seat)
-  "Return the list of cards SEAT may legally play now."
+  "Return the cards SEAT may legally play in GAME now."
   (cl-remove-if-not (lambda (c) (card-games-trick--legal-p game seat c))
                     (card-games-trick--hand game seat)))
 
 (cl-defmethod card-games-trick--winner ((game card-games-trick-game))
-  "Return the seat that wins the now-complete current trick."
+  "Return the seat that wins GAME's now-complete current trick."
   (let* ((trick (reverse (card-games-get game :trick)))   ; play order
          (led (car (cdr (car trick))))
          (trump (oref game trump))
@@ -175,7 +175,7 @@
     (car best)))
 
 (cl-defmethod card-games-trick--play ((game card-games-trick-game) seat card)
-  "Have SEAT play CARD, resolving the trick when it completes."
+  "Have GAME SEAT play CARD, resolving the trick when it completes."
   (card-games-trick--set-hand game seat (remove card (card-games-trick--hand game seat)))
   (when (= (car card) (oref game restricted)) (card-games-put game :broken t))
   (card-games-put game :trick (cons (cons seat card) (card-games-get game :trick)))
@@ -193,7 +193,7 @@
     nil))
 
 (defun card-games-trick--hand-over-p (game)
-  "Return non-nil when all 13 tricks of the hand have been played."
+  "Return non-nil when all 13 tricks of GAME's hand have been played."
   (and (null (card-games-get game :trick))
        (cl-every #'null (append (card-games-get game :hands) nil))))
 
@@ -206,7 +206,7 @@
         (t 0)))
 
 (cl-defmethod card-games-trick--legal-p ((game card-games-hearts-game) seat card)
-  "Hearts legality, adding the first-trick rules to the base."
+  "In GAME, apply Hearts legality (SEAT/CARD), adding the first-trick rules."
   (and (cl-call-next-method)
        (let ((trick (card-games-get game :trick))
              (hand (card-games-trick--hand game seat))
@@ -221,19 +221,19 @@
           (t t)))))
 
 (cl-defmethod card-games-trick--leader-init ((game card-games-hearts-game))
-  "Hearts: the holder of the Two of Clubs leads first."
+  "In GAME Hearts, the holder of the Two of Clubs leads first."
   (let (seat)
     (dotimes (s 4)
       (when (member '(1 . 0) (card-games-trick--hand game s)) (setq seat s)))
     (card-games-put game :leader seat) (card-games-put game :turn seat)))
 
 (cl-defmethod card-games-trick--leader-init ((game card-games-spades-game))
-  "Spades: the player left of the dealer leads first."
+  "In GAME Spades, the player left of the dealer leads first."
   (let ((s (mod (1+ (or (card-games-get game :dealer) 3)) 4)))
     (card-games-put game :leader s) (card-games-put game :turn s)))
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-hearts-game))
-  "Score a finished Hearts hand into the cumulative scores."
+  "Score GAME's finished Hearts hand into the cumulative scores."
   (let ((pts (make-vector 4 0)) (scores (card-games-get game :scores)))
     (dotimes (s 4)
       (aset pts s (apply #'+ (mapcar #'card-games-hearts--card-points
@@ -247,11 +247,11 @@
     (card-games-put game :last-points pts)))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-hearts-game))
-  "Hearts ends when any score reaches the target."
+  "In GAME, Hearts ends when any score reaches the target."
   (cl-some (lambda (s) (>= s (oref game target))) (append (card-games-get game :scores) nil)))
 
 (cl-defmethod card-games-trick--winner-seat ((game card-games-hearts-game))
-  "Return the winning seat (lowest score) for a finished Hearts game."
+  "Return GAME's winning seat (lowest score) for a finished Hearts game."
   (let ((best 0))
     (dotimes (s 4) (when (< (aref (card-games-get game :scores) s)
                             (aref (card-games-get game :scores) best))
@@ -261,7 +261,7 @@
 ;;;; Spades specifics
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-spades-game))
-  "Score a finished Spades hand into the cumulative team scores."
+  "Score GAME's finished Spades hand into the cumulative team scores."
   (let ((scores (card-games-get game :scores))
         (bags (card-games-get game :bags))
         (bids (card-games-get game :bids))
@@ -289,17 +289,17 @@
     (card-games-put game :scores scores)))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-spades-game))
-  "Spades ends when a team reaches the target (or falls badly behind)."
+  "In GAME, Spades ends when a team reaches the target (or falls badly behind)."
   (cl-some (lambda (s) (>= s (oref game target))) (append (card-games-get game :scores) nil)))
 
 (cl-defmethod card-games-trick--winner-seat ((game card-games-spades-game))
-  "Return a member seat of the winning team for a finished Spades game."
+  "Return a seat of GAME's winning team for a finished Spades game."
   (if (>= (aref (card-games-get game :scores) 0) (aref (card-games-get game :scores) 1)) 0 1))
 
 ;;;; AI
 
 (cl-defmethod card-games-trick--ai-bid ((game card-games-spades-game) seat)
-  "Return a simple trick estimate (bid) for SEAT in Spades."
+  "Return a simple trick estimate (bid) for GAME SEAT in Spades."
   (let ((hand (card-games-trick--hand game seat)) (bid 0))
     (dolist (c hand)
       (cond
@@ -312,7 +312,7 @@
     (max 1 (min 13 bid))))
 
 (cl-defmethod card-games-trick--ai-play ((game card-games-hearts-game) seat)
-  "Choose a legal Hearts card for SEAT, avoiding points."
+  "Choose a legal Hearts card for GAME SEAT, avoiding points."
   (let* ((moves (card-games-trick--legal-moves game seat))
          (trick (card-games-get game :trick)))
     (or
@@ -341,7 +341,7 @@
      (car moves))))
 
 (cl-defmethod card-games-trick--ai-play ((game card-games-spades-game) seat)
-  "Choose a legal Spades card for SEAT."
+  "Choose a legal Spades card for GAME SEAT."
   (let* ((moves (card-games-trick--legal-moves game seat))
          (trick (card-games-get game :trick))
          (trump (oref game trump)))
@@ -390,7 +390,7 @@
   game)
 
 (defun card-games-trick--simulate-hand (game)
-  "Play a whole hand with AI for every seat (used by tests)."
+  "Play a whole GAME hand with AI for every seat (used by the test suite)."
   (while (not (card-games-trick--hand-over-p game))
     (let ((seat (card-games-get game :turn)))
       (card-games-trick--play game seat
@@ -415,6 +415,7 @@
   "Deal and set up a new hand of GAME, then run AI up to the human's turn.")
 
 (cl-defmethod card-games-trick--begin-hand ((game card-games-hearts-game))
+  "Begin a Hearts hand in GAME: deal and set the leader."
   (card-games-trick--deal game)
   (card-games-put game :hand-no (1+ (or (card-games-get game :hand-no) 0)))
   (card-games-put game :cursor 0) (card-games-put game :marks nil)
@@ -431,6 +432,7 @@
                       (card-games-trick--dir-name dir))))))
 
 (cl-defmethod card-games-trick--begin-hand ((game card-games-spades-game))
+  "Begin a Spades hand in GAME: deal and run the bidding."
   (card-games-trick--deal game)
   (card-games-put game :dealer (mod (1+ (or (card-games-get game :dealer) 3)) 4))
   (card-games-put game :cursor 0)
@@ -460,7 +462,7 @@
   game)
 
 (defun card-games-trick--run (game)
-  "Advance AI seats until it is the human's turn or the hand ends."
+  "Advance GAME's AI seats until the human's turn or the hand ends."
   (while (and (eq (card-games-get game :phase) 'play)
               (not (card-games-trick--hand-over-p game))
               (/= (card-games-get game :turn) 0))
@@ -480,10 +482,12 @@
     (card-games-trick--begin-hand game)))
 
 (cl-defmethod card-games-trick--result-string ((game card-games-hearts-game))
+  "Return GAME's Hearts game-over summary."
   (format "%s wins with the lowest score"
           (aref card-games-trick-seat-names (card-games-trick--winner-seat game))))
 
 (cl-defmethod card-games-trick--result-string ((game card-games-spades-game))
+  "Return GAME's Spades game-over summary."
   (let ((w (card-games-trick--winner-seat game)))
     (format "%s win" (if (= w 0) "You and North" "West and East"))))
 
@@ -541,7 +545,8 @@
   (cons (aref card-games-trick-ranks (cdr card)) (car card)))
 
 (cl-defun card-games-trick--svg-row (cards &key cursor marks hints region-tag)
-  "Return a one-image SVG row for CARDS (clickable + sliderful when REGION-TAG)."
+  "Return an SVG row for CARDS with CURSOR and HINTS, clickable via REGION-TAG.
+The MARKS list highlights any selected cards."
   (card-games-svg-hand-image (mapcar #'card-games-trick--spec cards)
                      :cursor cursor :marks marks :hints hints
                      :overlap (if (> (length cards) 11)
@@ -549,7 +554,7 @@
                      :region-tag region-tag))
 
 (defun card-games-trick--draw-backs (svg x y n)
-  "Draw up to three overlapped face-down backs at X, Y for a hand of N cards."
+  "Draw up to three overlapped face-down backs on SVG at X, Y for N cards."
   (let ((k (min (max n 0) 3)) (xx x))
     (dotimes (_ k)
       (card-games-svg-card svg xx y :down t)
@@ -676,14 +681,14 @@ The South hand carries clickable (hand . INDEX) regions."
     (apply #'concat (nreverse out))))
 
 (cl-defmethod card-games-render ((game card-games-trick-game))
-  "Return a depiction of GAME: a full SVG table on a graphical display,
-else a plain-text board."
+  "Return a depiction of GAME.
+Use a full SVG table on a graphical display, else a plain-text board."
   (if (and card-games-trick-svg-cards (display-graphic-p))
       (card-games-trick--svg game)
     (card-games-trick--render-text game)))
 
 (cl-defmethod card-games-render-apply ((g card-games-trick-game) action)
-  "Apply a click ACTION on the hand: select that card and play it."
+  "Apply click ACTION on G's hand: select that card and play it."
   (pcase action
     (`(hand . ,i) (card-games-put g :cursor i) (card-games-trick-act))
     (_ (cl-call-next-method))))
@@ -701,7 +706,7 @@ else a plain-text board."
 ;;;; Commands
 
 (defun card-games-trick--cursor-card (game)
-  "Return the South card currently under the cursor."
+  "Return GAME's South card currently under the cursor."
   (nth (card-games-get game :cursor) (card-games-trick--sort (card-games-trick--hand game 0))))
 
 (defun card-games-trick-left ()
@@ -821,14 +826,16 @@ else a plain-text board."
   "Oh Hell: hand size shrinks each round; bid the exact tricks you will take.")
 
 (cl-defmethod card-games-trick--leader-init ((game card-games-whist-game))
+  "In GAME Whist, the player left of the dealer leads first."
   (let ((s (mod (1+ (or (card-games-get game :dealer) 3)) 4)))
     (card-games-put game :leader s) (card-games-put game :turn s)))
 (cl-defmethod card-games-trick--leader-init ((game card-games-ohhell-game))
+  "In GAME Oh Hell, the player left of the dealer leads first."
   (let ((s (mod (1+ (or (card-games-get game :dealer) 3)) 4)))
     (card-games-put game :leader s) (card-games-put game :turn s)))
 
 (defun card-games-trick--ai-trump-play (game seat)
-  "A generic legal trump-game play for SEAT: follow and win cheaply, else low."
+  "A generic legal trump-game play for GAME SEAT: follow and win cheaply, else low."
   (let* ((moves (card-games-trick--legal-moves game seat))
          (trick (card-games-get game :trick)))
     (or
@@ -846,12 +853,15 @@ else a plain-text board."
      (car moves))))
 
 (cl-defmethod card-games-trick--ai-play ((game card-games-whist-game) seat)
+  "Choose a legal Whist card for AI SEAT in GAME."
   (card-games-trick--ai-trump-play game seat))
 (cl-defmethod card-games-trick--ai-play ((game card-games-ohhell-game) seat)
+  "Choose a legal Oh Hell card for AI SEAT in GAME."
   (card-games-trick--ai-trump-play game seat))
 
 ;; Whist
 (cl-defmethod card-games-trick--begin-hand ((game card-games-whist-game))
+  "Begin a Whist hand in GAME: deal and turn the trump."
   (card-games-trick--deal game)
   (card-games-put game :dealer (mod (1+ (or (card-games-get game :dealer) 3)) 4))
   (oset game trump (car (card-games-get game :last-card)))   ; dealer's last card turns trump
@@ -863,6 +873,7 @@ else a plain-text board."
   (card-games-trick--run game))
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-whist-game))
+  "Score GAME's finished Whist hand."
   (let ((scores (card-games-get game :scores)) (tricks (card-games-get game :tricks)))
     (dotimes (team 2)
       (let ((over (max 0 (- (+ (aref tricks team) (aref tricks (+ team 2))) 6))))
@@ -871,10 +882,13 @@ else a plain-text board."
     (card-games-put game :scores scores)))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-whist-game))
+  "Return non-nil when GAME's Whist game is over."
   (cl-some (lambda (s) (>= s (oref game target))) (append (card-games-get game :scores) nil)))
 (cl-defmethod card-games-trick--winner-seat ((game card-games-whist-game))
+  "Return the winning seat of GAME's Whist game."
   (if (>= (aref (card-games-get game :scores) 0) (aref (card-games-get game :scores) 1)) 0 1))
 (cl-defmethod card-games-trick--result-string ((game card-games-whist-game))
+  "Return GAME's Whist game-over summary."
   (format "%s win" (if (= 0 (card-games-trick--winner-seat game)) "You and North" "West and East")))
 
 ;; Oh Hell
@@ -882,6 +896,7 @@ else a plain-text board."
   "Hand sizes dealt in successive Oh Hell rounds.")
 
 (cl-defmethod card-games-trick--ai-bid ((game card-games-ohhell-game) seat)
+  "Return an exact-tricks bid for GAME AI SEAT in Oh Hell."
   (let ((hand (card-games-trick--hand game seat)) (trump (oref game trump)) (bid 0))
     (dolist (c hand)
       (cond ((= (cdr c) 12) (cl-incf bid))
@@ -889,6 +904,7 @@ else a plain-text board."
     (min bid (length hand))))
 
 (cl-defmethod card-games-trick--begin-hand ((game card-games-ohhell-game))
+  "Begin an Oh Hell hand in GAME: deal the round and run the bidding."
   (let* ((round (or (card-games-get game :round) 0))
          (hs (aref card-games-ohhell--sizes (min round (1- (length card-games-ohhell--sizes))))))
     (oset game hand-size hs)
@@ -912,6 +928,7 @@ else a plain-text board."
     (card-games-trick--run game)))
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-ohhell-game))
+  "Score GAME's finished Oh Hell round."
   (let ((scores (card-games-get game :scores)) (bids (card-games-get game :bids))
         (tricks (card-games-get game :tricks)))
     (dotimes (s 4)
@@ -921,12 +938,15 @@ else a plain-text board."
     (card-games-put game :round (1+ (or (card-games-get game :round) 0)))))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-ohhell-game))
+  "Return non-nil when GAME's Oh Hell game is over."
   (>= (or (card-games-get game :round) 0) (length card-games-ohhell--sizes)))
 (cl-defmethod card-games-trick--winner-seat ((game card-games-ohhell-game))
+  "Return the winning seat of GAME's Oh Hell game."
   (let ((best 0)) (dotimes (s 4) (when (> (aref (card-games-get game :scores) s)
                                           (aref (card-games-get game :scores) best)) (setq best s)))
     best))
 (cl-defmethod card-games-trick--result-string ((game card-games-ohhell-game))
+  "Return GAME's Oh Hell game-over summary."
   (format "%s wins" (aref card-games-trick-seat-names (card-games-trick--winner-seat game))))
 
 ;;;###autoload

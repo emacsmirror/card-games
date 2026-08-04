@@ -128,21 +128,21 @@ empty-slot dot."
   (not (eq (card-games-red-suit-p (car a)) (card-games-red-suit-p (car b)))))
 
 (cl-defmethod card-games-sol--link-p ((game card-games-solitaire-game) upper lower)
-  "Return non-nil when LOWER may rest directly on UPPER within a run."
+  "Return non-nil when LOWER may rest on UPPER within a GAME run."
   (pcase (oref game run-rule)
     ('any t)
     ('suit (and (= (cdr lower) (1- (cdr upper))) (= (car lower) (car upper))))
     (_     (and (= (cdr lower) (1- (cdr upper))) (card-games-sol--diff-color-p upper lower)))))
 
 (cl-defmethod card-games-sol--place-p ((game card-games-solitaire-game) top card)
-  "Return non-nil when CARD may be placed on a column whose top is TOP."
+  "Return non-nil when CARD may be placed on a GAME column topped by TOP."
   (pcase (oref game build)
     ('any  (= (cdr card) (1- (cdr top))))
     ('suit (and (= (cdr card) (1- (cdr top))) (= (car card) (car top))))
     (_     (and (= (cdr card) (1- (cdr top))) (card-games-sol--diff-color-p top card)))))
 
 (cl-defmethod card-games-sol--empty-accepts ((game card-games-solitaire-game) card)
-  "Return non-nil when CARD may be placed on an empty column."
+  "Return non-nil when CARD may be placed on an empty GAME column."
   (pcase (oref game empty-rule)
     ('king (= (cdr card) 12))
     (_ t)))
@@ -150,15 +150,19 @@ empty-slot dot."
 ;;;; Layout and dealing
 
 (cl-defgeneric card-games-sol--layout (game)
-  "Return a list of (DOWN . UP) card counts, one per tableau column.")
+  "Return GAME's list of (DOWN . UP) card counts, one per tableau column.")
 
 (cl-defmethod card-games-sol--layout ((_ card-games-klondike-game))
+  "Return the Klondike tableau layout (DOWN . UP per column)."
   (cl-loop for i below 7 collect (cons i 1)))
 (cl-defmethod card-games-sol--layout ((_ card-games-yukon-game))
+  "Return the Yukon tableau layout (DOWN . UP per column)."
   (cons (cons 0 1) (cl-loop for i from 1 below 7 collect (cons i 5))))
 (cl-defmethod card-games-sol--layout ((_ card-games-freecell-game))
+  "Return the FreeCell tableau layout (DOWN . UP per column)."
   (append (make-list 4 (cons 0 7)) (make-list 4 (cons 0 6))))
 (cl-defmethod card-games-sol--layout ((_ card-games-spider-game))
+  "Return the Spider tableau layout (DOWN . UP per column)."
   (append (make-list 4 (cons 5 1)) (make-list 6 (cons 4 1))))
 
 (cl-defmethod card-games-sol--deal ((game card-games-solitaire-game))
@@ -195,7 +199,7 @@ empty-slot dot."
 ;;;; Spots (the cursor visits piles)
 
 (cl-defmethod card-games-sol--spots ((game card-games-solitaire-game))
-  "Return the ordered list of (TYPE . INDEX) piles the cursor can visit."
+  "Return GAME's ordered (TYPE . INDEX) piles the cursor can visit."
   (append
    (when (oref game has-stock) '((stock . 0)))
    (when (oref game has-waste) '((waste . 0)))
@@ -205,26 +209,26 @@ empty-slot dot."
    (cl-loop for i below (oref game ncols) collect (cons 'col i))))
 
 (defun card-games-sol--cur-spot (game)
-  "Return the (TYPE . INDEX) spot currently under the cursor."
+  "Return GAME's (TYPE . INDEX) spot currently under the cursor."
   (nth (card-games-get game :cursor) (card-games-sol--spots game)))
 
 ;;;; Pile access helpers
 
 (defun card-games-sol--col (game c) "Column C of GAME (a list)." (aref (card-games-get game :tableau) c))
-(defun card-games-sol--set-col (game c v) (aset (card-games-get game :tableau) c v))
-(defun card-games-sol--down (game c) "Face-down count of column C." (aref (card-games-get game :down) c))
-(defun card-games-sol--set-down (game c v) (aset (card-games-get game :down) c v))
+(defun card-games-sol--set-col (game c v) "Set column C in GAME to V." (aset (card-games-get game :tableau) c v))
+(defun card-games-sol--down (game c) "Return the face-down count of column C in GAME." (aref (card-games-get game :down) c))
+(defun card-games-sol--set-down (game c v) "Set the face-down count of column C in GAME to V." (aset (card-games-get game :down) c v))
 
 (defun card-games-sol--col-top (game c)
-  "Return the top (accessible) card of column C, or nil."
+  "Return the top (accessible) card of GAME column C, or nil."
   (car (last (card-games-sol--col game c))))
 
 (defun card-games-sol--exposed (game c)
-  "Return the face-up cards of column C (bottom..top order)."
+  "Return the face-up cards of GAME column C (bottom..top order)."
   (nthcdr (card-games-sol--down game c) (card-games-sol--col game c)))
 
 (cl-defmethod card-games-sol--top-run ((game card-games-solitaire-game) c)
-  "Return the longest movable run from the top of column C (bottom..top)."
+  "Return the longest movable run from GAME column C's top (bottom..top)."
   (let ((top->bottom (reverse (card-games-sol--exposed game c))))
     (if (null top->bottom)
         nil
@@ -238,7 +242,7 @@ empty-slot dot."
         run))))
 
 (defun card-games-sol--spot-top (game spot)
-  "Return the top card available at SPOT, or nil."
+  "Return the top card available at GAME SPOT, or nil."
   (pcase (car spot)
     ('col   (card-games-sol--col-top game (cdr spot)))
     ('waste (car (last (card-games-get game :waste))))
@@ -261,7 +265,7 @@ empty-slot dot."
                   (= (cdr card) need)))))))
 
 (defun card-games-sol--found-for (game card)
-  "Return the index of a foundation that would accept CARD, or nil."
+  "Return the index of a GAME foundation that would accept CARD, or nil."
   (cl-loop for i below (oref game nfound)
            when (card-games-sol--found-accepts game i card) return i))
 
@@ -303,14 +307,14 @@ empty-slot dot."
       t)))
 
 (defun card-games-sol--flip (game c)
-  "Flip the top of column C face up if it is face down."
+  "Flip the top of GAME column C face up if it is face down."
   (let ((len (length (card-games-sol--col game c)))
         (d (card-games-sol--down game c)))
     (when (and (> len 0) (>= d len))
       (card-games-sol--set-down game c (1- len)))))
 
 (defun card-games-sol--take (game spot n)
-  "Remove and return the top N cards (bottom..top order) from SPOT."
+  "Remove and return the top N cards (bottom..top) from GAME SPOT."
   (pcase (car spot)
     ('col (let* ((c (cdr spot)) (col (card-games-sol--col game c))
                  (run (last col n)))
@@ -331,7 +335,7 @@ empty-slot dot."
     (_ nil)))
 
 (defun card-games-sol--can-drop (game spot cards)
-  "Return non-nil when the run CARDS (bottom..top) may drop on SPOT."
+  "Return non-nil when run CARDS (bottom..top) may drop on GAME SPOT."
   (and cards
        (pcase (car spot)
          ('col (let* ((c (cdr spot)) (top (card-games-sol--col-top game c)))
@@ -345,7 +349,7 @@ empty-slot dot."
          (_ nil))))
 
 (defun card-games-sol--drop (game spot cards)
-  "Place the run CARDS (bottom..top) onto SPOT."
+  "Place run CARDS (bottom..top) onto GAME SPOT."
   (pcase (car spot)
     ('col (let ((c (cdr spot)))
             (card-games-sol--set-col game c (append (card-games-sol--col game c) cards))))
@@ -357,7 +361,7 @@ empty-slot dot."
 ;;;; Spider: complete-run removal
 
 (cl-defmethod card-games-sol--harvest ((game card-games-solitaire-game))
-  "Remove any complete K..A same-suit run from a column top; bump :sets.
+  "Remove a complete K..A same-suit run from a GAME column top; tally it.
 Only games without foundations (NFOUND 0: Spider, Scorpion) harvest runs."
   (when (= 0 (oref game nfound))
    (dotimes (c (oref game ncols))
@@ -384,7 +388,7 @@ Only games without foundations (NFOUND 0: Spider, Scorpion) harvest runs."
   :group 'card-games)
 
 (cl-defmethod card-games-sol--stock-action ((game card-games-solitaire-game))
-  "Deal `draw' cards to the waste, recycling the waste when `redeal'."
+  "Deal GAME's `draw' cards to the waste, recycling the waste when `redeal'."
   (if (not (oref game has-waste))
       (card-games-put game :message "No stock to deal.")
     (card-games-sol--snapshot game)
@@ -402,6 +406,7 @@ Only games without foundations (NFOUND 0: Spider, Scorpion) harvest runs."
           (card-games-put game :message "The stock is empty."))))))
 
 (cl-defmethod card-games-sol--stock-action ((game card-games-klondike-game))
+  "Deal GAME's Klondike stock to the waste, recycling when empty."
   (card-games-sol--snapshot game)
   (let ((stock (card-games-get game :stock)) (waste (card-games-get game :waste)))
     (if stock
@@ -417,6 +422,7 @@ Only games without foundations (NFOUND 0: Spider, Scorpion) harvest runs."
         (card-games-put game :message "Stock and waste are both empty.")))))
 
 (cl-defmethod card-games-sol--stock-action ((game card-games-spider-game))
+  "Deal a Spider row into GAME: one card onto every column."
   (let ((stock (card-games-get game :stock)))
     (cond
      ((null stock) (card-games-put game :message "The stock is empty."))
@@ -692,14 +698,16 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
     (card-games-sol--render-text game)))
 
 (cl-defmethod card-games-render-text ((game card-games-solitaire-game))
+  "Return the plain-text rendering of GAME."
   (card-games-sol--render-text game))
 
 (cl-defmethod card-games-render-svg ((game card-games-solitaire-game))
+  "Return the SVG rendering of GAME."
   (if card-games-sol-svg-cards (card-games-sol--svg game)
     (cons (card-games-sol--render-text game) nil)))
 
 (cl-defmethod card-games-render-apply ((game card-games-solitaire-game) action)
-  "Apply a click ACTION (a cursor spot) by selecting it and acting."
+  "Apply GAME click ACTION (a cursor spot) by selecting it and acting."
   (let ((idx (cl-position action (card-games-sol--spots game) :test #'equal)))
     (when idx (card-games-put game :cursor idx) (card-games-sol-act))))
 
@@ -713,7 +721,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
          (out (list)))
     (push (format "  %s   Moves: %d%s\n\n"
                   (oref game vname) (card-games-get game :moves)
-                  (if (> (oref game nfound) 0) "" 
+                  (if (> (oref game nfound) 0) ""
                     (format "   Sets: %d/%d" (card-games-get game :sets) (oref game target-sets))))
           out)
     ;; Top line: stock / waste / free cells / foundations.
@@ -790,7 +798,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
 ;;;; Mode and commands
 
 (defun card-games-sol-mouse (event)
-  "Handle a mouse click on the solitaire board: select that pile and act."
+  "Handle mouse EVENT on the solitaire board: select that pile and act."
   (interactive "e")
   (let* ((game card-games-sol--game)
          (r (and game (oref game renderer)))
@@ -873,6 +881,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
   "Forty Thieves: two decks, ten columns, eight foundations, no redeal.")
 
 (cl-defmethod card-games-sol--layout ((_ card-games-forty-game))
+  "Return the Forty Thieves tableau layout (DOWN . UP per column)."
   (make-list 10 (cons 0 4)))
 
 (defclass card-games-scorpion-game (card-games-solitaire-game)
@@ -882,10 +891,11 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
   "Scorpion: build down by suit, move any buried group, clear four runs.")
 
 (cl-defmethod card-games-sol--layout ((_ card-games-scorpion-game))
+  "Return the Scorpion tableau layout (DOWN . UP per column)."
   (append (make-list 4 (cons 3 4)) (make-list 3 (cons 0 7))))
 
 (cl-defmethod card-games-sol--stock-action ((game card-games-scorpion-game))
-  "Deal the three stock cards onto the first three columns."
+  "Deal GAME's three stock cards onto the first three columns."
   (let ((stock (card-games-get game :stock)))
     (if (null stock)
         (card-games-put game :message "The stock is empty.")
@@ -905,7 +915,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
   "Canfield: a 13-card reserve and a variable foundation base rank.")
 
 (cl-defmethod card-games-sol--deal ((game card-games-canfield-game))
-  "Deal a Canfield layout: reserve, base foundation, four columns, stock."
+  "Deal GAME's Canfield layout: reserve, base foundation, four columns, stock."
   (let* ((deck (card-games-sol--make-deck 1))
          (reserve (cl-loop repeat 13 collect (pop deck)))
          (first (pop deck))
@@ -933,9 +943,9 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
                     (aref card-games-sol-ranks (cdr first))))
     game))
 
-(cl-defmethod card-games-sol--autofill ((_ card-games-solitaire-game)) nil)
+(cl-defmethod card-games-sol--autofill ((_ card-games-solitaire-game)) "Most solitaires do not autofill empty columns." nil)
 (cl-defmethod card-games-sol--autofill ((game card-games-canfield-game))
-  "Fill empty columns from the reserve, as Canfield requires."
+  "Fill GAME's empty columns from the reserve, as Canfield requires."
   (dotimes (c (oref game ncols))
     (when (and (null (card-games-sol--col game c)) (card-games-get game :reserve))
       (let ((card (car (last (card-games-get game :reserve)))))
@@ -961,7 +971,7 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
 foundations up by suit from the Ace, and a thirteen-card reserve.")
 
 (cl-defmethod card-games-sol--deal ((game card-games-russian-bank-game))
-  "Deal a Russian Bank patience layout: reserve, eight houses, and a stock."
+  "Deal GAME's Russian Bank layout: reserve, eight houses, and a stock."
   (let* ((deck (card-games-sol--make-deck 1))
          (reserve (cl-loop repeat 13 collect (pop deck)))
          (tableau (make-vector 8 nil))
@@ -985,7 +995,7 @@ foundations up by suit from the Ace, and a thirteen-card reserve.")
     game))
 
 (cl-defmethod card-games-sol--autofill ((game card-games-russian-bank-game))
-  "Fill an empty house from the reserve, as Russian Bank does."
+  "Fill a GAME empty house from the reserve, as Russian Bank does."
   (dotimes (c (oref game ncols))
     (when (and (null (card-games-sol--col game c)) (card-games-get game :reserve))
       (let ((card (car (last (card-games-get game :reserve)))))

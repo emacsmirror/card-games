@@ -54,9 +54,9 @@
   (if (null card) "·"
     (concat (aref card-games-pat-ranks (cdr card)) (card-games-suit-glyph (car card)))))
 
-(defsubst card-games-pat-red-p (card) (and card (card-games-red-suit-p (car card))))
+(defsubst card-games-pat-red-p (card) "Return non-nil when CARD is red." (and card (card-games-red-suit-p (car card))))
 
-(defun card-games-pat--deck () (card-games-shuffle (cl-loop for s below 4 append
+(defun card-games-pat--deck () "Return a fresh shuffled 52-card deck." (card-games-shuffle (cl-loop for s below 4 append
                                             (cl-loop for r below 13 collect (cons s r)))))
 
 ;;;; Classes
@@ -81,6 +81,7 @@
   "Build GAME's board from DECK; return (CARDS COVER ROWS STOCK WASTE).")
 
 (cl-defmethod card-games-pat--layout ((_ card-games-golf-game) deck)
+  "Lay out DECK as a Golf board."
   (let ((cards (make-vector 35 nil)) (cover (make-vector 35 nil)) (rows nil))
     (dotimes (c 7) (dotimes (r 5)
       (let ((i (+ (* c 5) r)))
@@ -91,6 +92,7 @@
       (list cards cover (nreverse rows) deck waste))))
 
 (cl-defmethod card-games-pat--layout ((_ card-games-tripeaks-game) deck)
+  "Lay out DECK as a TriPeaks board."
   (let ((cards (make-vector 28 nil))
         (cover (vector '(3 4) '(5 6) '(7 8)
                        '(9 10) '(10 11) '(12 13) '(13 14) '(15 16) '(16 17)
@@ -105,6 +107,7 @@
       (list cards cover rows deck waste))))
 
 (cl-defmethod card-games-pat--layout ((_ card-games-pyramid-game) deck)
+  "Lay out DECK as a Pyramid board."
   (let ((cards (make-vector 28 nil)) (cover (make-vector 28 nil)) (rows nil))
     (dotimes (r 7)
       (let ((start (/ (* r (1+ r)) 2)) (row nil))
@@ -140,33 +143,33 @@
     game))
 
 (defun card-games-pat--exposed-p (game i)
-  "Return non-nil when board slot I is present and uncovered."
+  "Return non-nil when GAME board slot I is present and uncovered."
   (let ((cards (card-games-get game :cards)))
     (and (aref cards i)
          (cl-every (lambda (j) (null (aref cards j))) (aref (card-games-get game :cover) i)))))
 
 (defun card-games-pat--exposed (game)
-  "Return the list of exposed board slot indices."
+  "Return GAME's list of exposed board slot indices."
   (cl-loop for i below (length (card-games-get game :cards))
            when (card-games-pat--exposed-p game i) collect i))
 
 (defun card-games-pat--spots (game)
-  "Return the ordered spots the cursor can visit."
+  "Return the ordered spots the cursor can visit in GAME."
   (append (mapcar (lambda (i) (cons 'slot i)) (card-games-pat--exposed game))
           '((waste . 0) (stock . 0))))
 
-(defun card-games-pat--waste-top (game) (car (last (card-games-get game :waste))))
+(defun card-games-pat--waste-top (game) "Return the top card of GAME's waste pile." (car (last (card-games-get game :waste))))
 
 (defun card-games-pat--board-empty-p (game)
-  "Return non-nil when every board slot has been cleared."
+  "Return non-nil when every GAME board slot has been cleared."
   (cl-every #'null (append (card-games-get game :cards) nil)))
 
 (cl-defmethod card-games-won-p ((game card-games-patience-game))
-  "Return non-nil when the board has been cleared."
+  "Return non-nil when GAME's board has been cleared."
   (card-games-pat--board-empty-p game))
 
 (defun card-games-pat--adjacent (a b wrap)
-  "Return non-nil when ranks A and B differ by one (or wrap Ace-King)."
+  "Return non-nil when ranks A and B differ by one, or (with WRAP) Ace-King."
   (let ((d (abs (- a b)))) (or (= d 1) (and wrap (= d 12)))))
 
 (defun card-games-pat--snapshot (game)
@@ -190,7 +193,7 @@
       t)))
 
 (defun card-games-pat--deal-stock (game)
-  "Turn one card from the stock to the waste."
+  "Turn one of GAME's stock cards to the waste."
   (let ((stock (card-games-get game :stock)))
     (if (null stock)
         (card-games-put game :message "The stock is empty.")
@@ -203,7 +206,7 @@
 (defun card-games-pat--value (card) "Sum-of-13 value of CARD." (1+ (cdr card)))
 
 (defun card-games-pat--remove-slot (game i)
-  "Clear board slot I."
+  "Clear GAME board slot I."
   (aset (card-games-get game :cards) i nil))
 
 ;;;; Interaction
@@ -211,6 +214,7 @@
 (defvar-local card-games-pat--game nil "The pile-solitaire game in the current buffer.")
 
 (defun card-games-pat--cur-spot (game)
+  "Return the spot the cursor is on in GAME."
   (let ((spots (card-games-pat--spots game)))
     (nth (min (card-games-get game :cursor) (1- (length spots))) spots)))
 
@@ -242,13 +246,13 @@
     (card-games-pat--after game)))
 
 (defun card-games-pat--mark-value (game m)
-  "Return the card value of mark M (a slot or the waste)."
+  "Return the card value of GAME mark M (a slot or the waste)."
   (pcase (car m)
     ('slot (card-games-pat--value (aref (card-games-get game :cards) (cdr m))))
     ('waste (let ((w (card-games-pat--waste-top game))) (and w (card-games-pat--value w))))))
 
 (defun card-games-pat--toggle-mark (game m)
-  "Toggle mark M; when two marks sum to 13, remove both."
+  "Toggle GAME mark M; when two marked slots sum to 13, remove both."
   (if (member m (card-games-get game :marks))
       (card-games-put game :marks (remove m (card-games-get game :marks)))
     (card-games-put game :marks (cons m (card-games-get game :marks))))
@@ -276,6 +280,7 @@
     (message "Solved!")))
 
 (defun card-games-pat--move (delta)
+  "Move the cursor by DELTA spots."
   (let* ((game card-games-pat--game) (n (length (card-games-pat--spots game))))
     (card-games-put game :cursor (mod (+ (card-games-get game :cursor) delta) n))
     (card-games-pat--redisplay)))
@@ -295,6 +300,7 @@
 ;;;; Rendering
 
 (defun card-games-pat--render-card (card &optional exposed marked cursor)
+  "Return CARD's display text, flagged by EXPOSED, MARKED, and CURSOR."
   (let ((s (card-games-pat-card-string card)) (faces nil))
     (when (card-games-pat-red-p card) (push 'card-games-red-suit faces))
     (when (and card (not exposed)) (push 'card-games-gap faces))
@@ -397,6 +403,7 @@ matching spot); a card-size slider sits below."
     (apply #'concat (nreverse out))))
 
 (defun card-games-pat--redisplay ()
+  "Redraw the current patience-game buffer."
   (let ((game card-games-pat--game) (inhibit-read-only t))
     (setq card-games-current-game game card-games-redisplay-function #'card-games-pat--redisplay)
     (setq-local mode-line-process (format " [%s]" (if (card-games-won-p game) "solved" "playing")))
@@ -431,6 +438,7 @@ matching spot); a card-size slider sits below."
   (setq-local cursor-type card-games-cursor-type))
 
 (defun card-games-pat--play (class)
+  "Start a patience game of CLASS."
   (let* ((game (card-games-pat--deal (make-instance class)))
          (buf (get-buffer-create (format "*%s*" (oref game vname)))))
     (with-current-buffer buf

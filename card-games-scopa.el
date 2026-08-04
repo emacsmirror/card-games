@@ -60,16 +60,16 @@
 (cl-defgeneric card-games-fish--deck (game)
   "Return a fresh shuffled deck for GAME.")
 (cl-defgeneric card-games-fish--face-pair-p (game card)
-  "Return non-nil when CARD captures only equal-rank cards (no sums).")
-(cl-defmethod card-games-fish--face-pair-p ((_game card-games-fish-game) _card) nil)
+  "Return non-nil when CARD in GAME captures only equal-rank cards (no sums).")
+(cl-defmethod card-games-fish--face-pair-p ((_game card-games-fish-game) _card) "Base fishing games capture rank pairs only, never sums." nil)
 (cl-defgeneric card-games-fish--score-round (game)
   "Add this round's points to GAME's running scores.")
 
-(defsubst card-games-fish--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-fish--set-hand (game s v) (aset (card-games-get game :hands) s v))
-(defsubst card-games-fish--captured (game s) (aref (card-games-get game :captured) s))
+(defsubst card-games-fish--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-fish--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
+(defsubst card-games-fish--captured (game s) "Return the cards seat S has captured in GAME." (aref (card-games-get game :captured) s))
 
-(defun card-games-fish--who (s) (if (= s 0) "You" "Computer"))
+(defun card-games-fish--who (s) "Return the display name of seat S." (if (= s 0) "You" "Computer"))
 
 ;;;; Capture search
 
@@ -103,7 +103,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
 ;;;; Flow
 
 (cl-defmethod card-games-fish--deal-round ((game card-games-fish-game))
-  "Start a fresh round: shuffle, deal the table and the first hands."
+  "Start a fresh round of GAME: shuffle, deal the table and first hands."
   (let* ((n (oref game nplayers)) (deck (card-games-fish--deck game))
          (hands (make-vector n nil)) (table '()))
     (dotimes (_ 4) (push (pop deck) table))
@@ -125,7 +125,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
     game))
 
 (defun card-games-fish--refill (game)
-  "Deal fresh hands from the deck when every hand is empty."
+  "Deal GAME fresh hands from the deck when every hand is empty."
   (when (and (cl-every #'null (append (card-games-get game :hands) nil)) (card-games-get game :deck))
     (let ((deck (card-games-get game :deck)))
       (dotimes (s (card-games-get game :nplayers))
@@ -136,11 +136,12 @@ Only subsets of two or more cards are considered.  Return nil if none."
       (card-games-put game :deck deck))))
 
 (defun card-games-fish--round-over-p (game)
+  "Return non-nil when GAME's deck and every hand are empty."
   (and (null (card-games-get game :deck))
        (cl-every #'null (append (card-games-get game :hands) nil))))
 
 (cl-defmethod card-games-fish--play ((game card-games-fish-game) s card)
-  "Seat S plays CARD: capture if possible, else trail it on the table."
+  "Have seat S play CARD in GAME: capture if possible, else trail it."
   (card-games-fish--set-hand game s (cl-remove card (card-games-fish--hand game s) :test #'equal :count 1))
   (let ((cap (card-games-fish--capture game card)))
     (if cap
@@ -164,7 +165,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
     (when (card-games-fish--round-over-p game) (card-games-fish--finish-round game))))
 
 (cl-defmethod card-games-fish--finish-round ((game card-games-fish-game))
-  "Award leftover table cards to the last capturer and score the round."
+  "Award GAME's leftover table cards to the last capturer and score the round."
   (when (and (card-games-get game :table) (card-games-get game :last-capturer))
     (let ((s (card-games-get game :last-capturer)))
       (aset (card-games-get game :captured) s
@@ -185,14 +186,14 @@ Only subsets of two or more cards are considered.  Return nil if none."
                       "(n: next round)")))))
 
 (defun card-games-fish--award-most (game suit-pred pts)
-  "Give PTS to whoever captured more cards satisfying SUIT-PRED."
+  "Give PTS to whoever captured more of GAME's cards satisfying SUIT-PRED."
   (let ((c0 (cl-count-if suit-pred (card-games-fish--captured game 0)))
         (c1 (cl-count-if suit-pred (card-games-fish--captured game 1))))
     (cond ((> c0 c1) (aset (card-games-get game :scores) 0 (+ (aref (card-games-get game :scores) 0) pts)))
           ((> c1 c0) (aset (card-games-get game :scores) 1 (+ (aref (card-games-get game :scores) 1) pts))))))
 
 (cl-defmethod card-games-fish--ai-play ((game card-games-fish-game) s)
-  "Have AI seat S capture the most it can, else trail its lowest card."
+  "Have GAME AI seat S capture the most it can, else trail its lowest card."
   (let ((hand (card-games-fish--hand game s)) (best nil) (bestn -1) (sweep nil))
     (dolist (c hand)
       (let* ((cap (card-games-fish--capture game c))
@@ -208,7 +209,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
     (card-games-fish--play game s best)))
 
 (defun card-games-fish--run (game)
-  "Advance AI seats until it is your turn or the round ends."
+  "Advance GAME's AI seats until your turn or the round ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play) (/= (card-games-get game :turn) 0) (< guard 200))
       (setq guard (1+ guard))
@@ -266,6 +267,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
     (_ (cl-call-next-method))))
 
 (defun card-games-fish--redisplay ()
+  "Redraw the current fishing-family game buffer."
   (let ((game card-games-fish--game) (inhibit-read-only t))
         (setq card-games-current-game game card-games-redisplay-function #'card-games-fish--redisplay)
     (setq-local mode-line-process (format " [%s]" (card-games-get game :phase)))
@@ -369,7 +371,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
     (6 21) (5 18) (0 16) (4 15) (3 14) (2 13) (1 12) (_ 10)))
 
 (cl-defmethod card-games-fish--score-round ((game card-games-scopa-game))
-  "Score a Scopa round: cards, coins, sette bello, primiera, sweeps."
+  "Score a Scopa round for GAME: cards, coins, sette bello, primiera, sweeps."
   (let ((scores (card-games-get game :scores)))
     (card-games-fish--award-most game (lambda (_c) t) 1)                 ; most cards
     (card-games-fish--award-most game (lambda (c) (= (car c) 2)) 1)      ; most coins (diamonds)
@@ -415,7 +417,7 @@ Only subsets of two or more cards are considered.  Return nil if none."
   (card-games-rummy-deck))
 
 (cl-defmethod card-games-fish--score-round ((game card-games-casino-game))
-  "Score a Casino round: cards, spades, casinos, aces, sweeps."
+  "Score a Casino round for GAME: cards, spades, casinos, aces, sweeps."
   (let ((scores (card-games-get game :scores)))
     (card-games-fish--award-most game (lambda (_c) t) 3)                 ; most cards
     (card-games-fish--award-most game (lambda (c) (= (car c) 0)) 1)      ; most spades

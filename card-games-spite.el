@@ -68,13 +68,13 @@
 
 ;;;; Accessors
 
-(defsubst card-games-spite--goal (game s) (aref (card-games-get game :goal) s))
-(defsubst card-games-spite--set-goal (game s v) (aset (card-games-get game :goal) s v))
-(defsubst card-games-spite--hand (game s) (aref (card-games-get game :hand) s))
-(defsubst card-games-spite--set-hand (game s v) (aset (card-games-get game :hand) s v))
-(defsubst card-games-spite--disc (game s) (aref (card-games-get game :disc) s))   ; vector of 4 lists
+(defsubst card-games-spite--goal (game s) "Return seat S's goal pile in GAME." (aref (card-games-get game :goal) s))
+(defsubst card-games-spite--set-goal (game s v) "Set seat S's goal pile in GAME to V." (aset (card-games-get game :goal) s v))
+(defsubst card-games-spite--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hand) s))
+(defsubst card-games-spite--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hand) s v))
+(defsubst card-games-spite--disc (game s) "Return seat S's discard piles in GAME." (aref (card-games-get game :disc) s))   ; vector of 4 lists
 
-(defun card-games-spite--who (s) (if (= s 0) "You" "Computer"))
+(defun card-games-spite--who (s) "Return the display name of seat S." (if (= s 0) "You" "Computer"))
 
 (cl-defmethod card-games-spite--deal ((game card-games-spite-game))
   "Deal a fresh Spite & Malice game into GAME."
@@ -99,7 +99,7 @@
 ;;;; Stock and centre piles
 
 (defun card-games-spite--draw-stock (game)
-  "Pop one card from the stock, recycling the muck when the stock is empty."
+  "Pop one card from GAME's stock, recycling the muck when it is empty."
   (when (and (null (card-games-get game :stock)) (card-games-get game :muck))
     (card-games-put game :stock (card-games-shuffle (card-games-get game :muck)))
     (card-games-put game :muck nil))
@@ -107,7 +107,7 @@
     (when stock (card-games-put game :stock (cdr stock)) (car stock))))
 
 (defun card-games-spite--refill (game s)
-  "Draw seat S's hand back up to five cards."
+  "Draw GAME seat S's hand back up to five cards."
   (while (and (< (length (card-games-spite--hand game s)) 5) (or (card-games-get game :stock)
                                                          (card-games-get game :muck)))
     (let ((c (card-games-spite--draw-stock game)))
@@ -115,12 +115,12 @@
                                           (cons c (card-games-spite--hand game s))))))))
 
 (defun card-games-spite--needed (game i)
-  "Return the rank the centre pile I needs next (0 for an empty slot)."
+  "Return the rank GAME centre pile I needs next (0 for an empty slot)."
   (let ((p (aref (card-games-get game :center) i)))
     (if p (1+ (car p)) 0)))
 
 (defun card-games-spite--legal-center (game card)
-  "Return the index of the first centre pile CARD may be played on, or nil."
+  "Return the index of the first GAME centre pile CARD may be played on, or nil."
   (let ((found nil))
     (dotimes (i 4)
       (let ((need (card-games-spite--needed game i)))
@@ -130,7 +130,7 @@
     found))
 
 (defun card-games-spite--put-center (game card i)
-  "Place CARD on centre pile I; clear the pile if it reaches a Queen."
+  "Place CARD on GAME centre pile I; clear the pile if it reaches a Queen."
   (let* ((need (card-games-spite--needed game i))
          (p (aref (card-games-get game :center) i))
          (cards (cons card (and p (cdr p)))))
@@ -142,13 +142,13 @@
 ;;;; Plays
 
 (defun card-games-spite--play-hand (game s card i)
-  "Seat S plays hand CARD onto centre pile I."
+  "Have GAME seat S play hand CARD onto centre pile I."
   (card-games-spite--set-hand game s (cl-remove card (card-games-spite--hand game s) :test #'equal :count 1))
   (card-games-spite--put-center game card i)
   (when (null (card-games-spite--hand game s)) (card-games-spite--refill game s)))
 
 (defun card-games-spite--play-goal (game s i)
-  "Seat S plays the top of their goal pile onto centre pile I."
+  "Have GAME seat S play the top of their goal pile onto centre pile I."
   (let ((card (car (card-games-spite--goal game s))))
     (card-games-spite--set-goal game s (cdr (card-games-spite--goal game s)))
     (card-games-spite--put-center game card i)
@@ -156,13 +156,13 @@
       (card-games-put game :phase 'game-over) (card-games-put game :winner s))))
 
 (defun card-games-spite--play-disc (game s d i)
-  "Seat S plays the top of discard pile D onto centre pile I."
+  "Have GAME seat S play the top of discard pile D onto centre pile I."
   (let* ((pile (aref (card-games-spite--disc game s) d)) (card (car pile)))
     (aset (card-games-spite--disc game s) d (cdr pile))
     (card-games-spite--put-center game card i)))
 
 (defun card-games-spite--discard (game s card d)
-  "Seat S discards CARD from hand onto discard pile D, ending the turn."
+  "Have GAME seat S discard CARD from hand onto pile D, ending the turn."
   (card-games-spite--set-hand game s (cl-remove card (card-games-spite--hand game s) :test #'equal :count 1))
   (aset (card-games-spite--disc game s) d (cons card (aref (card-games-spite--disc game s) d)))
   (card-games-put game :turn (- 1 s)))
@@ -170,7 +170,7 @@
 ;;;; AI
 
 (defun card-games-spite--ai-one (game s)
-  "Make one beneficial play for seat S; return non-nil if a play was made."
+  "Make one beneficial play for GAME seat S; return non-nil if one was made."
   (let ((goal (car (card-games-spite--goal game s))) (done nil))
     (cond
      ;; 1. advance the goal card (a wild goal card plays anywhere)
@@ -214,7 +214,7 @@
     done))
 
 (defun card-games-spite--ai-turn (game s)
-  "Take seat S's whole AI turn: play what helps, then discard."
+  "Take GAME seat S's whole AI turn: play what helps, then discard."
   (card-games-spite--refill game s)
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play) (< guard 300)
@@ -232,7 +232,7 @@
           (card-games-spite--discard game s card d))))))
 
 (defun card-games-spite--ai-disc-pile (game s card)
-  "Choose a discard pile for CARD: an empty one, else the one topped just above."
+  "Choose GAME seat S's discard pile for CARD (empty, else topped just above)."
   (let ((disc (card-games-spite--disc game s)) (empty nil) (best nil) (bestv 99))
     (dotimes (d 4)
       (let ((top (car (aref disc d))))
@@ -243,7 +243,7 @@
     (or best empty 0)))
 
 (defun card-games-spite--run (game)
-  "Let the computer (seat 1) take its turns until it is your turn or the game ends."
+  "Let the computer (seat 1) act in GAME until your turn or the game ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play) (= (card-games-get game :turn) 1) (< guard 200))
       (setq guard (1+ guard))
@@ -254,7 +254,7 @@
 (defvar-local card-games-spite--game nil "The Spite & Malice game in the current buffer.")
 
 (defun card-games-spite--center-string (game)
-  "Return a one-line depiction of the centre piles."
+  "Return a one-line depiction of GAME's centre piles."
   (let ((parts '()))
     (dotimes (i 4)
       (let ((p (aref (card-games-get game :center) i)))
@@ -265,7 +265,7 @@
     (mapconcat #'identity (nreverse parts) "  ")))
 
 (defun card-games-spite--disc-string (game s)
-  "Return a depiction of seat S's four discard-pile tops."
+  "Return a depiction of GAME seat S's four discard-pile tops."
   (let ((parts '()))
     (dotimes (d 4)
       (let ((top (car (aref (card-games-spite--disc game s) d))))
@@ -368,12 +368,14 @@
     (_ (cl-call-next-method))))
 
 (defun card-games-spite--redisplay ()
+  "Redraw the current Spite & Malice buffer."
   (let ((game card-games-spite--game) (inhibit-read-only t))
         (setq card-games-current-game game card-games-redisplay-function #'card-games-spite--redisplay)
     (setq-local mode-line-process (format " [%s]" (card-games-get game :phase)))
     (erase-buffer) (insert (card-games-render game)) (goto-char (point-min))))
 
 (defun card-games-spite--my-turn-p (g)
+  "Return non-nil when it is your turn to play in G."
   (and (eq (card-games-get g :phase) 'play) (= (card-games-get g :turn) 0)))
 
 (defun card-games-spite-left ()
@@ -391,7 +393,7 @@
     (card-games-spite--redisplay)))
 
 (defun card-games-spite--ensure-hand (g)
-  "Draw your hand up to five at the start of your turn."
+  "Draw your hand in G up to five at the start of your turn."
   (card-games-spite--refill g 0))
 
 (defun card-games-spite-play ()

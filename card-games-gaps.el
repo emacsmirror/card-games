@@ -86,25 +86,25 @@ Subclasses set the head rank and build direction by overriding
   :abstract t)
 
 (cl-defgeneric card-games-gaps--head (game)
-  "Return the rank index that anchors the head (left) of each row.")
+  "Return the rank index that anchors the head (left) of each row in GAME.")
 (cl-defgeneric card-games-gaps--step (game)
-  "Return the per-column rank increment: +1 ascending, -1 descending.")
+  "Return GAME's per-column rank increment: +1 ascending, -1 descending.")
 (cl-defgeneric card-games-gaps--vname (game)
   "Return the human-readable variant name for GAME.")
 
 (defclass card-games-montana-game (card-games-gaps-game)
   ((name :initform "Montana"))
   "Gaps / Montana: a Two anchors the head; rows build up 2..K.")
-(cl-defmethod card-games-gaps--head ((_ card-games-montana-game)) 0)
-(cl-defmethod card-games-gaps--step ((_ card-games-montana-game)) 1)
-(cl-defmethod card-games-gaps--vname ((_ card-games-montana-game)) "Gaps (Montana)")
+(cl-defmethod card-games-gaps--head ((_ card-games-montana-game)) "Montana anchors its head on the Two (rank 0)." 0)
+(cl-defmethod card-games-gaps--step ((_ card-games-montana-game)) "Montana builds up, +1 per column." 1)
+(cl-defmethod card-games-gaps--vname ((_ card-games-montana-game)) "Return Montana's display name." "Gaps (Montana)")
 
 (defclass card-games-acre-game (card-games-gaps-game)
   ((name :initform "Hell's Half-Acre"))
   "Hell's Half-Acre: a King anchors the head; rows build down K..2.")
-(cl-defmethod card-games-gaps--head ((_ card-games-acre-game)) 11)
-(cl-defmethod card-games-gaps--step ((_ card-games-acre-game)) -1)
-(cl-defmethod card-games-gaps--vname ((_ card-games-acre-game)) "Hell's Half-Acre")
+(cl-defmethod card-games-gaps--head ((_ card-games-acre-game)) "Hell's Half-Acre anchors its head on the King (rank 11)." 11)
+(cl-defmethod card-games-gaps--step ((_ card-games-acre-game)) "Hell's Half-Acre builds down, -1 per column." -1)
+(cl-defmethod card-games-gaps--vname ((_ card-games-acre-game)) "Return Hell's Half-Acre's display name." "Hell's Half-Acre")
 
 (defalias 'card-games-gaps--shuffle 'card-games-shuffle)
 
@@ -250,7 +250,7 @@ other fillable gap, or nil if nothing fits."
     hints))
 
 (cl-defmethod card-games-gaps--prefix-len ((game card-games-gaps-game) board r)
-  "Return the length of the correct run at the head of row R of BOARD."
+  "Return the length of GAME's correct run at the head of row R of BOARD."
   (let ((row (aref board r))
         (head (card-games-gaps--head game))
         (step (card-games-gaps--step game))
@@ -356,14 +356,15 @@ where each key hint is itself the clickable button."
 (defconst card-games-gaps--svg-pad 10 "Margin around the SVG board.")
 
 (defcustom card-games-gaps-svg-ui nil
-  "When non-nil (and on a graphical display), render the gaps board as a
-single full-buffer SVG: the board fills the window with a status/controls
-panel down the left side, mirroring the 500 full-SVG UI.  Toggle with `v'."
+  "Whether to render the gaps board as one full-buffer SVG.
+When non-nil (and on a graphical display), the board fills the window with a
+status/controls panel down the left side, mirroring the 500 full-SVG UI.
+Toggle with `v'."
   :type 'boolean :group 'card-games-svg)
 
 (defcustom card-games-gaps-svg-fill t
-  "When non-nil, size the full-SVG gaps UI to fill the window and re-fit on
-window changes.  Only used when `card-games-gaps-svg-ui' is enabled."
+  "Whether the full-SVG gaps UI fills the window and re-fits on size changes.
+Only used when `card-games-gaps-svg-ui' is enabled."
   :type 'boolean :group 'card-games-svg)
 
 (defun card-games-gaps--insert-graphical (game)
@@ -401,7 +402,7 @@ window changes.  Only used when `card-games-gaps-svg-ui' is enabled."
 
 (defun card-games-gaps--key-button (key word cmd help)
   "Insert a control where the KEY hint itself is the button running CMD.
-Shown as \"key word\" (e.g. \"r redeal\"); HELP is the tooltip."
+Shown as \"KEY WORD\" (e.g. \"r redeal\"); HELP is the tooltip."
   (insert-text-button (format "%s %s" key word)
                       'action (lambda (_) (call-interactively cmd))
                       'help-echo help 'follow-link t 'face 'link)
@@ -617,17 +618,17 @@ SVG board (pixel) or the text grid (text property)."
     (apply #'svg-text svg str a)))
 
 (defun card-games-gaps--ui-label (svg str x y size)
-  "Draw an all-caps, letter-spaced section label on SVG."
+  "Draw STR as an all-caps, letter-spaced section label on SVG at X, Y, SIZE."
   (svg-text svg (upcase str) :x (round x) :y (round y) :font-size (round size)
             :fill "#8fc79b" :text-anchor "start" :font-family card-games-svg-font-family
             :font-weight "bold" :letter-spacing "2"))
 
 (defun card-games-gaps--ui-divider (svg x1 x2 y)
-  "Draw a faint horizontal divider on SVG."
+  "Draw a faint horizontal divider on SVG from X1 to X2 at height Y."
   (svg-line svg x1 y x2 y :stroke "#1b6b35" :stroke-width 1))
 
 (defun card-games-gaps--draw-panel (svg game h lpw fs)
-  "Draw the left status/controls panel (width LPW, scale FS).
+  "Draw GAME's left status/controls panel on SVG (height H, width LPW, scale FS).
 Return a plist of clickable control regions."
   (let* ((regions nil)
          (F (lambda (n) (round (* n fs))))

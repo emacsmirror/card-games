@@ -40,7 +40,7 @@
 ;;;; Rendering
 
 (defun card-games-bid--trick-card-for (game seat)
-  "Return the card SEAT has played to the current (or last) trick, or nil."
+  "Return the card GAME SEAT has played to the current (or last) trick, or nil."
   (let ((tr (or (card-games-get game :trick) (card-games-get game :last-trick))))
     (cdr (assq seat tr))))
 
@@ -162,14 +162,14 @@ matches your Emacs theme."
   :type 'number :group 'card-games-svg)
 
 (defcustom card-games-bid-svg-ui nil
-  "When non-nil (and on a graphical display), render 500 as a single
-full-buffer SVG: the table in the centre, a status/compass/bid panel on
-the left, and a scrollable message log on the right."
+  "Whether to render 500 as one full-buffer SVG.
+When non-nil (and on a graphical display), the table sits in the centre, a
+status/compass/bid panel on the left, and a scrollable message log on the right."
   :type 'boolean :group 'card-games-svg)
 
 (defcustom card-games-bid-svg-fill t
-  "When non-nil, size the full-SVG UI to fill the window and enlarge the
-South hand, re-fitting on window changes.  Only used when `card-games-bid-svg-ui'."
+  "Whether the full-SVG UI fills the window and enlarges the South hand.
+Re-fit on window changes.  Only used when `card-games-bid-svg-ui' is set."
   :type 'boolean :group 'card-games-svg)
 
 (defcustom card-games-bid-card-scale 1.0
@@ -233,7 +233,7 @@ Card size and fan step follow the dynamic `card-games-svg-card-width'."
     (dotimes (i k) (card-games-svg-card svg (+ x0 (* i step)) top :down t))))
 
 (defun card-games-bid--draw-opponent (svg game seat cx top &optional fs)
-  "Draw opponent SEAT (label, backs, turn marker) on SVG centred at CX, TOP.
+  "Draw GAME opponent SEAT (label, backs, turn marker) on SVG centred at CX, TOP.
 FS scales the name pill and its fonts."
   (let* ((fs (or fs 1.0))
          (n (length (card-games-bid--hand game seat)))
@@ -253,7 +253,7 @@ FS scales the name pill and its fonts."
     (unless sitter (card-games-bid--draw-backs svg cx top n))))
 
 (defun card-games-bid--draw-trick (svg game)
-  "Draw the cards played to the current trick around the centre of SVG."
+  "Draw GAME's cards played to the current trick around the centre of SVG."
   (let* ((W card-games-bid--canvas-w) (H card-games-bid--canvas-h)
          (w card-games-bid--tw) (h card-games-bid--th)
          (cx (/ W 2)) (cy (/ H 2))
@@ -269,7 +269,7 @@ FS scales the name pill and its fonts."
                        :rank (car spec) :suit (cdr spec)))))))
 
 (defun card-games-bid--draw-south (svg game)
-  "Draw South's hand face-up along the bottom of SVG; record sort order."
+  "Draw GAME South's hand face-up along the bottom of SVG; record sort order."
   (let* ((trump (and (card-games-get game :contract)
                      (card-games-bid-trump (card-games-get game :contract))))
          (hand (card-games-bid-sort-display (card-games-bid--hand game 0) trump)))
@@ -321,7 +321,7 @@ Folds the controls into the single action-button row (see
   (insert (format "\n  %s\n" (card-games-get game :message))))
 
 (defun card-games-bid--south-hit (px py n)
-  "Map a click at PX, PY to a South-hand index (0..N-1), or nil."
+  "Map a click at PX, PY to one of the N South-hand indices, or nil."
   (let* ((lay (card-games-bid--south-layout n))
          (x0 (nth 0 lay)) (step (nth 1 lay)) (y (nth 2 lay)))
     (when (and (> n 0) (>= py (- y (round (* card-games-bid--th 0.17)) 4))
@@ -431,7 +431,7 @@ The treatment is chosen by `card-games-bid--treatment' and dispatched with
     (goto-char (point-min))))
 
 (defun card-games-bid--refresh ()
-  "Advance AI to the next human action, animating turns if enabled."
+  "Advance AI to the next human action, animating each turn if enabled."
   (let ((game card-games-bid--game))
     (if (or (not card-games-bid-animate) (<= card-games-bid-ai-delay 0))
         (progn (card-games-bid--run game) (card-games-bid--redisplay))
@@ -562,9 +562,9 @@ Type a short code such as 7H, 8NT, NL (case-insensitive)."
       (card-games-bid--refresh))))
 
 (defun card-games-bid-new ()
-  "Advance to the next hand once a hand is over, or start a fresh game at
-game over.  500 is a multi-hand game with no mid-hand redeal, so a hand in
-progress must be played out (unlike the solitaire games)."
+  "Advance to the next hand, or start a fresh game once one is over.
+500 is a multi-hand game with no mid-hand redeal, so a hand in progress
+must be played out (unlike the solitaire games)."
   (interactive)
   (let* ((game card-games-bid--game) (phase (card-games-get game :phase)))
     (cond
@@ -581,7 +581,7 @@ progress must be played out (unlike the solitaire games)."
         (card-games-bid--redisplay)))))
 
 (defun card-games-bid-mouse (event)
-  "Handle a click in the 500 buffer (SVG-UI panels, table, or text)."
+  "Handle click EVENT in the 500 buffer (SVG-UI panels, table, or text)."
   (interactive "e")
   (let ((start (event-start event)) (game card-games-bid--game))
     (if (and card-games-bid-svg-ui (display-graphic-p) (posn-image start))
@@ -727,17 +727,17 @@ per-deal, so the hand always fits the table."
     (apply #'svg-text svg str a)))
 
 (defun card-games-bid--ui-label (svg str x y &optional size)
-  "Draw an all-caps, letter-spaced section label on SVG (font SIZE, default 10)."
+  "Draw STR as an all-caps, letter-spaced section label on SVG (font SIZE, default 10)."
   (svg-text svg (upcase str) :x (round x) :y (round y) :font-size (round (or size 10))
             :fill "#8fc79b" :text-anchor "start" :font-family card-games-svg-font-family
             :font-weight "bold" :letter-spacing "2"))
 
 (defun card-games-bid--ui-divider (svg x1 x2 y)
-  "Draw a faint horizontal divider on SVG."
+  "Draw a faint horizontal divider on SVG from X1 to X2 at height Y."
   (svg-line svg x1 y x2 y :stroke "#1b6b35" :stroke-width 1))
 
 (defun card-games-bid--active-seat (game)
-  "Return the seat whose action is pending, or nil."
+  "Return the GAME seat whose action is pending, or nil."
   (pcase (card-games-get game :phase)
     ('auction (card-games-get game :bidder))
     ('kitty (card-games-get game :contractor))
@@ -760,7 +760,7 @@ keep a minimum gutter so each rank index stays visible."
     (list x0 step y)))
 
 (defun card-games-bid--draw-trick-at (svg game cx cy &optional fs)
-  "Draw the current trick centred at CX, CY on SVG, on a faint drop-zone.
+  "Draw GAME's current trick centred at CX, CY on SVG, on a faint drop-zone.
 FS scales the drop-zone, the played cards, and their spread."
   (let* ((fs (or fs 1.0))
          (r (round (* 80 fs)))
@@ -779,7 +779,7 @@ FS scales the drop-zone, the played cards, and their spread."
             (card-games-svg-card svg (nth 1 s) (nth 2 s) :rank (car spec) :suit (cdr spec))))))))
 
 (defun card-games-bid--draw-south-region (svg game tx tw ybottom sw sh)
-  "Draw South's hand (cards SW by SH) within TX width TW bottom YBOTTOM.
+  "Draw GAME South's hand on SVG (SW by SH) within TX width TW bottom YBOTTOM.
 Return (:hand (X0 STEP Y N SH))."
   (let* ((trump (and (card-games-get game :contract) (card-games-bid-trump (card-games-get game :contract))))
          (hand (card-games-bid-sort-display (card-games-bid--hand game 0) trump)))
@@ -816,7 +816,7 @@ Return (:hand (X0 STEP Y N SH))."
       (list :hand (list x0 step y n sh)))))
 
 (defun card-games-bid--draw-compass (svg game cx cy r &optional fs)
-  "Draw a compass turn indicator centred at CX, CY radius R on SVG.
+  "Draw GAME's compass turn indicator centred at CX, CY radius R on SVG.
 FS scales the N/S/E/W label fonts."
   (let ((active (card-games-bid--active-seat game))
         (lsz (max 12 (round (* 13 (or fs 1.0))))))
@@ -857,11 +857,11 @@ nullo bids share the bottom row."
       (list (+ gx (* col (+ cw g))) (+ gy (* row (+ ch g))) cw ch))))
 
 (defun card-games-bid--grid-pass-cell (gx gy cw ch g)
-  "Return (X Y W H) for the double-width Pass button (bottom row, cols 3-4)."
+  "Return (X Y W H) for the double-width Pass button, from GX GY CW CH G (cols 3-4)."
   (list (+ gx (* 3 (+ cw g))) (+ gy (* 5 (+ ch g))) (+ (* 2 cw) g) ch))
 
 (defun card-games-bid--draw-left-panel (svg game h lpw fs ccy)
-  "Draw the full-height left status panel; return its clickable regions.
+  "Draw GAME's full-height left status panel on SVG; return its clickable regions.
 LPW is the panel width, FS the font/element scale, CCY the compass centre
 Y (also the North reference line).  All metrics scale with FS so the
 panel content grows with the window."
@@ -960,8 +960,9 @@ panel content grows with the window."
     regions))
 
 (defun card-games-bid--draw-log (svg game x w h fs ccy)
-  "Draw the full-height right log panel (emblem + scrolling story); return regions.
-FS scales the emblem and fonts; CCY aligns the divider with the compass."
+  "Draw GAME's full-height right log panel on SVG; return its regions.
+The panel shows the emblem and scrolling story.  FS scales the emblem and
+fonts; CCY aligns the divider with the compass."
   (let* ((F (lambda (n) (round (* n fs))))
          (y 6) (bottom (- h 6 (funcall F 64)))            ; reserve a control strip
          (logtop (+ ccy (funcall F 44) (funcall F 12)))   ; align with left divider
@@ -1032,7 +1033,7 @@ FS scales the emblem and fonts; CCY aligns the divider with the compass."
               :help (list hx cz hw hh) :sizer (nreverse srs))))))
 
 (defun card-games-bid--draw-banner (svg game tx tw ty fs)
-  "Draw the phase-prompt banner across the top of the table."
+  "Draw GAME's phase-prompt banner on SVG across the top of the table."
   (let* ((txt (card-games-bid--phase-text game))
          (by (+ ty (round (* 6 fs)))) (bh (round (* 30 fs)))
          (bw (min (- tw (round (* 90 fs)))
@@ -1044,7 +1045,8 @@ FS scales the emblem and fonts; CCY aligns the divider with the compass."
                   (round (* 14 fs)) "#f4faf4" t)))
 
 (defun card-games-bid--draw-help-overlay (svg _game tx ty tw th fs)
-  "Draw the rules/legend overlay over the table; return its regions."
+  "Draw the rules/legend overlay on SVG over the table; return its regions.
+The overlay fills TX, TY, TW, TH; FS scales the text."
   (let* ((F (lambda (n) (round (* n fs))))
          (m (funcall F 26))
          (ox (+ tx m)) (oy (+ ty m)) (ow (- tw (* 2 m))) (oh (- th (* 2 m)))
@@ -1181,7 +1183,7 @@ When `card-games-bid-svg-fill', size the canvas to fill the window."
     (card-games-bid--redisplay)))
 
 (defun card-games-bid-wheel (event)
-  "Scroll the message log when the wheel turns over the log area.
+  "Scroll the message log for wheel EVENT over the log area.
 Elsewhere, fall back to normal buffer scrolling."
   (interactive "e")
   (let ((start (event-start event)) (rg card-games-bid--regions) (handled nil))
@@ -1197,7 +1199,7 @@ Elsewhere, fall back to normal buffer scrolling."
       (ignore-errors (require 'mwheel) (mwheel-scroll event)))))
 
 (defun card-games-bid--region-bid (px py rg)
-  "Return the bid whose button rect contains PX,PY in REGIONS RG, or nil."
+  "Return the bid at PX,PY within REGIONS RG, or nil."
   (cl-some (lambda (e) (and (card-games-bid--in-rect px py (cdr e)) (car e)))
            (plist-get rg :bids)))
 

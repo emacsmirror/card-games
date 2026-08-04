@@ -123,7 +123,7 @@ MIN, ACE-HIGH and DISTINCT-SUITS are passed through to the predicates."
 ;;;; Candidate melds and best partition
 
 (defun card-games-rummy--combinations (lst k)
-  "Return all K-element combinations of LST, each as a list."
+  "Return all combinations of LST taken K at a time, each as a list."
   (cond ((= k 0) (list nil))
         ((null lst) nil)
         (t (append
@@ -132,7 +132,7 @@ MIN, ACE-HIGH and DISTINCT-SUITS are passed through to the predicates."
             (card-games-rummy--combinations (cdr lst) k)))))
 
 (defun card-games-rummy--runs-in (pairs)
-  "Return index-lists of runs (length >= 3) within PAIRS.
+  "Return an index-list for each run (length >= 3) within PAIRS.
 PAIRS is a list of (RANK . INDEX) sorted ascending by RANK."
   (let ((res '()) (vec (vconcat pairs)))
     (let ((n (length vec)))
@@ -243,7 +243,7 @@ ACE-HIGH and ACE-15 are passed to `card-games-rummy-best-partition'."
              :count))
 
 (defun card-games-rummy-layoff-p (card melds &optional ace-high)
-  "Return the first meld in MELDS that CARD extends, or nil.
+  "Return the first meld in MELDS that CARD can extend, or nil.
 ACE-HIGH allows extending a run with a high Ace."
   (cl-find-if (lambda (m)
                 (card-games-rummy-meld-p (cons card m) :min 3 :ace-high ace-high))
@@ -266,9 +266,9 @@ NDECKS defaults to 1 and JOKERS to 0."
   "Abstract base for rummy-style draw-and-discard games."
   :abstract t)
 
-(defsubst card-games-rummy--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-rummy--set-hand (game s v) (aset (card-games-get game :hands) s v))
-(defsubst card-games-rummy--top (game) (car (card-games-get game :discard)))
+(defsubst card-games-rummy--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-rummy--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
+(defsubst card-games-rummy--top (game) "Return the top card of GAME's discard pile." (car (card-games-get game :discard)))
 
 (defun card-games-rummy-sort-hand (cards)
   "Return CARDS sorted by suit then rank for display, jokers last."
@@ -290,7 +290,8 @@ Set to nil to force the plain-text card row everywhere."
 
 (defun card-games-rummy--svg-row (cards cursor marks hint-fn &optional region-tag)
   "Return a one-image SVG row for CARDS (clickable + sliderful when REGION-TAG).
-HINT-FN is an optional predicate marking playable cards."
+CURSOR is the highlighted index and MARKS the selected ones; HINT-FN is an
+optional predicate marking playable cards."
   (let ((hints (when hint-fn
                  (let ((hs '()) (i 0))
                    (dolist (c cards) (when (funcall hint-fn c) (push i hs))
@@ -453,10 +454,10 @@ Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
             "Your turn: s draws from stock, t takes the discard.")
     game))
 
-(defun card-games-gin--deadwood (cards) (card-games-rummy-deadwood cards))
+(defun card-games-gin--deadwood (cards) "Return the deadwood value of CARDS." (card-games-rummy-deadwood cards))
 
 (defun card-games-gin--draw (game s)
-  "Move one stock card to seat S's hand; return it or nil if stock empty."
+  "Move one of GAME's stock cards to seat S's hand; return it or nil if empty."
   (let ((stock (card-games-get game :stock)))
     (when stock
       (let ((c (pop stock)))
@@ -465,20 +466,20 @@ Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
         c))))
 
 (defun card-games-gin--take (game s)
-  "Move the discard top to seat S's hand and return it."
+  "Move GAME's discard top to seat S's hand and return it."
   (let ((c (card-games-rummy--top game)))
     (card-games-put game :discard (cdr (card-games-get game :discard)))
     (card-games-rummy--set-hand game s (cons c (card-games-rummy--hand game s)))
     c))
 
 (defun card-games-gin--discard (game s card)
-  "Discard CARD from seat S's hand onto the pile."
+  "Discard CARD from GAME seat S's hand onto the pile."
   (card-games-rummy--set-hand game s (card-games-rummy-sort-hand
                               (remove card (card-games-rummy--hand game s))))
   (card-games-put game :discard (cons card (card-games-get game :discard))))
 
 (defun card-games-gin--ai-best-discard (game s)
-  "Return the card seat S should discard to minimise its deadwood."
+  "Return the card GAME seat S should discard to minimise its deadwood."
   (let ((hand (card-games-rummy--hand game s)) (best nil) (bestv most-positive-fixnum))
     (dolist (c hand best)
       (let ((d (card-games-gin--deadwood (remove c hand))))
@@ -488,7 +489,7 @@ Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
           (setq best c bestv d))))))
 
 (cl-defmethod card-games-gin--ai-turn ((game card-games-gin-game) s)
-  "Play seat S's whole turn, then hand control back."
+  "Play GAME seat S's whole turn, then hand control back."
   (let* ((hand (card-games-rummy--hand game s))
          (cur (card-games-gin--deadwood hand))
          (up (card-games-rummy--top game))
@@ -511,7 +512,7 @@ Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
                             (card-games-rummy-card-string card)))))))))
 
 (cl-defmethod card-games-gin--knock ((game card-games-gin-game) knocker)
-  "Resolve the hand when KNOCKER knocks; score and end the hand."
+  "Resolve GAME's hand when KNOCKER knocks; score and end the hand."
   (let* ((kpart (card-games-rummy-best-partition (card-games-rummy--hand game knocker)))
          (kmelds (plist-get kpart :melds))
          (kdw (plist-get kpart :count))
@@ -551,7 +552,7 @@ Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
                                 (aref scores 0) (aref scores 1))))))))
 
 (cl-defmethod card-games-gin--exhaust ((game card-games-gin-game))
-  "End a hand washed out because the stock ran dry."
+  "End a GAME hand washed out because the stock ran dry."
   (card-games-put game :phase 'hand-over)
   (card-games-put game :reveal t)
   (card-games-put game :message "Stock exhausted -- the hand is a wash.  n: next hand."))
@@ -709,7 +710,7 @@ Keyword ARGS: :title :infos :melds :discard :stock :hand :cursor :marks
         (card-games-gin--after-discard g)))))
 
 (defun card-games-gin-knock ()
-  "Knock, discarding the selected card, if your deadwood allows."
+  "Knock, discarding the selected card, if your deadwood is low enough."
   (interactive)
   (let* ((g card-games-gin--game) (card (card-games-gin--cursor-card)))
     (cond

@@ -148,7 +148,8 @@ Each entry is (NAME COMMAND DESCRIPTION); `card-games' lists them.")
 
 ;;;###autoload
 (defun card-games-set-treatment (treatment)
-  "Set how games are drawn: `text' (UNICODE), `svg' (cards), or `full'.
+  "Set how games are drawn to TREATMENT.
+TREATMENT is `text' (UNICODE), `svg' (cards), or `full'.
 `full' also uses the full-window SVG table where a game has one (Gaps and
 500).  Takes effect the next time a game is drawn -- press g to redraw an
 open game.  Gaps and 500 are always graphical on a window system."

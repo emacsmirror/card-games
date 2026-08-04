@@ -52,17 +52,17 @@
   ((vname :initform "Go Fish"))
   "A game of Go Fish.")
 
-(defsubst card-games-gf--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-gf--set-hand (game s v) (aset (card-games-get game :hands) s v))
+(defsubst card-games-gf--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-gf--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
 
-(defun card-games-gf--books (game s) (aref (card-games-get game :books) s))
+(defun card-games-gf--books (game s) "Return seat S's laid-down books in GAME." (aref (card-games-get game :books) s))
 
 (defun card-games-gf--rank-count (hand rank)
   "Return how many cards of RANK are in HAND."
   (cl-count rank hand :key #'cdr))
 
 (defun card-games-gf--check-books (game s)
-  "Lay down any completed four-of-a-kind books from seat S's hand."
+  "Lay down any completed four-of-a-kind books from GAME seat S's hand."
   (dotimes (r 13)
     (when (>= (card-games-gf--rank-count (card-games-gf--hand game s) r) 4)
       (card-games-gf--set-hand game s (cl-remove r (card-games-gf--hand game s) :key #'cdr))
@@ -88,7 +88,7 @@
     game))
 
 (defun card-games-gf--draw (game s)
-  "Draw one stock card into seat S's hand.  Return it, or nil if empty."
+  "Draw one stock card into GAME seat S's hand.  Return it, or nil if empty."
   (let ((stock (card-games-get game :stock)))
     (when stock
       (card-games-gf--set-hand game s (card-games-rummy-sort-hand (cons (car stock) (card-games-gf--hand game s))))
@@ -96,12 +96,13 @@
       (car stock))))
 
 (defun card-games-gf--total-books (game)
+  "Return the total number of books laid down in GAME."
   (let ((sum 0)) (dotimes (s (card-games-get game :nplayers))
                    (setq sum (+ sum (card-games-gf--books game s))))
        sum))
 
 (defun card-games-gf--maybe-over (game)
-  "End the game when all thirteen books are made."
+  "End GAME when all thirteen books are made."
   (when (>= (card-games-gf--total-books game) 13)
     (let ((best 0))
       (dotimes (s (card-games-get game :nplayers))
@@ -112,10 +113,10 @@
               (format "Game over.  %s wins with %d books!  (n: new game)"
                       (card-games-gf--who best) (card-games-gf--books game best))))))
 
-(defun card-games-gf--who (s) (if (= s 0) "You" (format "Player %d" s)))
+(defun card-games-gf--who (s) "Return the display name of seat S." (if (= s 0) "You" (format "Player %d" s)))
 
 (cl-defmethod card-games-gf--ask ((game card-games-go-fish-game) asker target rank)
-  "ASKER asks TARGET for RANK.  Return non-nil if ASKER keeps the turn."
+  "In GAME, ASKER asks TARGET for RANK; return non-nil for another turn."
   (let* ((got (cl-remove-if-not (lambda (c) (= (cdr c) rank)) (card-games-gf--hand game target)))
          (keep nil))
     (if got
@@ -148,14 +149,14 @@
     keep))
 
 (defun card-games-gf--next (game s)
-  "Return the next seat after S that still has cards (or stock to draw)."
+  "Return the next GAME seat after S that still has cards (or stock to draw)."
   (let ((n (card-games-get game :nplayers)) (i (mod (1+ s) (card-games-get game :nplayers))) (tries 0))
     (while (and (< tries n) (null (card-games-gf--hand game i)) (null (card-games-get game :stock)))
       (setq i (mod (1+ i) n) tries (1+ tries)))
     i))
 
 (defun card-games-gf--start-turn (game s)
-  "Ready seat S to act: draw up if empty; pass the turn if it cannot ask.
+  "Ready GAME seat S to act: draw up if empty; pass if it cannot ask.
 Return non-nil when S can ask."
   (when (and (null (card-games-gf--hand game s)) (card-games-get game :stock))
     (card-games-gf--draw game s))
@@ -165,7 +166,7 @@ Return non-nil when S can ask."
         (t (card-games-put game :turn (card-games-gf--next game s)) nil)))
 
 (cl-defmethod card-games-gf--ai-turn ((game card-games-go-fish-game) s)
-  "Take seat S's whole AI turn (it may keep asking)."
+  "Take GAME seat S's whole AI turn (it may keep asking)."
   (when (card-games-gf--start-turn game s)
     (let ((guard 0))
       (while (and (= (card-games-get game :turn) s) (eq (card-games-get game :phase) 'play)
@@ -182,7 +183,7 @@ Return non-nil when S can ask."
               (card-games-put game :turn (card-games-gf--next game s)))))))))
 
 (defun card-games-gf--run (game)
-  "Advance AI seats until it is your turn or the game ends."
+  "Advance GAME's AI seats until your turn or the game ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play) (/= (card-games-get game :turn) 0) (< guard 1000))
       (setq guard (1+ guard))
@@ -218,7 +219,7 @@ Return non-nil when S can ask."
     (_ (cl-call-next-method))))
 
 (defun card-games-gf--hand-ranks (game)
-  "Return the distinct ranks in your hand, low to high (Ace..King)."
+  "Return the distinct ranks in your GAME hand, low to high (Ace..King)."
   (let ((seen (make-vector 13 nil)) (out '()))
     (dolist (c (card-games-gf--hand game 0)) (aset seen (cdr c) t))
     (dotimes (r 13) (when (aref seen r) (push r out)))
@@ -237,7 +238,7 @@ Moves the hand cursor to a card of that rank so the existing
     (card-games-gf--redisplay)))
 
 (defun card-games-gf--insert-rank-picker (game)
-  "Insert a row of clickable rank buttons for the ranks in your hand.
+  "Insert clickable rank buttons for the ranks in your GAME hand.
 Each rank is a large, easy target, so you pick what to ask for by rank
 instead of hunting for one overlapped card in a big hand."
   (let* ((ranks (card-games-gf--hand-ranks game))
@@ -257,6 +258,7 @@ instead of hunting for one overlapped card in a big hand."
       (insert "\n"))))
 
 (defun card-games-gf--redisplay ()
+  "Redraw the current Go Fish buffer."
   (let ((game card-games-gf--game) (inhibit-read-only t))
         (setq card-games-current-game game card-games-redisplay-function #'card-games-gf--redisplay)
     (setq-local mode-line-process (format " [%s]" (card-games-get game :phase)))
@@ -350,8 +352,8 @@ instead of hunting for one overlapped card in a big hand."
   ((vname :initform "Old Maid"))
   "A game of Old Maid.")
 
-(defsubst card-games-om--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-om--set-hand (game s v) (aset (card-games-get game :hands) s v))
+(defsubst card-games-om--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-om--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
 
 (defun card-games-om--discard-pairs (hand)
   "Return HAND with every matched pair of ranks removed."
@@ -381,31 +383,32 @@ instead of hunting for one overlapped card in a big hand."
     game))
 
 (defun card-games-om--active (game)
-  "Return the list of seats still holding cards."
+  "Return GAME's seats still holding cards."
   (cl-loop for s below (card-games-get game :nplayers)
            when (card-games-om--hand game s) collect s))
 
 (defun card-games-om--target (game s)
-  "Return the next active seat after S to draw from."
+  "Return the next active GAME seat after S to draw from."
   (let ((n (card-games-get game :nplayers)) (i (mod (1+ s) (card-games-get game :nplayers))) (tries 0))
     (while (and (< tries n) (or (= i s) (null (card-games-om--hand game i))))
       (setq i (mod (1+ i) n) tries (1+ tries)))
     (and (card-games-om--hand game i) i)))
 
 (defun card-games-om--skip-empty (game)
-  "Advance the turn past any seat that has run out of cards."
+  "Advance GAME's turn past any seat that has run out of cards."
   (let ((n (card-games-get game :nplayers)) (tries 0))
     (while (and (< tries n) (null (card-games-om--hand game (card-games-get game :turn))))
       (card-games-put game :turn (mod (1+ (card-games-get game :turn)) n))
       (setq tries (1+ tries)))))
 
 (defun card-games-om--total (game)
+  "Return the total cards remaining in GAME."
   (let ((sum 0)) (dotimes (s (card-games-get game :nplayers))
                    (setq sum (+ sum (length (card-games-om--hand game s)))))
        sum))
 
 (cl-defmethod card-games-om--draw ((game card-games-old-maid-game) drawer idx)
-  "DRAWER takes card IDX from the next active hand, then discards a pair."
+  "In GAME, DRAWER takes card IDX from the next hand, then discards a pair."
   (let ((target (card-games-om--target game drawer)))
     (when target
       (let* ((thand (card-games-om--hand game target))
@@ -424,7 +427,7 @@ instead of hunting for one overlapped card in a big hand."
       (card-games-om--skip-empty game))))
 
 (cl-defmethod card-games-om--finish ((game card-games-old-maid-game))
-  "End the game; whoever holds the last card is the Old Maid."
+  "End GAME; whoever has the last card is the Old Maid."
   (let ((loser (car (card-games-om--active game))))
     (card-games-put game :phase 'game-over)
     (card-games-put game :winner loser)
@@ -435,13 +438,13 @@ instead of hunting for one overlapped card in a big hand."
               "All paired off -- a draw!  (n: new game)"))))
 
 (defun card-games-om--ai-turn (game s)
-  "Take seat S's AI turn: draw a random card from the next hand."
+  "Take GAME seat S's AI turn: draw a random card from the next hand."
   (let ((target (card-games-om--target game s)))
     (if (null target) (card-games-om--finish game)
       (card-games-om--draw game s (random (length (card-games-om--hand game target)))))))
 
 (defun card-games-om--run (game)
-  "Advance AI seats until it is your turn or the game ends."
+  "Advance GAME's AI seats until your turn or the game ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play) (/= (card-games-get game :turn) 0) (< guard 500))
       (setq guard (1+ guard))
@@ -501,7 +504,7 @@ instead of hunting for one overlapped card in a big hand."
     (propertize "*" 'display (card-games-svg-image svg (card-games-scale)) 'card-games-regions (nreverse regions))))
 
 (cl-defmethod card-games-render-apply ((g card-games-old-maid-game) action)
-  "Apply a click ACTION: pick that card from the target and draw it."
+  "Apply click ACTION on G: pick that card from the target and draw it."
   (pcase action
     (`(pick . ,i) (card-games-put g :pick i) (card-games-om-draw))
     (_ (cl-call-next-method))))
@@ -531,6 +534,7 @@ instead of hunting for one overlapped card in a big hand."
     (apply #'concat (nreverse out))))
 
 (defun card-games-om--redisplay ()
+  "Redraw the current Old Maid buffer."
   (let ((game card-games-om--game) (inhibit-read-only t))
     (setq card-games-current-game game card-games-redisplay-function #'card-games-om--redisplay)
     (setq-local mode-line-process (format " [%s]" (card-games-get game :phase)))

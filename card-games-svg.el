@@ -293,7 +293,7 @@ X, Y and W, H give the card's top-left corner and size."
   (card-games-svg--text svg "JOKER" (+ x (/ w 2.0)) (+ y (* h 0.74)) (* h 0.135) color t))
 
 (defun card-games-svg--back-dots (svg x y w h)
-  "Draw the dotted-medallion back pattern."
+  "Draw the dotted-medallion back pattern on SVG within X, Y, W, H."
   (let ((gy (+ y 10)))
     (while (< gy (- (+ y h) 8))
       (let ((gx (+ x 10)))
@@ -303,7 +303,7 @@ X, Y and W, H give the card's top-left corner and size."
       (setq gy (+ gy 9)))))
 
 (defun card-games-svg--back-lattice (svg x y w h)
-  "Draw a small-cross lattice back pattern."
+  "Draw a small-cross lattice back pattern on SVG within X, Y, W, H."
   (let ((gy (+ y 13)))
     (while (< gy (- (+ y h) 10))
       (let ((gx (+ x 13)))
@@ -316,7 +316,7 @@ X, Y and W, H give the card's top-left corner and size."
       (setq gy (+ gy 11)))))
 
 (defun card-games-svg--back-waves (svg x y w h)
-  "Draw a staggered-dash (brickwork) back pattern."
+  "Draw a staggered-dash (brickwork) back pattern on SVG within X, Y, W, H."
   (let ((gy (+ y 12)) (row 0))
     (while (< gy (- (+ y h) 9))
       (let ((gx (+ x (if (cl-evenp row) 9 15))))
@@ -326,7 +326,7 @@ X, Y and W, H give the card's top-left corner and size."
       (setq gy (+ gy 8) row (1+ row)))))
 
 (defun card-games-svg--back-diamond (svg x y w h)
-  "Draw concentric diamonds as the back pattern."
+  "Draw concentric diamonds as the back pattern on SVG within X, Y, W, H."
   (let ((cx (+ x (/ w 2.0))) (cy (+ y (/ h 2.0))))
     (dolist (f '(0.40 0.28 0.16))
       (let ((dw (* w f)) (dh (* h f)))
@@ -335,7 +335,8 @@ X, Y and W, H give the card's top-left corner and size."
                      :fill "none" :stroke card-games-svg-back-trim :stroke-width 1)))))
 
 (defun card-games-svg--back-logo (svg x y w h back)
-  "Stamp the Emacs logo for BACK centred on the card, or dots if unavailable."
+  "Stamp the Emacs logo named BACK on SVG within X, Y, W, H.
+Fall back to dots when the logo image is unavailable."
   (let ((file (and (fboundp 'svg-embed)
                    (card-games-svg--logo-file (card-games-svg--back-logo-name back)))))
     (if (null file)
@@ -590,7 +591,8 @@ emblem and `none' shows nothing."
            when (file-readable-p f) return f))
 
 (defun card-games-svg--draw-logo-emblem (svg cx cy fs)
-  "Draw the built-in purple GNU Emacs emblem centred at CX, CY, scaled FS."
+  "Draw the built-in purple GNU Emacs emblem on SVG.
+Centre it at CX, CY, scaled by FS."
   (svg-gradient svg "card-games-logo" 'linear '((0 . "#8056c8") (100 . "#3f1f9e")))
   (svg-circle svg cx cy (round (* 26 fs)) :gradient "card-games-logo"
               :stroke "#2a1370" :stroke-width 2)
@@ -599,9 +601,10 @@ emblem and `none' shows nothing."
                 (max 10 (round (* 11 fs))) "#c7bbe6"))
 
 (defun card-games-svg-draw-logo (svg cx cy &optional fs)
-  "Draw the configured Emacs emblem (`card-games-svg-emacs-logo') centred at CX, CY.
-FS scales it.  Embeds a real Emacs logo image when one is available, and
-otherwise draws the built-in emblem."
+  "Draw the configured Emacs emblem on SVG, centred at CX, CY.
+The emblem is chosen by `card-games-svg-emacs-logo'; FS scales it.  Embeds a
+real Emacs logo image when one is available, and otherwise draws the
+built-in emblem."
   (let ((fs (or fs 1.0)) (choice card-games-svg-emacs-logo))
     (pcase choice
       ('none nil)

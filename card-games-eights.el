@@ -55,13 +55,13 @@
   (if (null card) "·"
     (concat (aref card-games-eights-ranks (cdr card)) (card-games-suit-glyph (car card)))))
 
-(defsubst card-games-eights-red-p (card) (and card (card-games-red-suit-p (car card))))
+(defsubst card-games-eights-red-p (card) "Return non-nil when CARD is red." (and card (card-games-red-suit-p (car card))))
 
 (defun card-games-eights--value (card)
   "Return the scoring value of CARD held at the end of a hand."
   (cond ((= (cdr card) card-games-eights--wild) 50)
         ((>= (cdr card) 9) 10)            ; J Q K
-        ((= (cdr card) 12) 1)             ; (Ace handled above by >=9? no) 
+        ((= (cdr card) 12) 1)             ; (Ace handled above by >=9? no)
         (t (+ 2 (cdr card)))))
 
 (defun card-games-eights--deck ()
@@ -74,9 +74,9 @@
   ((vname :initform "Crazy Eights"))
   "A game of Crazy Eights.")
 
-(defsubst card-games-eights--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-eights--set-hand (game s v) (aset (card-games-get game :hands) s v))
-(defsubst card-games-eights--top (game) (car (card-games-get game :discard)))
+(defsubst card-games-eights--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-eights--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
+(defsubst card-games-eights--top (game) "Return the top card of GAME's discard pile." (car (card-games-get game :discard)))
 
 (cl-defmethod card-games-eights--deal ((game card-games-eights-game))
   "Deal a fresh Crazy Eights hand into GAME."
@@ -104,18 +104,18 @@
     game))
 
 (cl-defmethod card-games-eights--legal-p ((game card-games-eights-game) card)
-  "Return non-nil when CARD may be played onto the discard now."
+  "Return non-nil when CARD may be played onto GAME's discard now."
   (or (= (cdr card) card-games-eights--wild)
       (= (car card) (card-games-get game :suit))
       (= (cdr card) (cdr (card-games-eights--top game)))))
 
 (defun card-games-eights--legal-moves (game s)
-  "Return the cards in seat S's hand that may be played now."
+  "Return the cards in GAME seat S's hand that may be played now."
   (cl-remove-if-not (lambda (c) (card-games-eights--legal-p game c))
                     (card-games-eights--hand game s)))
 
 (defun card-games-eights--best-suit (game s)
-  "Return the suit seat S holds most of (ignoring eights)."
+  "Return the suit most common in GAME seat S's hand (ignoring eights)."
   (let ((counts (make-vector 4 0)))
     (dolist (c (card-games-eights--hand game s))
       (unless (= (cdr c) card-games-eights--wild)
@@ -125,7 +125,7 @@
       best)))
 
 (cl-defmethod card-games-eights--play ((game card-games-eights-game) s card &optional suit)
-  "Have seat S play CARD; SUIT names the next suit for a wild eight."
+  "Have GAME seat S play CARD; SUIT names the next suit for a wild eight."
   (card-games-eights--set-hand game s (remove card (card-games-eights--hand game s)))
   (card-games-put game :discard (cons card (card-games-get game :discard)))
   (card-games-put game :suit (if (= (cdr card) card-games-eights--wild)
@@ -137,7 +137,7 @@
     (card-games-put game :turn (mod (1+ s) (card-games-get game :nplayers)))))
 
 (defun card-games-eights--draw-card (game s)
-  "Move one card from the stock to seat S's hand, recycling if needed.
+  "Move one card from GAME's stock to seat S's hand, recycling if needed.
 Return the drawn card, or nil when none is available."
   (when (and (null (card-games-get game :stock)) (cdr (card-games-get game :discard)))
     (let ((top (car (card-games-get game :discard))))
@@ -151,7 +151,7 @@ Return the drawn card, or nil when none is available."
         card))))
 
 (cl-defmethod card-games-eights--finish ((game card-games-eights-game) winner)
-  "Record WINNER going out and score the other hands against them."
+  "Record WINNER going out in GAME and score the other hands against them."
   (let ((sum 0))
     (dotimes (s (card-games-get game :nplayers))
       (unless (= s winner)
@@ -165,7 +165,7 @@ Return the drawn card, or nil when none is available."
                     (if (= winner 0) "You" (format "Player %d" winner)) sum))))
 
 (cl-defmethod card-games-eights--ai-turn ((game card-games-eights-game) s)
-  "Take seat S's whole turn: play if able, otherwise draw then play or pass."
+  "Take GAME seat S's whole turn: play if able, else draw then play or pass."
   (let ((moves (card-games-eights--legal-moves game s)))
     (unless moves
       ;; draw up to a small limit looking for a play
@@ -184,7 +184,7 @@ Return the drawn card, or nil when none is available."
       (card-games-put game :turn (mod (1+ s) (card-games-get game :nplayers))))))
 
 (defun card-games-eights--run (game)
-  "Advance AI seats until it is the human's turn or the hand ends."
+  "Advance GAME's AI seats until the human's turn or the hand ends."
   (while (and (eq (card-games-get game :phase) 'play)
               (/= (card-games-get game :turn) 0)
               (< (card-games-get game :passes) (card-games-get game :nplayers)))
@@ -193,7 +193,7 @@ Return the drawn card, or nil when none is available."
     (card-games-eights--deadlock game)))
 
 (cl-defmethod card-games-eights--deadlock ((game card-games-eights-game))
-  "End a hand in which everyone passed; lowest hand value wins."
+  "End a GAME hand in which everyone passed; lowest hand value wins."
   (let ((best 0) (bestv most-positive-fixnum))
     (dotimes (s (card-games-get game :nplayers))
       (let ((v (apply #'+ (mapcar #'card-games-eights--value (card-games-eights--hand game s)))))
@@ -323,6 +323,7 @@ Return the drawn card, or nil when none is available."
     (erase-buffer) (insert (card-games-render game)) (goto-char (point-min))))
 
 (defun card-games-eights--cursor-card (game)
+  "Return the card under GAME's cursor in the human hand."
   (nth (card-games-get game :cursor) (card-games-eights--hand game 0)))
 
 (defun card-games-eights-left ()
@@ -340,7 +341,7 @@ Return the drawn card, or nil when none is available."
     (card-games-eights--redisplay)))
 
 (defun card-games-eights--choose-suit (game)
-  "Return a suit the human names for a wild eight."
+  "Return a suit the human names for a wild eight in GAME."
   (if noninteractive (card-games-eights--best-suit game 0)
     (let* ((names (mapcar (lambda (i) (cons (aref card-games-suit-names i) i)) '(0 1 2 3)))
            (pick (completing-read "Name the suit: " (mapcar #'car names) nil t)))

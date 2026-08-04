@@ -96,7 +96,7 @@
   (cl-count suit hand :key #'car))
 
 (defun card-games-bridge--longest (hand)
-  "Return the suit index HAND holds most of (ties prefer majors, then spades)."
+  "Return the suit index HAND has most of (ties prefer majors, then spades)."
   (let ((best 0) (bestn -1))
     ;; check in order hearts, diamonds, clubs, spades so spades win ties last
     (dolist (s '(3 2 1 0))
@@ -115,9 +115,9 @@
 
 ;;;; Auction mechanics
 
-(defsubst card-games-bridge--hand (game s) (aref (card-games-get game :hands) s))
-(defsubst card-games-bridge--set-hand (game s v) (aset (card-games-get game :hands) s v))
-(defsubst card-games-bridge--side (s) (mod s 2))
+(defsubst card-games-bridge--hand (game s) "Return seat S's hand in GAME." (aref (card-games-get game :hands) s))
+(defsubst card-games-bridge--set-hand (game s v) "Set seat S's hand in GAME to V." (aset (card-games-get game :hands) s v))
+(defsubst card-games-bridge--side (s) "Return the partnership side (0 or 1) of seat S." (mod s 2))
 
 (cl-defmethod card-games-bridge--deal ((game card-games-bridge-game))
   "Deal a fresh Bridge hand into GAME, leaving it ready for the auction."
@@ -147,12 +147,12 @@
     game))
 
 (defun card-games-bridge--high-bid (game)
-  "Return the highest (LEVEL . STRAIN) bid so far, or nil."
+  "Return GAME's highest (LEVEL . STRAIN) bid so far, or nil."
   (cl-loop for (_s . call) in (card-games-get game :calls)
            when (consp call) return call))
 
 (defun card-games-bridge--high-bidder (game)
-  "Return the seat that made the highest bid, or nil."
+  "Return the GAME seat that made the highest bid, or nil."
   (cl-loop for (s . call) in (card-games-get game :calls)
            when (consp call) return s))
 
@@ -176,7 +176,7 @@
               (card-games-bridge--call> call high))))))
 
 (defun card-games-bridge--apply-call (game seat call)
-  "Record CALL by SEAT and update doubling state."
+  "Record CALL by SEAT in GAME and update doubling state."
   (card-games-put game :calls (cons (cons seat call) (card-games-get game :calls)))
   (pcase call
     ('double (card-games-put game :doubled 1))
@@ -185,7 +185,7 @@
   (card-games-put game :bidder (mod (1+ seat) 4)))
 
 (defun card-games-bridge--auction-done-p (game)
-  "Return non-nil when the auction has ended.
+  "Return non-nil when GAME's auction has ended.
 Sets up the contract (or a pass-out) as a side effect."
   (let* ((calls (card-games-get game :calls)) (n (length calls)))
     (cond
@@ -201,7 +201,7 @@ Sets up the contract (or a pass-out) as a side effect."
      (t nil))))
 
 (defun card-games-bridge--establish-contract (game)
-  "Set the contract, declarer, and start of play from the finished auction."
+  "Set GAME's contract, declarer, and start of play from the auction."
   (let* ((bid (card-games-bridge--high-bid game))
          (side (card-games-bridge--side (card-games-bridge--high-bidder game)))
          (strain (cdr bid))
@@ -240,12 +240,12 @@ Sets up the contract (or a pass-out) as a side effect."
   (and (card-games-get game :contract) (aref card-games-bridge--strain-suit (cdr (card-games-get game :contract)))))
 
 (defun card-games-bridge--led-suit (game)
-  "Return the suit led to the current trick, or nil."
+  "Return the suit led to GAME's current trick, or nil."
   (let ((tr (card-games-get game :trick)))
     (and tr (car (cdr (car (last tr)))))))
 
 (defun card-games-bridge--legal-play-p (game seat card)
-  "Return non-nil when SEAT may play CARD now (follow suit if able)."
+  "Return non-nil when SEAT may play CARD in GAME now (follow suit if able)."
   (let ((hand (card-games-bridge--hand game seat)) (led (card-games-bridge--led-suit game)))
     (and (member card hand)
          (or (null led)
@@ -253,12 +253,12 @@ Sets up the contract (or a pass-out) as a side effect."
              (not (cl-some (lambda (c) (= (car c) led)) hand))))))
 
 (defun card-games-bridge--legal-plays (game seat)
-  "Return SEAT's legal cards now."
+  "Return SEAT's legal cards in GAME now."
   (cl-remove-if-not (lambda (c) (card-games-bridge--legal-play-p game seat c))
                     (card-games-bridge--hand game seat)))
 
 (defun card-games-bridge--trick-winner (plays trump)
-  "Return the winning seat of complete PLAYS ((SEAT . CARD), play order)."
+  "Return the winning seat of complete PLAYS, given TRUMP ((SEAT . CARD) order)."
   (let ((best (car plays)))
     (dolist (p (cdr plays))
       (let ((bc (cdr best)) (pc (cdr p)))
@@ -268,7 +268,7 @@ Sets up the contract (or a pass-out) as a side effect."
     (car best)))
 
 (defun card-games-bridge--play-card (game seat card)
-  "Have SEAT play CARD; resolve and score the trick when it completes."
+  "Have SEAT play CARD in GAME; resolve and score the trick when complete."
   (card-games-bridge--set-hand game seat (remove card (card-games-bridge--hand game seat)))
   (card-games-put game :trick (cons (cons seat card) (card-games-get game :trick)))
   ;; expose the dummy after the opening lead
@@ -361,7 +361,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
 ;;;; AI -- bidding
 
 (cl-defmethod card-games-bridge--ai-call ((game card-games-bridge-game) seat)
-  "Return a call for AI SEAT from a small natural system."
+  "Return a call for GAME AI SEAT from a small natural system."
   (let* ((hand (card-games-bridge--hand game seat)) (hcp (card-games-bridge--hcp hand))
          (high (card-games-bridge--high-bid game)) (hb (card-games-bridge--high-bidder game))
          (ours (and high (= (card-games-bridge--side hb) (card-games-bridge--side seat)))))
@@ -398,7 +398,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
 ;;;; AI -- play
 
 (cl-defmethod card-games-bridge--ai-play ((game card-games-bridge-game) seat)
-  "Return a card for AI SEAT: win cheaply or shed low."
+  "Return a card for GAME AI SEAT: win cheaply or shed low."
   (let* ((legal (card-games-bridge--legal-plays game seat))
          (trump (card-games-bridge--trump game)) (trick (card-games-get game :trick)))
     (if (null trick)
@@ -422,7 +422,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
          (t (car (sort (copy-sequence legal) (lambda (a b) (< (cdr a) (cdr b)))))))))))
 
 (defun card-games-bridge--controls (game)
-  "Return the list of seats the human controls during play."
+  "Return the GAME seats the human controls during play."
   (let ((decl (card-games-get game :declarer)))
     (cond ((null decl) nil)
           ((= decl 0) '(0 2))           ; South declares: play hand + dummy
@@ -434,7 +434,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
   (not (memq seat (card-games-bridge--controls game))))
 
 (defun card-games-bridge--run-play (game)
-  "Advance AI plays until a human-controlled seat must act or the deal ends."
+  "Advance GAME's AI plays until a human seat must act or the deal ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'play)
                 (card-games-bridge--auto-seat-p game (card-games-get game :turn))
@@ -444,7 +444,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
                             (card-games-bridge--ai-play game (card-games-get game :turn))))))
 
 (defun card-games-bridge--run-auction (game)
-  "Advance the auction through AI seats until South must call or it ends."
+  "Advance GAME's auction through AI seats until South must call or it ends."
   (let ((guard 0))
     (while (and (eq (card-games-get game :phase) 'auction) (/= (card-games-get game :bidder) 0)
                 (< guard 40))
@@ -471,7 +471,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
     (apply #'concat (nreverse out))))
 
 (defun card-games-bridge--auction-string (game)
-  "Return a compact record of the auction so far."
+  "Return a compact record of GAME's auction so far."
   (let ((calls (reverse (card-games-get game :calls))) (out '()))
     (dolist (sc calls)
       (push (format "%s:%s" (aref card-games-bridge-seat-names (car sc))
@@ -490,7 +490,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
   (cons (aref card-games-bridge-ranks (cdr card)) (car card)))
 
 (cl-defun card-games-bridge--svg-row (cards &key cursor hints region-tag)
-  "Return a one-image SVG row for CARDS (clickable + sliderful when REGION-TAG)."
+  "Return an SVG row for CARDS with CURSOR and HINTS, clickable via REGION-TAG."
   (card-games-svg-hand-image (mapcar #'card-games-bridge--spec cards)
                      :cursor cursor :hints hints
                      :overlap (if (> (length cards) 11)
@@ -498,7 +498,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
                      :region-tag region-tag))
 
 (defun card-games-bridge--draw-backs (svg x y n)
-  "Draw up to three overlapped backs at X, Y for a hand of N cards."
+  "Draw up to three overlapped backs on SVG at X, Y for a hand of N cards."
   (let ((k (min (max n 0) 3)) (xx x))
     (dotimes (_ k) (card-games-svg-card svg xx y :down t) (setq xx (+ xx 16)))))
 
@@ -678,12 +678,13 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
     (apply #'concat (nreverse out))))
 
 (cl-defmethod card-games-render-apply ((g card-games-bridge-game) action)
-  "Apply a click ACTION on the hand: select that card and play it."
+  "Apply click ACTION on G's hand: select that card and play it."
   (pcase action
     (`(hand . ,i) (card-games-put g :cursor i) (card-games-bridge-play))
     (_ (cl-call-next-method))))
 
 (defun card-games-bridge--redisplay ()
+  "Redraw the current Bridge buffer."
   (let ((game card-games-bridge--game) (inhibit-read-only t))
     (setq card-games-current-game game card-games-redisplay-function #'card-games-bridge--redisplay)
     (setq-local mode-line-process (format " [%s]" (card-games-get game :phase)))
@@ -720,7 +721,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
     (card-games-bridge--redisplay)))
 
 (defun card-games-bridge--after-call (g)
-  "Resolve end-of-auction and run AI after South calls in G."
+  "Resolve the end of the auction and run AI after South's call in G."
   (unless (card-games-bridge--auction-done-p g)
     (card-games-bridge--run-auction g))
   (when (eq (card-games-get g :phase) 'play) (card-games-bridge--run-play g))
@@ -762,7 +763,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
 ;;;; Play commands
 
 (defun card-games-bridge--act-hand (g)
-  "Return the hand the cursor currently indexes (the seat to act)."
+  "Return the hand G's cursor currently indexes (the seat to act)."
   (let ((act (if (memq (card-games-get g :turn) (card-games-bridge--controls g)) (card-games-get g :turn) 0)))
     (card-games-bridge--sort (card-games-bridge--hand g act))))
 

@@ -230,8 +230,9 @@ strings inside MSG have their text properties stripped first, by
   (and card-games-net--host (process-live-p (card-games-net-host-server card-games-net--host))))
 
 (defun card-games-net-host-start (game &optional port)
-  "Begin hosting GAME on PORT (default `card-games-net-port').  Return the server process.
-The socket binds `card-games-net-host-address' -- by default, this machine only."
+  "Begin hosting GAME on PORT (default `card-games-net-port').
+Return the server process.  The socket binds
+`card-games-net-host-address' -- by default, this machine only."
   (let* ((port (or port card-games-net-port))
          (server (make-network-process
                   :name "card-games-host" :server t :service port

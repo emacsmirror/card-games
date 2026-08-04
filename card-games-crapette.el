@@ -193,14 +193,14 @@ Loading needs the same suit and a rank one step up or down."
        (= 1 (abs (- (cdr pile-top) (cdr card))))))
 
 (defun card-games-crap--found-for (game card)
-  "Return the index of a foundation that would accept CARD, or nil."
+  "Return the index of a GAME foundation that would accept CARD, or nil."
   (cl-loop for i below 8 when (card-games-crap--found-accepts game i card) return i))
 
 
 ;;;; Sequenced house moves
 
 (defun card-games-crap--house-run (game i)
-  "Return the movable top run of house I as a list, bottom-to-top.
+  "Return the movable top run of GAME house I as a list, bottom-to-top.
 The run is the longest sequence of cards at the top of the house that is
 built down in alternating colours."
   (let ((rev (reverse (card-games-crap--house game i))))     ; top-first
@@ -218,7 +218,7 @@ built down in alternating colours."
   (cl-count-if #'null (append (card-games-get game :houses) nil)))
 
 (defun card-games-crap--capacity (game dest-i)
-  "Return how many cards may be moved as a group onto house DEST-I.
+  "Return how many cards may be moved as a group onto GAME house DEST-I.
 With F empty houses you may relay F+1 cards onto a non-empty house, or
 F onto an empty house (the destination itself cannot serve as a relay)."
   (let ((free (card-games-crap--free-houses game)))
@@ -291,7 +291,7 @@ and nil when nothing fits."
     (_ nil)))
 
 (defun card-games-crap--dest-ok (game from to card p)
-  "Return non-nil when player P may move CARD from spot FROM to spot TO."
+  "Return non-nil when player P may move CARD from FROM to TO in GAME."
   (pcase (car to)
     ('found (card-games-crap--found-accepts game (cdr to) card))
     ('house (card-games-crap--house-accepts game (cdr to) card))
@@ -342,7 +342,7 @@ and nil when nothing fits."
             (aset (card-games-get game :waste) p (append (card-games-crap--waste game p) (list card)))))))
 
 (defun card-games-crap--move (game from to p)
-  "Move the top card of FROM onto TO for player P.
+  "Move the top card of FROM onto TO in GAME for player P.
 Return non-nil when the move was legal and performed."
   (let ((card (card-games-crap--spot-top game from)))
     (when (and card (card-games-crap--source-p from p) (card-games-crap--dest-ok game from to card p))
@@ -355,9 +355,10 @@ Return non-nil when the move was legal and performed."
 (defun card-games-crap--do-move (game from to p &optional want)
   "Perform player P's move from FROM to TO in GAME.
 A house-to-house move may carry a legal sequence of cards (see
-`card-games-crap--house-move', to which WANT is passed); every other move carries
-a single card.  Returns the same values as those functions (non-nil on
-success, `space' when a sequence is too long for the empty houses)."
+`card-games-crap--house-move', to which WANT is passed); every other
+move carries a single card.  Returns the same values as those
+functions (non-nil on success, `space' when a sequence is too long
+for the empty houses)."
   (if (and (eq (car from) 'house) (eq (car to) 'house))
       (card-games-crap--house-move game (cdr from) (cdr to) want)
     (card-games-crap--move game from to p)))
@@ -366,7 +367,7 @@ success, `space' when a sequence is too long for the empty houses)."
 ;;;; Turn logic
 
 (defun card-games-crap--forced (game p)
-  "Return the source spots of GAME whose top card must go to a foundation."
+  "Return player P's GAME spots whose top card must go to a foundation."
   (let (out)
     (dolist (spot (card-games-crap--sources game p))
       (let ((card (card-games-crap--spot-top game spot)))
@@ -374,14 +375,14 @@ success, `space' when a sequence is too long for the empty houses)."
     (nreverse out)))
 
 (defun card-games-crap--card-playable (game p card)
-  "Return non-nil when CARD has any legal destination for player P."
+  "Return non-nil when CARD has a legal destination in GAME for player P."
   (or (card-games-crap--found-for game card)
       (cl-loop for i below 8 thereis (card-games-crap--house-accepts game i card))
       (card-games-crap--load-accepts (card-games-crap--top (card-games-crap--reserve game (- 1 p))) card)
       (card-games-crap--load-accepts (card-games-crap--top (card-games-crap--waste game (- 1 p))) card)))
 
 (defun card-games-crap--won-p (game p)
-  "Return non-nil when player P has emptied reserve, hand, and waste."
+  "Return non-nil when GAME player P has emptied reserve, hand, and waste."
   (and (null (card-games-crap--reserve game p))
        (null (card-games-crap--hand game p))
        (null (card-games-crap--waste game p))))
@@ -401,7 +402,7 @@ success, `space' when a sequence is too long for the empty houses)."
     (card-games-crap--msg game "You emptied your cards -- you win!")))
 
 (defun card-games-crap--end-turn (game)
-  "Pass the turn from you to the AI, run it, and return control to you."
+  "Pass GAME's turn from you to the AI, run it, and return control to you."
   (unless (card-games-get game :winner)
     (card-games-put game :sel nil)
     (card-games-put game :turn 1)
@@ -412,8 +413,9 @@ success, `space' when a sequence is too long for the empty houses)."
       (card-games-put game :history nil))))
 
 (defun card-games-crap--stop (game)
-  "Enforce foundation priority: call \"stop\" or block, per `card-games-crapette-stops'.
-Return non-nil when the offending action must be abandoned by its caller."
+  "Enforce GAME's foundation priority, per `card-games-crapette-stops'.
+Call \"stop\" or block; return non-nil when the offending action must be
+abandoned by its caller."
   (when (card-games-crap--forced game 0)
     (if card-games-crapette-stops
         (let ((note "North calls STOP -- you must play to a foundation first!"))
@@ -428,14 +430,14 @@ Return non-nil when the offending action must be abandoned by its caller."
 ;;;; The AI opponent (player 1)
 
 (defun card-games-crap--ai-found-move (game)
-  "Return an AI (SOURCE . FOUNDATION) foundation move, or nil."
+  "Return an AI (SOURCE . FOUNDATION) foundation move for GAME, or nil."
   (cl-loop for spot in (card-games-crap--sources game 1)
            for card = (card-games-crap--spot-top game spot)
            for fi = (and card (card-games-crap--found-for game card))
            when fi return (cons spot (cons 'found fi))))
 
 (defun card-games-crap--ai-unload-move (game)
-  "Return the best AI (SOURCE . DEST) move that empties its reserve or waste.
+  "Return GAME's best AI (SOURCE . DEST) move that empties reserve or waste.
 Emptying the RESERVE is the goal of the game, so it outscores the waste;
 LOADING a card onto you (which also burdens you) outscores building a
 house.  Every such move reduces the AI's own cards, so its turn ends."
@@ -458,7 +460,7 @@ house.  Every such move reduces the AI's own cards, so its turn ends."
     best))
 
 (defun card-games-crap--ai-enabling-move (game)
-  "Return a single-card house->house move that unlocks an unload, or nil.
+  "Return a GAME single-card house->house move that unlocks an unload, or nil.
 This is the crafty bit: when the AI cannot place its reserve or waste top
 anywhere, it looks one move ahead for a house rearrangement that would
 make such a placement legal.  It only fires when no direct unload exists,
@@ -481,7 +483,7 @@ and only when the shuffle genuinely opens one, so the turn still ends."
       nil)))
 
 (defun card-games-crap--ai-greedy-move (game)
-  "A simple first-fit unload move -- the `easy' AI.
+  "A simple first-fit unload move for GAME -- the `easy' AI.
 Empties the reserve or waste top onto the first legal spot, without the
 scoring or the house-rearranging lookahead of the tougher levels."
   (catch 'm
@@ -569,7 +571,7 @@ scoring or the house-rearranging lookahead of the tougher levels."
        (card-games-crap--holding-line g)))))
 
 (defun card-games-crap--holding-line (g)
-  "Return a line showing the picked-up house run, marking the held top cards.
+  "Return a line showing G's picked-up house run, marking the held top cards.
 Empty when nothing (or a single card) is held from a house."
   (let ((sel (card-games-get g :sel)))
     (if (not (and sel (eq (car sel) 'house)))
@@ -675,7 +677,7 @@ REGIONS maps clicked rectangles to (TYPE . INDEX) spots."
             rev))))
 
 (defun card-games-crap-mouse (event)
-  "Handle a click on the SVG board: select that pile and act on it."
+  "Handle click EVENT on the SVG board: select that pile and act on it."
   (interactive "e")
   (let* ((g card-games-crap--game) (spot (card-games-mouse-action event)))
     (when spot
@@ -720,7 +722,7 @@ REGIONS maps clicked rectangles to (TYPE . INDEX) spots."
   (interactive) (card-games-crap--move-cursor card-games-crap--game 1))
 
 (defun card-games-crap--your-turn-p (g)
-  "Return non-nil when it is your move (and warn otherwise)."
+  "Return non-nil when it is your move in G (and warn otherwise)."
   (cond ((card-games-get g :winner)
          (card-games-crap--msg g "The game is over -- press n for a new game.") nil)
         ((/= (card-games-get g :turn) 0)

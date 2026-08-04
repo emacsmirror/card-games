@@ -83,7 +83,7 @@ TRUMP is the trump suit; POWERFN and LEDFN rank cards for this game."
     (car best)))
 
 (defun card-games-tx--ai (game seat powerfn ledfn valuefn)
-  "Pick a card for SEAT: win cheaply if leading, else shed the cheapest.
+  "Pick a card for GAME SEAT: win cheaply if leading, else shed the cheapest.
 POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
   (let* ((legal (card-games-trick--legal-moves game seat))
          (trick (card-games-get game :trick)) (trump (oref game trump)))
@@ -103,7 +103,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
           (car (sort (or losers legal)
                      (lambda (a b) (< (funcall valuefn a) (funcall valuefn b))))))))))
 
-(defun card-games-tx--plain-led (card _trump) (car card))
+(defun card-games-tx--plain-led (card _trump) "Return CARD's suit (the plain led suit)." (car card))
 
 
 ;;;; Briscola
@@ -125,23 +125,26 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
   (pcase (cdr card) (12 11) (1 10) (11 4) (10 3) (9 2) (_ 0)))
 
 (defun card-games-bris--win-power (card trump led)
-  "Power with trump dominance, for resolving a Briscola trick."
+  "Return CARD's Briscola power given TRUMP and LED (trump dominates)."
   (cond ((= (car card) trump) (+ 200 (card-games-bris--power card trump led)))
         ((= (car card) led) (+ 100 (card-games-bris--power card trump led)))
         (t 0)))
 
 (cl-defmethod card-games-trick--legal-p ((game card-games-briscola-game) seat card)
-  "Briscola has no obligation to follow suit."
+  "In GAME Briscola, SEAT may play any CARD (following suit is optional)."
   (and (member card (card-games-trick--hand game seat)) t))
 
 (cl-defmethod card-games-trick--winner ((game card-games-briscola-game))
+  "Return the winning seat of GAME's current Briscola trick."
   (card-games-tx--winner (reverse (card-games-get game :trick)) (oref game trump)
                  #'card-games-bris--win-power #'card-games-tx--plain-led))
 
 (cl-defmethod card-games-trick--ai-play ((game card-games-briscola-game) seat)
+  "Return a card for AI SEAT in Briscola GAME."
   (card-games-tx--ai game seat #'card-games-bris--win-power #'card-games-tx--plain-led #'card-games-bris--points))
 
 (cl-defmethod card-games-trick--begin-hand ((game card-games-briscola-game))
+  "Begin a Briscola hand in GAME: deal and turn the trump."
   (card-games-tx--deal game (card-games-tx--deck card-games-briscola--ranks) 10)
   (card-games-put game :dealer (mod (1+ (or (card-games-get game :dealer) 3)) 4))
   (oset game trump (car (card-games-get game :last-card)))
@@ -155,6 +158,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
   (card-games-trick--run game))
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-briscola-game))
+  "Score GAME's completed Briscola hand."
   (let ((scores (card-games-get game :scores)) (tp (make-vector 2 0)))
     (dotimes (s 4)
       (aset tp (card-games-trick--team s)
@@ -163,13 +167,16 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     (dotimes (s 4) (aset scores s (+ (aref scores s) (aref tp (card-games-trick--team s)))))))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-briscola-game))
+  "Return non-nil when GAME's Briscola game is over."
   (or (>= (aref (card-games-get game :scores) 0) (oref game target))
       (>= (aref (card-games-get game :scores) 1) (oref game target))))
 
 (cl-defmethod card-games-trick--winner-seat ((game card-games-briscola-game))
+  "Return the winning seat of GAME's Briscola game."
   (if (>= (aref (card-games-get game :scores) 0) (aref (card-games-get game :scores) 1)) 0 1))
 
 (cl-defmethod card-games-trick--result-string ((game card-games-briscola-game))
+  "Return GAME's Briscola game-over summary."
   (let ((w (card-games-trick--winner-seat game)))
     (format "%s win (%d points)" (if (= w 0) "You and North" "West and East")
             (aref (card-games-get game :scores) w))))
@@ -199,7 +206,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
         (t (cdr card))))
 
 (cl-defmethod card-games-trick--legal-p ((game card-games-pitch-game) seat card)
-  "Pitch: follow the led suit if able, but you may always trump."
+  "In GAME Pitch, SEAT follows the led suit if able but may always trump CARD."
   (let ((hand (card-games-trick--hand game seat)) (trick (card-games-get game :trick))
         (trump (oref game trump)))
     (and (member card hand)
@@ -211,7 +218,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
                      (t t)))))))
 
 (cl-defmethod card-games-trick--play ((game card-games-pitch-game) seat card)
-  "Set trump from the pitcher's first lead, then play normally."
+  "In GAME, set trump from the pitcher's first lead (SEAT plays CARD), then play on."
   (when (and (null (oref game trump)) (null (card-games-get game :trick)))
     (oset game trump (car card))
     (card-games-put game :message
@@ -221,6 +228,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
   (cl-call-next-method))
 
 (cl-defmethod card-games-trick--ai-play ((game card-games-pitch-game) seat)
+  "Return a card for AI SEAT in Pitch GAME."
   (if (and (null (oref game trump)) (= seat (card-games-get game :leader)))
       ;; pitcher's opening lead: lead high from the strongest suit
       (let ((best nil) (bestv -1))
@@ -234,7 +242,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
                (lambda (c) (card-games-pitch--pip (cdr c))))))
 
 (defun card-games-pitch--suit-strength (game seat suit)
-  "Estimate SEAT's strength if SUIT were trump."
+  "Estimate GAME SEAT's strength if SUIT were trump."
   (let ((v 0))
     (dolist (c (card-games-trick--hand game seat))
       (when (= (car c) suit)
@@ -242,7 +250,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     v))
 
 (cl-defmethod card-games-trick--ai-bid ((game card-games-pitch-game) seat)
-  "Return SEAT's Pitch bid (0 to pass, else 2..4), bidding only what is makeable."
+  "Return GAME SEAT's Pitch bid (0 to pass, else 2..4), only what is makeable."
   (let ((bid 0))
     (dotimes (s 4)
       (let* ((cards (cl-remove-if-not (lambda (c) (= (car c) s))
@@ -260,7 +268,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     bid))
 
 (defun card-games-pitch--read-bid (game high)
-  "Prompt you for a Pitch bid that must beat HIGH (or 0 to pass)."
+  "Prompt you for a GAME Pitch bid that must beat HIGH (or 0 to pass)."
   (let ((sug (card-games-trick--ai-bid game 0)))
     (max 0 (min 4 (read-number
                    (format "Your bid (0 pass, else %d-4) [suggest %d]: "
@@ -268,6 +276,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
                    sug)))))
 
 (cl-defmethod card-games-trick--begin-hand ((game card-games-pitch-game))
+  "Begin a Pitch hand in GAME: deal and run the bidding."
   (card-games-tx--deal game (card-games-tx--deck (number-sequence 0 12)) 6)
   (oset game trump nil)
   (card-games-put game :dealer (mod (1+ (or (card-games-get game :dealer) 3)) 4))
@@ -289,6 +298,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     (card-games-trick--run game)))
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-pitch-game))
+  "Score GAME's completed Pitch hand."
   (let* ((trump (oref game trump)) (scores (card-games-get game :scores))
          (earned (make-vector 4 0)) (game-pts (make-vector 4 0))
          (bidder (card-games-get game :bidder)) (bid (card-games-get game :bid))
@@ -317,15 +327,18 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     (card-games-put game :last-earned earned)))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-pitch-game))
+  "Return non-nil when GAME's Pitch game is over."
   (cl-some (lambda (s) (>= s (oref game target))) (append (card-games-get game :scores) nil)))
 
 (cl-defmethod card-games-trick--winner-seat ((game card-games-pitch-game))
+  "Return the winning seat of GAME's Pitch game."
   (let ((best 0)) (dotimes (s 4)
                     (when (> (aref (card-games-get game :scores) s)
                              (aref (card-games-get game :scores) best)) (setq best s)))
        best))
 
 (cl-defmethod card-games-trick--result-string ((game card-games-pitch-game))
+  "Return GAME's Pitch game-over summary."
   (format "%s wins" (aref card-games-trick-seat-names (card-games-trick--winner-seat game))))
 
 ;;;###autoload
@@ -343,9 +356,11 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
   "Euchre: 24 cards, bowers, order up or call trump, partnership to 10.")
 
 (defun card-games-euchre--right-bower-p (card trump)
+  "Return non-nil when CARD is the right bower for TRUMP."
   (and (= (cdr card) 9) (= (car card) trump)))
 
 (defun card-games-euchre--left-bower-p (card trump)
+  "Return non-nil when CARD is the left bower for TRUMP."
   (and (= (cdr card) 9) (= (car card) (card-games-sister-suit trump))))
 
 (defun card-games-euchre--eff-suit (card trump)
@@ -360,10 +375,10 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
         ((= (card-games-euchre--eff-suit card trump) led) (+ 100 (cdr card)))
         (t (cdr card))))
 
-(defun card-games-euchre--eff-led (card trump) (card-games-euchre--eff-suit card trump))
+(defun card-games-euchre--eff-led (card trump) "Return CARD's effective led suit under TRUMP." (card-games-euchre--eff-suit card trump))
 
 (cl-defmethod card-games-trick--legal-p ((game card-games-euchre-game) seat card)
-  "Euchre: follow the effective led suit if able (left bower is trump)."
+  "In GAME Euchre, SEAT must follow the effective led suit with CARD if able."
   (let ((hand (card-games-trick--hand game seat)) (trick (card-games-get game :trick))
         (trump (oref game trump)))
     (and (member card hand)
@@ -374,15 +389,17 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
                  t))))))
 
 (cl-defmethod card-games-trick--winner ((game card-games-euchre-game))
+  "Return the winning seat of GAME's current Euchre trick."
   (card-games-tx--winner (reverse (card-games-get game :trick)) (oref game trump)
                  #'card-games-euchre--power #'card-games-euchre--eff-led))
 
 (cl-defmethod card-games-trick--ai-play ((game card-games-euchre-game) seat)
+  "Return a card for AI SEAT in Euchre GAME."
   (card-games-tx--ai game seat #'card-games-euchre--power #'card-games-euchre--eff-led
              (lambda (c) (card-games-euchre--power c (oref game trump) -1))))
 
 (defun card-games-euchre--strength (game seat suit)
-  "Estimate SEAT's trump strength if SUIT were trump."
+  "Estimate GAME SEAT's trump strength if SUIT were trump."
   (let ((v 0))
     (dolist (c (card-games-trick--hand game seat))
       (cond ((card-games-euchre--right-bower-p c suit) (setq v (+ v 4)))
@@ -392,11 +409,11 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     v))
 
 (defun card-games-euchre--ai-order (game seat upsuit)
-  "Return non-nil if SEAT orders up the UPSUIT."
+  "Return non-nil if GAME SEAT orders up the UPSUIT."
   (>= (card-games-euchre--strength game seat upsuit) 6))
 
 (defun card-games-euchre--ai-call (game seat upsuit)
-  "Return a suit SEAT calls in round two, or nil to pass."
+  "Return a suit GAME SEAT names in round two after UPSUIT, or nil to pass."
   (let ((best nil) (bestv 0))
     (dotimes (s 4)
       (unless (= s upsuit)
@@ -405,7 +422,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     (and (>= bestv 6) best)))
 
 (defun card-games-euchre--best-suit (game seat upsuit)
-  "Return SEAT's strongest suit other than UPSUIT (for a stuck dealer)."
+  "Return GAME SEAT's strongest suit other than UPSUIT (for a stuck dealer)."
   (let ((best (mod (1+ upsuit) 4)) (bestv -1))
     (dotimes (s 4)
       (unless (= s upsuit)
@@ -414,7 +431,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     best))
 
 (defun card-games-euchre--dealer-pickup (game up)
-  "Dealer takes the UP card and discards their weakest card."
+  "In GAME, the dealer takes the UP card and discards their weakest."
   (let* ((d (card-games-get game :dealer)) (trump (car up))
          (hand (cons up (card-games-trick--hand game d)))
          (worst (car (sort (copy-sequence hand)
@@ -423,6 +440,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     (card-games-trick--set-hand game d (card-games-trick--sort (remove worst hand)))))
 
 (cl-defmethod card-games-trick--begin-hand ((game card-games-euchre-game))
+  "Begin a Euchre hand in GAME: deal, turn up, run the bidding."
   (card-games-tx--deal game (card-games-tx--deck '(7 8 9 10 11 12)) 5)
   (oset game trump nil)
   (card-games-put game :dealer (mod (1+ (or (card-games-get game :dealer) 3)) 4))
@@ -468,6 +486,7 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
     (cdr (assoc pick choices))))
 
 (cl-defmethod card-games-trick--score-hand ((game card-games-euchre-game))
+  "Score GAME's completed Euchre hand."
   (let* ((scores (card-games-get game :scores))
          (mteam (card-games-trick--team (card-games-get game :maker)))
          (mt (+ (aref (card-games-get game :tricks) mteam)
@@ -480,13 +499,16 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
             (t (award oteam 2))))))
 
 (cl-defmethod card-games-trick--game-over-p ((game card-games-euchre-game))
+  "Return non-nil when GAME's Euchre game is over."
   (or (>= (aref (card-games-get game :scores) 0) (oref game target))
       (>= (aref (card-games-get game :scores) 1) (oref game target))))
 
 (cl-defmethod card-games-trick--winner-seat ((game card-games-euchre-game))
+  "Return the winning seat of GAME's Euchre game."
   (if (>= (aref (card-games-get game :scores) 0) (aref (card-games-get game :scores) 1)) 0 1))
 
 (cl-defmethod card-games-trick--result-string ((game card-games-euchre-game))
+  "Return GAME's Euchre game-over summary."
   (let ((w (card-games-trick--winner-seat game)))
     (format "%s win" (if (= w 0) "You and North" "West and East"))))
 

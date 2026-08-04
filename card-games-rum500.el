@@ -84,12 +84,12 @@
     (card-games-put game :message "Your turn: s draws from stock, t takes the discard.")
     game))
 
-(defun card-games-tm--ace-high (game) (oref game ace-high))
-(defun card-games-tm--ace-15 (game) (oref game ace-15))
-(defun card-games-tm--deep-pickup (game) (oref game deep-pickup))
+(defun card-games-tm--ace-high (game) "Return non-nil when GAME plays the Ace high." (oref game ace-high))
+(defun card-games-tm--ace-15 (game) "Return non-nil when GAME scores the Ace as 15." (oref game ace-15))
+(defun card-games-tm--deep-pickup (game) "Return non-nil when GAME's deep discard pickups are enabled." (oref game deep-pickup))
 
 (defun card-games-tm--draw (game s)
-  "Move one stock card to seat S's hand; return it or nil if stock empty."
+  "Move one of GAME's stock cards to seat S's hand; return it or nil if empty."
   (let ((stock (card-games-get game :stock)))
     (when stock
       (let ((c (pop stock)))
@@ -99,7 +99,7 @@
         c))))
 
 (defun card-games-tm--take-top (game s)
-  "Move the discard top to seat S's hand and return it."
+  "Move GAME's discard top to seat S's hand and return it."
   (let ((c (card-games-rummy--top game)))
     (when c
       (card-games-put game :discard (cdr (card-games-get game :discard)))
@@ -112,7 +112,7 @@
   (apply #'+ (mapcar (lambda (c) (card-games-rummy-value c (card-games-tm--ace-15 game))) cards)))
 
 (cl-defmethod card-games-tm--meld ((game card-games-tablemeld-game) s cards)
-  "Have seat S meld CARDS onto the table.  Return non-nil on success."
+  "Have GAME seat S meld CARDS onto the table.  Return non-nil on success."
   (when (card-games-rummy-meld-p cards :min 3 :ace-high (card-games-tm--ace-high game)
                          :distinct-suits t)
     (dolist (c cards) (card-games-rummy--set-hand game s (remove c (card-games-rummy--hand game s))))
@@ -123,7 +123,7 @@
     t))
 
 (cl-defmethod card-games-tm--layoff ((game card-games-tablemeld-game) s card)
-  "Have seat S lay CARD off onto a matching table meld.  Return non-nil on success."
+  "Have GAME seat S lay CARD off onto a matching meld; non-nil on success."
   (let ((rec (cl-find-if
               (lambda (r) (card-games-rummy-meld-p (cons card (cdr r)) :min 3
                                            :ace-high (card-games-tm--ace-high game)))
@@ -136,7 +136,7 @@
       t)))
 
 (cl-defmethod card-games-tm--score-hand ((game card-games-tablemeld-game) outseat)
-  "Score the hand ended by OUTSEAT (or nil for a washed-out hand)."
+  "Score GAME's hand ended by OUTSEAT (or nil for a washed-out hand)."
   (let* ((n (card-games-get game :nplayers)) (scores (card-games-get game :scores))
          (style (oref game score-style)))
     (cond
@@ -173,7 +173,7 @@
                         (format "Scores: %s.  (n: next hand)"
                                 (card-games-tm--scores-string game))))))))
 
-(defun card-games-tm--who (s) (if (= s 0) "You" (format "Player %d" s)))
+(defun card-games-tm--who (s) "Return the display name of seat S." (if (= s 0) "You" (format "Player %d" s)))
 
 (defun card-games-tm--scores-string (game)
   "Return a compact \"You N · P1 N ...\" score line for GAME."
@@ -184,14 +184,14 @@
     (mapconcat #'identity (nreverse parts) " · ")))
 
 (cl-defmethod card-games-tm--end-turn ((game card-games-tablemeld-game) s)
-  "Finish seat S's turn: go out if the hand is empty, else advance."
+  "Finish GAME seat S's turn: go out if the hand is empty, else advance."
   (if (null (card-games-rummy--hand game s))
       (card-games-tm--score-hand game s)
     (card-games-put game :turn (mod (1+ s) (card-games-get game :nplayers)))
     (card-games-put game :step 'draw)))
 
 (cl-defmethod card-games-tm--discard ((game card-games-tablemeld-game) s card)
-  "Discard CARD from seat S and finish the turn."
+  "Discard CARD from GAME seat S and finish the turn."
   (card-games-rummy--set-hand game s (remove card (card-games-rummy--hand game s)))
   (card-games-put game :discard (cons card (card-games-get game :discard)))
   (card-games-tm--end-turn game s))
@@ -199,7 +199,7 @@
 ;;;; AI
 
 (defun card-games-tm--ai-melds (game s)
-  "Lay down every meld seat S can, keeping a card back to discard.
+  "Lay down every meld GAME seat S can, keeping a card back to discard.
 Return non-nil if any meld was laid."
   (let ((did nil) (again t))
     (while again
@@ -218,7 +218,7 @@ Return non-nil if any meld was laid."
     did))
 
 (defun card-games-tm--ai-layoffs (game s)
-  "Lay off every fitting card from seat S, keeping a card back to discard."
+  "Lay off every fitting card from GAME seat S, keeping a card to discard."
   (let ((again t))
     (while again
       (setq again nil)
@@ -233,7 +233,7 @@ Return non-nil if any meld was laid."
           (when card (card-games-tm--layoff game s card) (setq again t)))))))
 
 (defun card-games-tm--ai-discard-card (game s)
-  "Return the best card for seat S to discard (highest deadwood)."
+  "Return the best card for GAME seat S to discard (highest deadwood)."
   (let* ((hand (card-games-rummy--hand game s))
          (p (card-games-rummy-best-partition hand :ace-high (card-games-tm--ace-high game)
                                      :ace-15 (card-games-tm--ace-15 game)))
@@ -244,7 +244,7 @@ Return non-nil if any meld was laid."
         (when (> v bestv) (setq best c bestv v))))))
 
 (defun card-games-tm--meld-for-target (game cards target)
-  "Return a minimal valid meld (card list) containing TARGET drawn from CARDS.
+  "Return a minimal valid GAME meld (card list) with TARGET drawn from CARDS.
 Return nil when TARGET cannot join a set or run with the other CARDS."
   (let* ((ace-high (card-games-tm--ace-high game))
          (pool (cons target cards))
@@ -256,7 +256,7 @@ Return nil when TARGET cannot join a set or run with the other CARDS."
       (mapcar (lambda (i) (aref vec i)) (car withtgt)))))
 
 (defun card-games-tm--take-deep (game s depth)
-  "Seat S takes the card DEPTH-deep in the discard pile, plus all above it.
+  "Have GAME seat S take the card at DEPTH in the discard, plus all above.
 The chosen card is melded or laid off at once, as Rummy 500 requires; the
 rest enter the hand.  Return a status string, or nil when the move is not
 legal (the chosen card cannot be used immediately)."
@@ -283,7 +283,7 @@ legal (the chosen card cannot be used immediately)."
                   (card-games-rummy-card-string target)))))))
 
 (defun card-games-tm--ai-deep-pickup (game s)
-  "Try a worthwhile below-the-top discard pickup for seat S.
+  "Try a worthwhile below-the-top discard pickup for GAME seat S.
 Return non-nil when one was taken."
   (when (card-games-tm--deep-pickup game)
     (let* ((pile (card-games-get game :discard)) (n (length pile))
@@ -296,7 +296,7 @@ Return non-nil when one was taken."
       (when chosen (card-games-tm--take-deep game s chosen)))))
 
 (cl-defmethod card-games-tm--ai-turn ((game card-games-tablemeld-game) s)
-  "Play seat S's whole turn."
+  "Play GAME seat S's whole turn."
   (let* ((deep (card-games-tm--ai-deep-pickup game s))
          (drew (if deep t
                  (let* ((hand (card-games-rummy--hand game s))
@@ -319,7 +319,7 @@ Return non-nil when one was taken."
           (card-games-tm--discard game s (card-games-tm--ai-discard-card game s)))))))
 
 (defun card-games-tm--run (game)
-  "Advance AI seats until it is the human's turn or the hand ends."
+  "Advance GAME's AI seats until the human's turn or the hand ends."
   (while (and (eq (card-games-get game :phase) 'play) (/= (card-games-get game :turn) 0))
     (card-games-tm--ai-turn game (card-games-get game :turn))))
 
@@ -430,12 +430,13 @@ Deep-pickup games show the whole pile with depth indices (0 = top)."
     (erase-buffer) (insert (card-games-render game)) (goto-char (point-min))))
 
 (defun card-games-tm--clamp-cursor (g)
-  "Keep G's cursor within the hand and drop stale marks."
+  "Keep G's cursor within the hand and drop stale marked cards."
   (let ((n (length (card-games-rummy--hand g 0))))
     (card-games-put g :cursor (if (> n 0) (min (card-games-get g :cursor) (1- n)) 0))
     (card-games-put g :marks (cl-remove-if (lambda (i) (>= i n)) (card-games-get g :marks)))))
 
 (defun card-games-tm--my-turn-p (g)
+  "Return non-nil when it is your turn in G."
   (and (eq (card-games-get g :phase) 'play) (= (card-games-get g :turn) 0)))
 
 (defun card-games-tm-left ()

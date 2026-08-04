@@ -77,6 +77,20 @@ deliberately."
                  (string :tag "A specific interface address"))
   :group 'cg-net)
 
+(defcustom cg-net-max-line 65536
+  "Longest unterminated line accepted from a connection, in bytes.
+Messages in this protocol are short; 64 KiB is generous.  A connection
+whose pending (newline-less) data exceeds this is closed, so one peer
+cannot grow the line buffer until memory runs out."
+  :type 'integer :group 'cg-net)
+
+(defcustom cg-net-max-connections 8
+  "Most simultaneous client connections a host will accept.
+A table seats four, so the default leaves headroom without letting the
+client list grow unboundedly.  Connections beyond the limit are closed
+as they arrive."
+  :type 'integer :group 'cg-net)
+
 (defvar cg-net-state-functions nil
   "Abnormal hook run on a client after the game state is updated.
 Each function is called with the client's game object.")
@@ -159,7 +173,14 @@ properties stripped (`cg-net--scrub') before HANDLER sees them."
                          (cg-net--scrub (car (read-from-string line))))
               (error (message "cg-net: bad message: %S" err)))))
         )
-      (process-put proc 'cg-net-buf (substring buf start)))))
+      (let ((rest (substring buf start)))
+        (if (> (length rest) cg-net-max-line)
+            (progn
+              (process-put proc 'cg-net-buf nil)
+              (message "cg-net: dropping %s (line over %d bytes)"
+                       (process-name proc) cg-net-max-line)
+              (delete-process proc))
+          (process-put proc 'cg-net-buf rest))))))
 
 ;;;; Host
 
@@ -194,18 +215,26 @@ The socket binds `cg-net-host-address' -- by default, this machine only."
     (setq cg-net--host nil)))
 
 (defun cg-net--host-accept (_server connection _message)
-  "Set up an accepted CONNECTION: assign a seat and send the current state."
-  (let ((seat (cg-net-host-next-seat cg-net--host)))
-    (setf (cg-net-host-next-seat cg-net--host) (1+ seat))
-    (push connection (cg-net-host-clients cg-net--host))
-    (process-put connection 'cg-net-seat seat)
-    (set-process-coding-system connection 'utf-8 'utf-8)
-    (set-process-filter connection (cg-net--filter #'cg-net--host-handle))
-    (cg-net--send connection (list :type 'welcome :seat seat))
-    (cg-net--send connection
-                  (list :type 'state
-                        :state (cg-net-game-state (cg-net-host-game cg-net--host) seat)))
-    (run-hook-with-args 'cg-net-connect-functions cg-net--host seat)))
+  "Set up an accepted CONNECTION: assign a seat and send the current state.
+A connection arriving past `cg-net-max-connections' is closed instead."
+  (if (>= (length (cl-remove-if-not #'process-live-p
+                                    (cg-net-host-clients cg-net--host)))
+          cg-net-max-connections)
+      (progn
+        (message "cg-net: refusing connection (table is at %d)"
+                 cg-net-max-connections)
+        (delete-process connection))
+    (let ((seat (cg-net-host-next-seat cg-net--host)))
+      (setf (cg-net-host-next-seat cg-net--host) (1+ seat))
+      (push connection (cg-net-host-clients cg-net--host))
+      (process-put connection 'cg-net-seat seat)
+      (set-process-coding-system connection 'utf-8 'utf-8)
+      (set-process-filter connection (cg-net--filter #'cg-net--host-handle))
+      (cg-net--send connection (list :type 'welcome :seat seat))
+      (cg-net--send connection
+                    (list :type 'state
+                          :state (cg-net-game-state (cg-net-host-game cg-net--host) seat)))
+      (run-hook-with-args 'cg-net-connect-functions cg-net--host seat))))
 
 (defun cg-net--host-handle (proc msg)
   "Handle one message MSG from a client PROC on the host."

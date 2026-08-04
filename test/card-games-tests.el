@@ -123,6 +123,64 @@ silent default."
                        (substring (process-contact srv :local) 0 4)))
       (cg-net-host-stop))))
 
+(ert-deftest cgt-net-line-cap ()
+  "A connection sending endless bytes with no newline is dropped.
+Finding 4 of the 2026-07-29 review: the partial-line buffer grew
+without limit, so one connection could consume all available memory.
+It is now bounded by `cg-net-max-line'."
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe5" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (cl-flet ((pump () (dotimes (_ 8) (accept-process-output nil 0.05))))
+    (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+           (srv (cg-net-host-start hgame 0))
+           (port (process-contact srv :service))
+           (raw (make-network-process :name "cgt-flood" :host "127.0.0.1"
+                                      :service port :family 'ipv4)))
+      (unwind-protect
+          (progn
+            (pump)
+            (let ((chunk (make-string 8192 ?a)))
+              (cl-loop repeat 10 while (process-live-p raw)
+                       do (ignore-errors (process-send-string raw chunk))
+                          (pump)))
+            ;; 80 KiB with no newline: the host must have hung up on us
+            (should-not (process-live-p raw)))
+        (when (process-live-p raw) (delete-process raw))
+        (cg-net-host-stop)))))
+
+(ert-deftest cgt-net-connection-cap ()
+  "Connections beyond `cg-net-max-connections' are refused.
+Finding 4's second bound: the client list cannot grow without limit."
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe6" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (cl-flet ((pump () (dotimes (_ 8) (accept-process-output nil 0.05))))
+    (let* ((cg-net-max-connections 2)
+           (hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+           (srv (cg-net-host-start hgame 0))
+           (port (process-contact srv :service))
+           (procs nil))
+      (unwind-protect
+          (progn
+            (dotimes (i 3)
+              (push (make-network-process :name (format "cgt-c%d" i)
+                                          :host "127.0.0.1" :service port
+                                          :family 'ipv4)
+                    procs)
+              (pump))
+            (should (= 2 (length (cl-remove-if-not
+                                  #'process-live-p
+                                  (cg-net-host-clients cg-net--host)))))
+            ;; the newest connection is the one turned away
+            (should-not (process-live-p (car procs))))
+        (dolist (p procs) (when (process-live-p p) (delete-process p)))
+        (cg-net-host-stop)))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

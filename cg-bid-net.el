@@ -143,6 +143,17 @@ and a hand exposed by an open misère is revealed to everyone."
 
 ;;;; Apply a move on the host
 
+(defun cg-bid--net-holds-p (hand cards)
+  "Return non-nil when every card in CARDS is present in HAND.
+Multiplicity counts: naming one held card five times is not holding
+five cards.  Cards are (SUIT . RANK) conses compared with `equal'."
+  (let ((left (copy-sequence hand)))
+    (catch 'missing
+      (dolist (c cards t)
+        (if (member c left)
+            (setq left (cl-remove c left :test #'equal :count 1))
+          (throw 'missing nil))))))
+
 (cl-defmethod cg-net-apply-move ((game cg-bid-game) seat move)
   "Apply MOVE made by absolute SEAT to the host's 500 GAME.
 MOVE is (bid BID), (pass), (discard CARD...) or (play CARD).  Return
@@ -157,7 +168,8 @@ non-nil when the move was legal and applied, so the host broadcasts."
          (cg-bid--auction-act game seat nil) (setq ok t)))
       (`(discard . ,cards)
        (when (and (eq phase 'kitty) (eql (cg-get game :contractor) seat)
-                  (= (length cards) 5))
+                  (= (length cards) 5)
+                  (cg-bid--net-holds-p (cg-bid--hand game seat) cards))
          (cg-bid--discard game seat cards) (setq ok t)))
       (`(play ,card)
        (when (and (eq phase 'play) (eql (cg-get game :turn) seat)

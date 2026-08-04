@@ -354,6 +354,33 @@ silent default."
     (should-not (cg-net-apply-move g 0 '(play (0 . 0)))) ; wrong phase
     ))
 
+(ert-deftest cgt-bid-net-discard-checked ()
+  "The host rejects a kitty discard of cards the seat does not hold.
+Finding 3 of the 2026-07-29 review: the other move checks were real,
+but a discard only counted its cards, and cl-set-difference silently
+ignores cards that are not in the hand -- so five phantom discards
+left a 15-card hand in play."
+  (let* ((cg-bid--human-seats '(0 1 2 3))
+         (g (cg-bid--deal (make-instance 'cg-bid-game) 3)))
+    ;; put the game where a discard is legal: West won the auction
+    (cg-put g :phase 'kitty)
+    (cg-put g :contractor 1)
+    (cg-bid--set-hand g 1 (append (cg-get g :kitty) (cg-bid--hand g 1)))
+    (let* ((hand (copy-sequence (cg-bid--hand g 1)))
+           (foreign (cl-subseq (cg-bid--hand g 2) 0 5)))
+      ;; five cards West does not hold: refused, nothing moves
+      (should-not (cg-net-apply-move g 1 (cons 'discard foreign)))
+      (should (equal hand (cg-bid--hand g 1)))
+      (should (eq 'kitty (cg-get g :phase)))
+      ;; one held card named five times: also refused
+      (should-not (cg-net-apply-move g 1
+                                     (cons 'discard (make-list 5 (car hand)))))
+      (should (eq 'kitty (cg-get g :phase)))
+      ;; an honest five from the hand is accepted and play begins
+      (should (cg-net-apply-move g 1 (cons 'discard (cl-subseq hand 0 5))))
+      (should (eq 'play (cg-get g :phase)))
+      (should (= 10 (length (cg-bid--hand g 1)))))))
+
 (ert-deftest cgt-bid-net-loopback ()
   "A 500 move travels client -> host -> filtered broadcast over TCP."
   (condition-case _

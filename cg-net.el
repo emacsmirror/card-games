@@ -157,10 +157,45 @@ redisplay, and there is never a reason to honour a remote peer's."
                    (t v))))
       (walk x))))
 
-(defun cg-net--filter (handler)
+(defconst cg-net-max-nodes 20000
+  "Upper bound on the number of nodes accepted in one wire message.")
+
+(defun cg-net--valid-p (msg types)
+  "Return non-nil when MSG is a well-shaped protocol message.
+TYPES is the list of message-type symbols accepted from this peer.
+MSG must be a proper plist whose `:type' is in TYPES, built only from
+conses, vectors, strings, numbers and symbols, with no shared or
+circular structure and at most `cg-net-max-nodes' nodes.  Accept what
+is recognised rather than trying to spot what is bad: parsed text can
+carry self-references that hang code walking them, and objects that
+impersonate internal record types."
+  (let ((seen (make-hash-table :test 'eq))
+        (nodes 0))
+    (cl-labels ((clean-p (v)
+                  (cond
+                   ((> (cl-incf nodes) cg-net-max-nodes) nil)
+                   ((consp v)
+                    (and (not (gethash v seen))
+                         (progn (puthash v t seen)
+                                (and (clean-p (car v)) (clean-p (cdr v))))))
+                   ((vectorp v)
+                    (and (not (gethash v seen))
+                         (progn (puthash v t seen)
+                                (cl-every #'clean-p v))))
+                   ((or (stringp v) (numberp v) (symbolp v)) t)
+                   (t nil))))
+      (and (consp msg)
+           (clean-p msg)                      ; safe before plist-get: no cycles past here
+           (null (cdr (last msg)))            ; a proper list
+           (cl-evenp (length msg))            ; of key/value pairs
+           (memq (plist-get msg :type) types)))))
+
+(defun cg-net--filter (handler types)
   "Return a process filter dispatching each complete line to HANDLER.
-HANDLER is called with (PROC MSG).  Strings inside MSG have their text
-properties stripped (`cg-net--scrub') before HANDLER sees them."
+HANDLER is called with (PROC MSG) for each line that parses into a
+well-shaped message (`cg-net--valid-p') whose type is in TYPES;
+strings inside MSG have their text properties stripped first, by
+`cg-net--scrub'.  Anything else is dropped where it lands."
   (lambda (proc string)
     (let ((buf (concat (or (process-get proc 'cg-net-buf) "") string))
           (start 0) nl)
@@ -169,8 +204,10 @@ properties stripped (`cg-net--scrub') before HANDLER sees them."
           (setq start (1+ nl))
           (unless (string-empty-p line)
             (condition-case err
-                (funcall handler proc
-                         (cg-net--scrub (car (read-from-string line))))
+                (let ((msg (car (read-from-string line))))
+                  (if (cg-net--valid-p msg types)
+                      (funcall handler proc (cg-net--scrub msg))
+                    (message "cg-net: dropped malformed message")))
               (error (message "cg-net: bad message: %S" err)))))
         )
       (let ((rest (substring buf start)))
@@ -240,7 +277,8 @@ A connection arriving past `cg-net-max-connections' is closed instead."
       (process-put connection 'cg-net-seat seat)
       (set-process-coding-system connection 'utf-8 'utf-8)
       (set-process-sentinel connection #'cg-net--host-sentinel)
-      (set-process-filter connection (cg-net--filter #'cg-net--host-handle))
+      (set-process-filter connection
+                          (cg-net--filter #'cg-net--host-handle '(hello move)))
       (cg-net--send connection (list :type 'welcome :seat seat))
       (cg-net--send connection
                     (list :type 'state
@@ -286,7 +324,9 @@ Return the new `cg-net-client'."
                :family 'ipv4 :coding 'utf-8)))
     (setq cg-net--client (cg-net--client-make :proc proc :game game))
     (set-process-coding-system proc 'utf-8 'utf-8)
-    (set-process-filter proc (cg-net--filter #'cg-net--client-handle))
+    (set-process-filter proc
+                        (cg-net--filter #'cg-net--client-handle
+                                        '(welcome state full)))
     (cg-net--send proc (list :type 'hello :name name))
     cg-net--client))
 

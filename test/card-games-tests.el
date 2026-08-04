@@ -207,6 +207,61 @@ sending to them.  A process sentinel now reaps them."
         (cg-net-disconnect)
         (cg-net-host-stop)))))
 
+(ert-deftest cgt-net-shape-gate ()
+  "Malformed messages are dropped before any game code sees them.
+Finding 6 of the 2026-07-29 review: parsing can produce structures
+that hang or confuse code walking them -- self-references, objects
+impersonating internal types.  A message must be a proper plist of a
+known :type built from plain data; anything else never reaches
+`cg-net-apply-move'."
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe8" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (cl-flet ((pump () (dotimes (_ 10) (accept-process-output nil 0.05))))
+    (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+           (srv (cg-net-host-start hgame 0))
+           (port (process-contact srv :service))
+           (applied nil))
+      (cl-letf (((symbol-function 'cg-net-apply-move)
+                 (lambda (_game _seat move) (push move applied) nil)))
+        (let ((raw (make-network-process :name "cgt-shapes" :host "127.0.0.1"
+                                         :service port :family 'ipv4)))
+          (unwind-protect
+              (progn
+                (pump)
+                (dolist (line '("(:type move :move #s(hash-table size 1))"
+                                "(:type move :move #1=(1 2 . #1#))"
+                                "42"
+                                "(:type welcome :seat 3)"
+                                "(:type move :move 5)"))
+                  (process-send-string raw (concat line "\n")))
+                (pump)
+                ;; only the one well-shaped, host-legal move arrived
+                (should (equal applied (list 5))))
+            (when (process-live-p raw) (delete-process raw))
+            (cg-net-host-stop)))))))
+
+(ert-deftest cgt-net-valid-p ()
+  "Unit contract of the wire-shape check itself."
+  (should (cg-net--valid-p '(:type move :move (bid (7 . 3))) '(hello move)))
+  (should (cg-net--valid-p '(:type hello :name "n") '(hello move)))
+  ;; wrong direction: a host does not accept host->client types
+  (should-not (cg-net--valid-p '(:type welcome :seat 1) '(hello move)))
+  ;; not a plist / unknown / impersonating / shared structure
+  (should-not (cg-net--valid-p 42 '(hello move)))
+  (should-not (cg-net--valid-p '(:type reboot) '(hello move)))
+  (should-not (cg-net--valid-p (list :type 'move :move (make-hash-table))
+                               '(hello move)))
+  (should-not (cg-net--valid-p (record 'cg-net-host nil nil nil 0) '(hello move)))
+  (let ((shared (list 1 2)))
+    (should-not (cg-net--valid-p (list :type 'move :move (list shared shared))
+                                 '(hello move))))
+  (let ((cyc (list 1 2)))
+    (setcdr (cdr cyc) cyc)
+    (should-not (cg-net--valid-p (list :type 'move :move cyc) '(hello move)))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

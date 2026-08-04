@@ -214,6 +214,16 @@ The socket binds `cg-net-host-address' -- by default, this machine only."
       (delete-process (cg-net-host-server cg-net--host)))
     (setq cg-net--host nil)))
 
+(defun cg-net--host-sentinel (proc _event)
+  "Reap PROC from the client list when its connection has ended.
+Without this, departed players stay listed forever and the host keeps
+sending to them.  Seat numbers are deliberately not reused: a stale
+seat must not be inherited by a stranger mid-game."
+  (unless (process-live-p proc)
+    (when cg-net--host
+      (setf (cg-net-host-clients cg-net--host)
+            (delq proc (cg-net-host-clients cg-net--host))))))
+
 (defun cg-net--host-accept (_server connection _message)
   "Set up an accepted CONNECTION: assign a seat and send the current state.
 A connection arriving past `cg-net-max-connections' is closed instead."
@@ -229,6 +239,7 @@ A connection arriving past `cg-net-max-connections' is closed instead."
       (push connection (cg-net-host-clients cg-net--host))
       (process-put connection 'cg-net-seat seat)
       (set-process-coding-system connection 'utf-8 'utf-8)
+      (set-process-sentinel connection #'cg-net--host-sentinel)
       (set-process-filter connection (cg-net--filter #'cg-net--host-handle))
       (cg-net--send connection (list :type 'welcome :seat seat))
       (cg-net--send connection

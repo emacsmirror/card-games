@@ -181,6 +181,32 @@ Finding 4's second bound: the client list cannot grow without limit."
         (dolist (p procs) (when (process-live-p p) (delete-process p)))
         (cg-net-host-stop)))))
 
+(ert-deftest cgt-net-reaps-disconnected ()
+  "A client that disconnects is removed from the host's client list.
+Finding 5 of the 2026-07-29 review: nothing watched for a connection
+ending, so departed players stayed listed forever and the host kept
+sending to them.  A process sentinel now reaps them."
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe7" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (cl-flet ((pump () (dotimes (_ 12) (accept-process-output nil 0.05))))
+    (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+           (srv (cg-net-host-start hgame 0))
+           (port (process-contact srv :service))
+           (cgame (make-instance 'cgt-net-game :env (list :counter 0))))
+      (unwind-protect
+          (progn
+            (cg-net-connect "127.0.0.1" port "Test" cgame)
+            (pump)
+            (should (= 1 (length (cg-net-host-clients cg-net--host))))
+            (cg-net-disconnect)
+            (pump)
+            (should (= 0 (length (cg-net-host-clients cg-net--host)))))
+        (cg-net-disconnect)
+        (cg-net-host-stop)))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

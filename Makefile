@@ -20,7 +20,7 @@ TEXI2PDF ?= texi2pdf
 README   = README.md
 EXTRA    = README.org $(README) $(PKGDESC) $(MANUAL) $(VERTEXI) $(IMAGES)
 
-.PHONY: all compile test clean distclean checkdoc lint package tarball elpa release help \
+.PHONY: all compile test clean distclean checkdoc lint check package tarball elpa release help \
         info info-emacs html pdf docclean version readme hooks
 
 help:
@@ -29,6 +29,7 @@ help:
 	@echo "  test       run the ERT test suite"
 	@echo "  checkdoc   run checkdoc on all sources"
 	@echo "  lint       run package-lint (if installed)"
+	@echo "  check      compile + checkdoc + lint + test (the full gate)"
 	@echo "  version    regenerate $(VERTEXI) from VERSION"
 	@echo "  readme     export README.org -> README.md (Emacs batch)"
 	@echo "  hooks      install the git pre-commit hook"
@@ -50,8 +51,13 @@ compile:
 test:
 	$(BATCH) -L test -l test/$(PKG)-tests.el -f ert-run-tests-batch-and-exit
 
+# One gate a contributor (or CI) can run: the same quality tools MELPA
+# asks for -- byte-compile, checkdoc, package-lint -- plus the ERT suite.
+check: compile checkdoc lint test
+	@echo "card-games $(VERSION): compile + checkdoc + lint + tests all green"
+
 checkdoc:
-	$(BATCH) --eval "(progn (dolist (f '($(EL))) (checkdoc-file f)))"
+	$(BATCH) --eval "(progn (dolist (f '($(EL))) (checkdoc-file (symbol-name f))))"
 
 lint:
 	-$(BATCH) --eval "(progn (require 'package) (package-initialize) \
@@ -82,7 +88,7 @@ elpa: tarball
 # (not ".") so the growing output tarball and editor lock files are never
 # read mid-write -- which is what caused "tar: .: file changed as we read it".
 SRCFILES = $(EL) $(EXTRA) build.el hooks Makefile .gitignore test
-release: distclean version readme test tarball
+release: distclean version readme check tarball
 	rm -f $(SRCTAR)
 	tar --transform 's,^,$(TARDIR)/,' \
 	    --exclude='*.elc' --exclude='*.tar' --exclude='*.tar.gz' \

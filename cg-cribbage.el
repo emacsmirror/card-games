@@ -318,7 +318,7 @@ TOTAL is the running count after the play."
     (cl-labels ((txt (str x y &optional sz bold)
                      (apply #'svg-text svg str :x x :y y :font-size (or sz 12) :fill lc
                             :font-family cg-svg-font-family (and bold '(:font-weight "bold"))))
-                (peg (label sc y)
+                (cg-crib--peg (label sc y)
                      (txt label pad (+ y 11) 12)
                      (let ((bx (+ pad 90)))
                        (svg-rectangle svg bx y barw peg-h :rx 4 :fill "none"
@@ -334,8 +334,8 @@ TOTAL is the running count after the play."
                             (cg-svg-card svg xx y :rank (car sp) :suit (cdr sp)))
                           (setq xx (+ xx (round (* w 0.5))))))))
       (txt (format "Cribbage   (to %d)" target) pad (+ y-title 12) 13 t)
-      (peg "You" (aref scores 0) y-peg)
-      (peg "Computer" (aref scores 1) (+ y-peg peg-h peg-gap))
+      (cg-crib--peg "You" (aref scores 0) y-peg)
+      (cg-crib--peg "Computer" (aref scores 1) (+ y-peg peg-h peg-gap))
       (txt (format "%s deals" (cg-crib--who (cg-get game :dealer)))
            (+ pad 90 barw 60) (+ y-peg 11) 11)
       (let ((mx pad))

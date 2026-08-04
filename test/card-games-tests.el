@@ -262,6 +262,26 @@ known :type built from plain data; anything else never reaches
     (setcdr (cdr cyc) cyc)
     (should-not (cg-net--valid-p (list :type 'move :move cyc) '(hello move)))))
 
+;;;; Seeded shuffle
+
+(ert-deftest cgt-shuffle-seeded ()
+  "A seeded shuffle is deterministic, portable, and a true permutation;
+the unseeded shuffle keeps its system-random behaviour.  Opening #4."
+  (let ((deck (number-sequence 0 51)))
+    ;; same seed -> identical order (FAILS on HEAD: cg-shuffle takes 1 arg)
+    (should (equal (cg-shuffle deck 12345) (cg-shuffle deck 12345)))
+    ;; still a permutation of the input, nothing dropped or duplicated
+    (should (equal (sort (copy-sequence (cg-shuffle deck 12345)) #'<) deck))
+    ;; different seeds -> different order (almost surely)
+    (should-not (equal (cg-shuffle deck 1) (cg-shuffle deck 2)))
+    ;; the dynamic variable seeds it too, and an explicit seed overrides it
+    (should (equal (let ((cg-shuffle-seed "deal-A")) (cg-shuffle deck))
+                   (let ((cg-shuffle-seed "deal-A")) (cg-shuffle deck))))
+    (should (equal (cg-shuffle deck 7)
+                   (let ((cg-shuffle-seed "ignored")) (cg-shuffle deck 7))))
+    ;; portability pin: this exact prefix must hold on every platform
+    (should (equal (seq-take (cg-shuffle deck "GOLDEN") 6) '(15 20 35 24 31 23)))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

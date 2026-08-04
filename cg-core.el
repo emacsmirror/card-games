@@ -216,12 +216,39 @@ Normalised to a boolean so callers may compare two results with `eq'
   "Return the other suit index of the same colour as SUIT."
   (pcase suit (0 1) (1 0) (2 3) (3 2)))
 
-(defun cg-shuffle (seq)
-  "Return a new list with the elements of SEQ in random order."
+(defvar cg-shuffle-seed nil
+  "When non-nil, `cg-shuffle' is deterministic, seeded by this value.
+The value may be a number or a string.  Bind it around a deal to
+reproduce that deal exactly -- for replays, for a deal shared between
+players, or for a repeatable test -- and the same seed yields the same
+order on every platform Emacs runs on.  nil (the default) means an
+unpredictable shuffle drawn from the system `random'.")
+
+(defun cg-shuffle--seeded-index (seed i limit)
+  "Return a deterministic index in [0, LIMIT) for step I under SEED.
+Uses `secure-hash', whose output is identical on every platform and
+Emacs build, so a seeded deal is reproducible and shareable.  The 7
+hex digits taken span 28 bits, which stays a fixnum even on a 32-bit
+Emacs, so no bignum or overflow behaviour can vary the result."
+  (let ((r (string-to-number
+            (substring (secure-hash 'sha256 (format "%s|%d" seed i)) 0 7)
+            16)))
+    (mod r limit)))
+
+(defun cg-shuffle (seq &optional seed)
+  "Return a new list with the elements of SEQ in random order.
+With a non-nil SEED, or a non-nil `cg-shuffle-seed', the shuffle is
+deterministic: the same seed produces the same order on every platform,
+so a deal can be replayed or shared between players.  An explicit SEED
+overrides `cg-shuffle-seed'.  The seed may be a number or a string.
+With no seed the order is unpredictable (system `random')."
   (let* ((v (vconcat seq))
-         (n (length v)))
+         (n (length v))
+         (seed (or seed cg-shuffle-seed)))
     (dotimes (i n)
-      (let ((j (+ i (random (- n i)))))
+      (let ((j (+ i (if seed
+                        (cg-shuffle--seeded-index seed i (- n i))
+                      (random (- n i))))))
         (cl-rotatef (aref v i) (aref v j))))
     (append v nil)))
 

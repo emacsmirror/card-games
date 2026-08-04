@@ -199,7 +199,7 @@ strings inside MSG have their text properties stripped first, by
   (lambda (proc string)
     (let ((buf (concat (or (process-get proc 'cg-net-buf) "") string))
           (start 0) nl)
-      (while (setq nl (string-search "\n" buf start))
+      (while (setq nl (cl-search "\n" buf :start2 start))
         (let ((line (substring buf start nl)))
           (setq start (1+ nl))
           (unless (string-empty-p line)
@@ -208,8 +208,7 @@ strings inside MSG have their text properties stripped first, by
                   (if (cg-net--valid-p msg types)
                       (funcall handler proc (cg-net--scrub msg))
                     (message "cg-net: dropped malformed message")))
-              (error (message "cg-net: bad message: %S" err)))))
-        )
+              (error (message "cg-net: bad message: %S" err))))))
       (let ((rest (substring buf start)))
         (if (> (length rest) cg-net-max-line)
             (progn

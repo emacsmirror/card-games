@@ -1,4 +1,4 @@
-;;; card-games.el --- Play card games in Emacs (console + SVG)  -*- lexical-binding: t; -*-
+;;; card-games.el --- Play card games (console + SVG)  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026  Corwin Brust
 

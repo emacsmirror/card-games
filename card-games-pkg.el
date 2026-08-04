@@ -1,6 +1,6 @@
 ;;; card-games-pkg.el --- Package metadata  -*- no-byte-compile: t; -*-
 (define-package "card-games" "1.0.91"
-  "Play card games in Emacs (console UNICODE and graphical SVG)."
+  "Play card games (console UNICODE and graphical SVG)."
   '((emacs "26.1"))
   :keywords '("games")
   :url "https://code.bru.st/corwin/card-game.el"

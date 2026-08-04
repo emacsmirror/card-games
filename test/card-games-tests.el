@@ -68,6 +68,42 @@
       (cg-net-disconnect)
       (cg-net-host-stop))))
 
+(ert-deftest cgt-net-strips-properties ()
+  "Text properties on wire strings are stripped at the boundary, both ways.
+Finding 2 of the 2026-07-29 review: a propertized hello :name from a
+client must reach the host bare, and a propertized :message from the
+host must reach the client bare."
+  (condition-case _
+      (delete-process
+       (make-network-process :name "cgt-probe3" :server t :service 0
+                             :host "127.0.0.1" :family 'ipv4))
+    (error (ert-skip "TCP not available")))
+  (cl-flet ((pump () (dotimes (_ 12) (accept-process-output nil 0.05))))
+    (let* ((hgame (make-instance 'cgt-net-game :env (list :counter 0)))
+           (srv (cg-net-host-start hgame 0))
+           (port (process-contact srv :service))
+           (cgame (make-instance 'cgt-net-game :env (list :counter 0))))
+      (unwind-protect
+          (progn
+            (cg-net-connect "127.0.0.1" port
+                            (propertize "Eve" 'keymap '(keymap)) cgame)
+            (pump)
+            ;; client -> host: the hello name arrives with no attachments
+            (let* ((conn (car (cg-net-host-clients cg-net--host)))
+                   (name (process-get conn 'cg-net-name)))
+              (should (equal name "Eve"))
+              (should-not (text-properties-at 0 name)))
+            ;; host -> client: a state string arrives with no attachments
+            (cg-put hgame :message
+                    (propertize "hi" 'keymap '(keymap) 'help-echo "boo"))
+            (cg-net-host-broadcast)
+            (pump)
+            (let ((m (cg-get cgame :message)))
+              (should (equal m "hi"))
+              (should-not (text-properties-at 0 m))))
+        (cg-net-disconnect)
+        (cg-net-host-stop)))))
+
 ;;;; Gaps
 
 (ert-deftest cgt-gaps-deal ()

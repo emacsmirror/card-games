@@ -99,9 +99,37 @@ private information; nil requests the full host view.")
     (let ((print-length nil) (print-level nil))
       (process-send-string proc (concat (prin1-to-string msg) "\n")))))
 
+(defun cg-net--scrub (x)
+  "Return X with text properties removed from every string inside it.
+Walks conses and vectors, tolerating shared and circular structure.
+Everything arriving over the network passes through this: text
+properties can rebind keys or carry expressions evaluated during
+redisplay, and there is never a reason to honour a remote peer's."
+  (let ((seen (make-hash-table :test 'eq)))
+    (cl-labels ((walk (v)
+                  (cond
+                   ((stringp v) (substring-no-properties v))
+                   ((consp v)
+                    (or (gethash v seen)
+                        (let ((cell (cons nil nil)))
+                          (puthash v cell seen)
+                          (setcar cell (walk (car v)))
+                          (setcdr cell (walk (cdr v)))
+                          cell)))
+                   ((vectorp v)
+                    (or (gethash v seen)
+                        (let ((copy (make-vector (length v) nil)))
+                          (puthash v copy seen)
+                          (dotimes (i (length v))
+                            (aset copy i (walk (aref v i))))
+                          copy)))
+                   (t v))))
+      (walk x))))
+
 (defun cg-net--filter (handler)
   "Return a process filter dispatching each complete line to HANDLER.
-HANDLER is called with (PROC MSG)."
+HANDLER is called with (PROC MSG).  Strings inside MSG have their text
+properties stripped (`cg-net--scrub') before HANDLER sees them."
   (lambda (proc string)
     (let ((buf (concat (or (process-get proc 'cg-net-buf) "") string))
           (start 0) nl)
@@ -110,7 +138,8 @@ HANDLER is called with (PROC MSG)."
           (setq start (1+ nl))
           (unless (string-empty-p line)
             (condition-case err
-                (funcall handler proc (car (read-from-string line)))
+                (funcall handler proc
+                         (cg-net--scrub (car (read-from-string line))))
               (error (message "cg-net: bad message: %S" err)))))
         )
       (process-put proc 'cg-net-buf (substring buf start)))))

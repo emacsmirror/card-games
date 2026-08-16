@@ -1,7 +1,7 @@
 # Makefile for card-games -- byte-compile, test, and package.
 EMACS   ?= emacs
 PKG      = card-games
-VERSION  = 1.0.91
+VERSION  = 1.0.92
 # Source files in dependency order (card-games-core first).
 EL       = card-games-core.el card-games-svg.el card-games-render.el card-games-net.el card-games-bid.el card-games-gaps.el card-games-bid-ui.el card-games-bid-net.el card-games-solitaire.el card-games-trick.el card-games-eights.el card-games-patience.el card-games-president.el card-games-rummy.el card-games-rum500.el card-games-handfoot.el card-games-match.el card-games-cribbage.el card-games-scopa.el card-games-trick-ext.el card-games-spite.el card-games-bridge.el card-games-crapette.el card-games.el
 ELC      = $(EL:.el=.elc)

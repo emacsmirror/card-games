@@ -175,9 +175,9 @@ with its command.  From the menu you can also switch the card treatment
 
 ## From the package tarball
 
-    make package           # builds card-games-1.0.91.tar
+    make package           # builds card-games-1.0.92.tar
 
-Then in Emacs: `M-x package-install-file RET card-games-1.0.91.tar`.
+Then in Emacs: `M-x package-install-file RET card-games-1.0.92.tar`.
 
 
 ## With `use-package`
@@ -246,7 +246,7 @@ mouse: click cards, board slots, buttons, and the slider.
 
 # Testing
 
-This is a 1.0.91 pre-test snapshot.  To try it:
+This is a 1.0.92 pre-test snapshot.  To try it:
 
 1.  `make compile && make test` &ndash; should be warning-free and all green.
 2.  `M-x card-games` opens the menu, or jump straight in, e.g.

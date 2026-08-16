@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -333,7 +333,8 @@ Folds the controls into the single action-button row (see
 
 ;;;; Interaction
 
-(defvar-local card-games-bid--game nil "The `card-games-bid-game' in the current buffer.")
+(defvar-local card-games-bid--game nil
+  "The 500 game object played in the current buffer.")
 
 (defun card-games-bid--mode-line (game)
   "Return a mode-line status string for GAME."
@@ -430,8 +431,14 @@ The treatment is chosen by `card-games-bid--treatment' and dispatched with
     (card-games-renderer-draw renderer game)
     (goto-char (point-min))))
 
+(defvar card-games-bid-after-refresh-hook nil
+  "Normal hook run after `card-games-bid--refresh' settles the table.
+The network layer adds to it while hosting, broadcasting each settled
+state to the connected clients.")
+
 (defun card-games-bid--refresh ()
-  "Advance AI to the next human action, animating each turn if enabled."
+  "Advance AI to the next human action, animating each turn if enabled.
+Runs `card-games-bid-after-refresh-hook' once the table has settled."
   (let ((game card-games-bid--game))
     (if (or (not card-games-bid-animate) (<= card-games-bid-ai-delay 0))
         (progn (card-games-bid--run game) (card-games-bid--redisplay))
@@ -447,7 +454,8 @@ The treatment is chosen by `card-games-bid--treatment' and dispatched with
                                    card-games-bid-ai-delay))
                         t)))))
       (card-games-bid--redisplay))
-    (card-games-bid--announce game)))
+    (card-games-bid--announce game)
+    (run-hooks 'card-games-bid-after-refresh-hook)))
 
 (defun card-games-bid-left ()
   "Move the hand cursor left."
@@ -465,6 +473,24 @@ The treatment is chosen by `card-games-bid--treatment' and dispatched with
 (defun card-games-bid--current-card ()
   "Return the card under the hand cursor."
   (nth (card-games-get card-games-bid--game :cursor) (card-games-get card-games-bid--game :sorted-hand)))
+
+(cl-defgeneric card-games-bid-submit (game action)
+  "Submit ACTION for the South player of GAME.
+ACTION is (bid BID), (pass), (discard CARD...) or (play CARD), already
+validated by the calling command.  The base method applies it to the
+local game; `card-games-bid-client-game' (see `card-games-bid-net')
+overrides this to forward the intent to the hosting Emacs instead.")
+
+(cl-defmethod card-games-bid-submit ((game card-games-bid-game) action)
+  "Apply ACTION for seat 0 directly to the local GAME, then refresh."
+  (pcase action
+    (`(bid ,bid) (card-games-bid--auction-act game 0 bid))
+    (`(pass) (card-games-bid--auction-act game 0 nil))
+    (`(discard . ,cards)
+     (card-games-bid--discard game (card-games-get game :contractor) cards)
+     (card-games-put game :marks nil))
+    (`(play ,card) (card-games-bid--play game 0 card)))
+  (card-games-bid--refresh))
 
 (defun card-games-bid-select ()
   "Play (in play phase) or mark/unmark (in kitty phase) the current card."
@@ -491,16 +517,19 @@ The treatment is chosen by `card-games-bid--treatment' and dispatched with
                            (format "%d of 5 marked for discard." np))))))
            (card-games-bid--redisplay))))
       ('play
-       (if (/= (card-games-get game :turn) 0)
-           (progn (card-games-put game :message "Not your turn.") (card-games-bid--redisplay))
-         (let ((legal (card-games-bid-legal-cards (card-games-bid--hand game 0)
-                                          (card-games-get game :led)
-                                          (card-games-bid-trump (card-games-get game :contract)))))
-           (if (not (member card legal))
-               (progn (card-games-put game :message "Illegal — you must follow suit.")
-                      (card-games-bid--redisplay))
-             (card-games-bid--play game 0 card)
-             (card-games-bid--refresh)))))
+       (cond
+        ((/= (card-games-get game :turn) 0)
+         (card-games-put game :message "Not your turn.")
+         (card-games-bid--redisplay))
+        ((null card) (card-games-bid--redisplay))
+        ((not (member card (card-games-bid-legal-cards
+                            (card-games-bid--hand game 0)
+                            (card-games-get game :led)
+                            (card-games-bid-trump
+                             (card-games-get game :contract)))))
+         (card-games-put game :message "Illegal — you must follow suit.")
+         (card-games-bid--redisplay))
+        (t (card-games-bid-submit game (list 'play card)))))
       (_ (card-games-bid--redisplay)))))
 
 (defun card-games-bid-discard-marked ()
@@ -514,9 +543,7 @@ The treatment is chosen by `card-games-bid--treatment' and dispatched with
      ((/= (length marks) 5)
       (card-games-put game :message (format "Mark exactly 5 (have %d)." (length marks)))
       (card-games-bid--redisplay))
-     (t (card-games-bid--discard game (card-games-get game :contractor) marks)
-        (card-games-put game :marks nil)
-        (card-games-bid--refresh)))))
+     (t (card-games-bid-submit game (cons 'discard marks))))))
 
 (defun card-games-bid--code (bid)
   "Return a short ASCII code for BID, e.g. \"7H\", \"8NT\", \"NL\"."
@@ -547,8 +574,8 @@ Type a short code such as 7H, 8NT, NL (case-insensitive)."
              (pick (completing-read "Your bid (e.g. 7H, 8NT, NL; or Pass): "
                                     (mapcar #'car choices) nil t))
              (sel (cdr (assoc pick choices))))
-        (card-games-bid--auction-act game 0 (if (eq sel 'pass) nil sel))
-        (card-games-bid--refresh)))))
+        (card-games-bid-submit game
+                       (if (eq sel 'pass) '(pass) (list 'bid sel)))))))
 
 (defun card-games-bid-pass ()
   "Pass during the auction."
@@ -558,8 +585,7 @@ Type a short code such as 7H, 8NT, NL (case-insensitive)."
             (/= (card-games-get game :bidder) 0))
         (progn (card-games-put game :message "Not your turn to bid.")
                (card-games-bid--redisplay))
-      (card-games-bid--auction-act game 0 nil)
-      (card-games-bid--refresh))))
+      (card-games-bid-submit game '(pass)))))
 
 (defun card-games-bid-new ()
   "Advance to the next hand, or start a fresh game once one is over.
@@ -627,6 +653,8 @@ must be played out (unlike the solitaire games)."
   (interactive)
   (card-games-bid--redisplay))
 
+(declare-function card-games-bid-start-now "card-games-bid-net" ())
+
 (defvar card-games-bid-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "<left>")  #'card-games-bid-left)
@@ -637,6 +665,7 @@ must be played out (unlike the solitaire games)."
     (define-key map "x" #'card-games-bid-discard-marked)
     (define-key map "g" #'card-games-bid-redraw)
     (define-key map "n" #'card-games-bid-new)
+    (define-key map "s" #'card-games-bid-start-now)
     (define-key map "?" #'card-games-bid-help)
     (define-key map "+" #'card-games-bid-zoom-in)
     (define-key map "=" #'card-games-bid-zoom-in)
@@ -727,7 +756,8 @@ per-deal, so the hand always fits the table."
     (apply #'svg-text svg str a)))
 
 (defun card-games-bid--ui-label (svg str x y &optional size)
-  "Draw STR as an all-caps, letter-spaced section label on SVG (font SIZE, default 10)."
+  "Draw STR at X,Y as an all-caps, letter-spaced label on SVG.
+SIZE is the font size in pixels, defaulting to 10."
   (svg-text svg (upcase str) :x (round x) :y (round y) :font-size (round (or size 10))
             :fill "#8fc79b" :text-anchor "start" :font-family card-games-svg-font-family
             :font-weight "bold" :letter-spacing "2"))
@@ -857,7 +887,8 @@ nullo bids share the bottom row."
       (list (+ gx (* col (+ cw g))) (+ gy (* row (+ ch g))) cw ch))))
 
 (defun card-games-bid--grid-pass-cell (gx gy cw ch g)
-  "Return (X Y W H) for the double-width Pass button, from GX GY CW CH G (cols 3-4)."
+  "Return (X Y W H) for the double-width Pass button (columns 3-4).
+GX GY are the grid origin, CW CH the cell size, and G the gutter."
   (list (+ gx (* 3 (+ cw g))) (+ gy (* 5 (+ ch g))) (+ (* 2 cw) g) ch))
 
 (defun card-games-bid--draw-left-panel (svg game h lpw fs ccy)
@@ -1160,7 +1191,7 @@ When `card-games-bid-svg-fill', size the canvas to fill the window."
 (defun card-games-bid--fit (&rest _)
   "Re-render the SVG-UI to fit the window after a configuration change."
   (when (and card-games-bid--game card-games-bid-svg-ui card-games-bid-svg-fill
-             (eq major-mode 'card-games-bid-mode))
+             (derived-mode-p 'card-games-bid-mode))
     (let ((win (get-buffer-window (current-buffer))))
       (when win
         (let ((sz (cons (window-body-width win t) (window-body-height win t))))
@@ -1196,7 +1227,8 @@ Elsewhere, fall back to normal buffer scrolling."
             ((or 'wheel-up 'mouse-4) (card-games-bid-log-up))
             ((or 'wheel-down 'mouse-5) (card-games-bid-log-down))))))
     (unless handled
-      (ignore-errors (require 'mwheel) (mwheel-scroll event)))))
+      (when (require 'mwheel nil t)
+        (ignore-errors (mwheel-scroll event))))))
 
 (defun card-games-bid--region-bid (px py rg)
   "Return the bid at PX,PY within REGIONS RG, or nil."

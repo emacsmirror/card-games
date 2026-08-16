@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -967,8 +967,9 @@ DISPLAY is a propertized one-image string; REGIONS is a click map of
    (redeal :initform t) (build :initform 'alt) (run-rule :initform 'alt)
    (empty-rule :initform 'any) (base :initform 0) (wrap :initform nil)
    (vname :initform "Russian Bank"))
-  "Russian Bank patience: eight houses down by alternating colour, four
-foundations up by suit from the Ace, and a thirteen-card reserve.")
+  "Russian Bank patience.
+Eight houses build down by alternating colour, four foundations build
+up by suit from the Ace, and a thirteen-card reserve feeds the game.")
 
 (cl-defmethod card-games-sol--deal ((game card-games-russian-bank-game))
   "Deal GAME's Russian Bank layout: reserve, eight houses, and a stock."

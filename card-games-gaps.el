@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -106,7 +106,7 @@ Subclasses set the head rank and build direction by overriding
 (cl-defmethod card-games-gaps--step ((_ card-games-acre-game)) "Hell's Half-Acre builds down, -1 per column." -1)
 (cl-defmethod card-games-gaps--vname ((_ card-games-acre-game)) "Return Hell's Half-Acre's display name." "Hell's Half-Acre")
 
-(defalias 'card-games-gaps--shuffle 'card-games-shuffle)
+(defalias 'card-games-gaps--shuffle #'card-games-shuffle)
 
 (defun card-games-gaps--full-deck ()
   "Return the 48 playable cards (Two..King in every suit)."
@@ -387,7 +387,7 @@ Only used when `card-games-gaps-svg-ui' is enabled."
 ;;;; Interaction
 
 (defvar-local card-games-gaps--game nil
-  "The `card-games-gaps-game' object played in the current buffer.")
+  "The gaps-family game object played in the current buffer.")
 
 (defun card-games-gaps--goto-cell (r c)
   "Move point onto the rendered cell at row R column C, if present."
@@ -782,7 +782,7 @@ The board scales to fill the area beside a proportional left panel."
 (defun card-games-gaps--fit (&rest _)
   "Re-render the full-SVG gaps UI to fit the window after a config change."
   (when (and card-games-gaps--game card-games-gaps-svg-ui card-games-gaps-svg-fill
-             (eq major-mode 'card-games-gaps-mode))
+             (derived-mode-p 'card-games-gaps-mode))
     (let ((win (get-buffer-window (current-buffer))))
       (when win
         (let ((sz (cons (window-body-width win t) (window-body-height win t))))

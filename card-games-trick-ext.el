@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -218,7 +218,8 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
                      (t t)))))))
 
 (cl-defmethod card-games-trick--play ((game card-games-pitch-game) seat card)
-  "In GAME, set trump from the pitcher's first lead (SEAT plays CARD), then play on."
+  "In GAME, set trump from the pitcher's first lead, then play on.
+SEAT plays CARD as usual once trump is fixed."
   (when (and (null (oref game trump)) (null (card-games-get game :trick)))
     (oset game trump (car card))
     (card-games-put game :message

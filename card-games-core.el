@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -165,9 +165,9 @@ for their own actions and delegate the rest with `cl-call-next-method'."
     (_ nil)))
 
 (defvar card-games-renderers nil
-  "Alist mapping a treatment name (a symbol) to a `card-games-renderer' subclass.
-Populate it with `card-games-register-renderer' and look entries up with
-`card-games-make-renderer'.")
+  "Alist mapping a treatment name (a symbol) to a renderer subclass.
+Populate it with `card-games-register-renderer' and look entries up
+with `card-games-make-renderer'.")
 
 (defun card-games-register-renderer (name class)
   "Register renderer CLASS (an EIEIO class) under the treatment NAME."
@@ -291,7 +291,7 @@ size slider and `text-scale-increase' enlarge the cards."
     (max 0.3 (min 4.0 (* card-games-card-scale (expt 1.15 amt))))))
 
 (defvar-local card-games-current-game nil
-  "The `card-games-game' shown in the current buffer (for shared mouse/zoom).")
+  "The game object shown in the current buffer (for shared mouse/zoom).")
 
 (defvar-local card-games-redisplay-function #'ignore
   "Buffer-local function that redraws the current game's buffer.")

@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -217,6 +217,12 @@ Trumps lead (strongest first), then each side suit runs high to low."
 (defvar card-games-bid--human-seats '(0)
   "List of seats controlled by a human player.  South is seat 0.")
 
+(defvar card-games-bid-inhibit-prompts nil
+  "When non-nil, choices that would prompt fall back to the AI's pick.
+The network layer binds this while the host applies a remote player's
+move: the seat belongs to a human, but one at another Emacs, so a
+local minibuffer prompt could never reach them.")
+
 (defconst card-games-bid-seat-names ["South" "West" "North" "East"]
   "Seat labels; partners sit opposite (0/2 and 1/3).")
 
@@ -412,9 +418,12 @@ Trumps lead (strongest first), then each side suit runs high to low."
       (card-games-put game :turn (card-games-bid--next-seat game seat)))))
 
 (defun card-games-bid--nominate-suit (game seat)
-  "Choose the suit GAME SEAT nominates when the Joker leads under no-trump."
+  "Choose the suit GAME SEAT nominates when the Joker leads under no-trump.
+A local human is prompted; the AI, or a human seat while
+`card-games-bid-inhibit-prompts' is non-nil, takes the longest suit."
   (let ((hand (card-games-bid--hand game seat)))
-    (if (card-games-bid--human-p seat)
+    (if (and (card-games-bid--human-p seat)
+             (not card-games-bid-inhibit-prompts))
         (let ((ch (read-char-choice
                    "Joker leads — nominate a suit [s]pades [c]lubs [d]iamonds [h]earts: "
                    '(?s ?c ?d ?h))))

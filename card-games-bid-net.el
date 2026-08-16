@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -58,11 +58,6 @@ East, so it is chance, not arrival order, that decides who partners whom."
 
 (defvar card-games-bid--net-seat 0
   "This player's absolute seat in a live game (the host is always 0).")
-
-(defvar card-games-bid--applying-remote nil
-  "Bound non-nil while the host applies a remote player's move.
-While set, prompts that would block the host (such as nominating a suit
-for a Joker lead) fall back to an automatic choice.")
 
 ;;;; Per-seat state filter (host -> client)
 
@@ -176,25 +171,13 @@ non-nil when the move was legal and applied, so the host broadcasts."
                                 (card-games-bid--hand game seat)
                                 (card-games-get game :led)
                                 (card-games-bid-trump (card-games-get game :contract)))))
-         (let ((card-games-bid--applying-remote t)) (card-games-bid--play game seat card))
+         (let ((card-games-bid-inhibit-prompts t))
+           (card-games-bid--play game seat card))
          (setq ok t))))
     (when ok
-      (let ((card-games-bid--applying-remote t)) (card-games-bid--run game))
+      (let ((card-games-bid-inhibit-prompts t)) (card-games-bid--run game))
       (card-games-bid--net-host-refresh))
     ok))
-
-(defun card-games-bid--net-nominate-advice (orig game seat)
-  "Around advice for `card-games-bid--nominate-suit'.
-While the host applies a remote move (ORIG GAME SEAT), pick the longest
-suit automatically instead of prompting."
-  (if card-games-bid--applying-remote
-      (let ((counts (make-vector 4 0)) (best 0))
-        (dolist (c (card-games-bid--hand game seat))
-          (unless (card-games-bid-joker-p c) (cl-incf (aref counts (car c)))))
-        (dotimes (s 4) (when (> (aref counts s) (aref counts best)) (setq best s)))
-        best)
-    (funcall orig game seat)))
-(advice-add 'card-games-bid--nominate-suit :around #'card-games-bid--net-nominate-advice)
 
 ;;;; Host bookkeeping and display
 
@@ -204,11 +187,11 @@ suit automatically instead of prompting."
     (when (buffer-live-p buf)
       (with-current-buffer buf (card-games-bid--redisplay)))))
 
-(defun card-games-bid--net-broadcast-advice (&rest _)
-  "After advice on `card-games-bid--refresh' that broadcasts when hosting."
+(defun card-games-bid--net-broadcast ()
+  "Broadcast fresh per-seat state to every client when hosting.
+Runs from `card-games-bid-after-refresh-hook'."
   (when (and (eq card-games-bid--net-role 'host) (card-games-net-hosting-p))
     (card-games-net-host-broadcast)))
-(advice-add 'card-games-bid--refresh :after #'card-games-bid--net-broadcast-advice)
 
 (defun card-games-bid--net-lobby-display ()
   "Show the host's pre-game lobby of seats."
@@ -246,7 +229,7 @@ The host keeps South (seat 0)."
     (when card-games-bid-shuffle-partners (card-games-bid--net-shuffle-seats))
     (setq card-games-bid--human-seats (cl-remove-duplicates card-games-bid--human-seats))
     (card-games-bid--deal game 3)
-    (let ((card-games-bid--applying-remote t)) (card-games-bid--run game))
+    (let ((card-games-bid-inhibit-prompts t)) (card-games-bid--run game))
     (card-games-bid--net-host-refresh)
     (card-games-net-host-broadcast)))
 
@@ -281,108 +264,40 @@ The host keeps South (seat 0)."
               (goto-char (point-min)))
           (card-games-bid--redisplay))))))
 
-;;;; Client move interception
+;;;; Client game: intents go to the host
 
-(defun card-games-bid--net-client-bid-advice (orig)
-  "Around advice on `card-games-bid-make-bid' (ORIG): send the bid, do not apply it."
-  (if (eq card-games-bid--net-role 'client)
-      (let ((game card-games-bid--game))
-        (if (or (not (eq (card-games-get game :phase) 'auction))
-                (/= (card-games-get game :bidder) 0))
-            (progn (card-games-put game :message "Not your turn to bid.")
-                   (card-games-bid--redisplay))
-          (let* ((legal (card-games-bid--legal-bids game))
-                 (completion-ignore-case t)
-                 (choices (append
-                           (mapcar (lambda (b)
-                                     (cons (format "%-4s %s (%d)"
-                                                   (card-games-bid--code b)
-                                                   (card-games-bid-name b)
-                                                   (card-games-bid-value b))
-                                           b))
-                                   legal)
-                           '(("Pass" . pass))))
-                 (pick (completing-read
-                        "Your bid (e.g. 7H, 8NT, NL; or Pass): "
-                        (mapcar #'car choices) nil t))
-                 (sel (cdr (assoc pick choices))))
-            (card-games-net-send-move (if (eq sel 'pass) '(pass) (list 'bid sel)))
-            (card-games-put game :message "Bid sent — waiting…")
-            (card-games-bid--redisplay))))
-    (funcall orig)))
-(advice-add 'card-games-bid-make-bid :around #'card-games-bid--net-client-bid-advice)
+(defclass card-games-bid-client-game (card-games-bid-game) ()
+  "A 500 game whose authoritative state lives at a remote host.
+Submitting an action forwards the player's intent over the wire; the
+host validates it, applies it to the canonical game, and broadcasts a
+per-seat view back (see `card-games-bid-submit').")
 
-(defun card-games-bid--net-client-pass-advice (orig)
-  "Around advice on `card-games-bid-pass' (ORIG): send a pass, do not apply it."
-  (if (eq card-games-bid--net-role 'client)
-      (let ((game card-games-bid--game))
-        (if (or (not (eq (card-games-get game :phase) 'auction))
-                (/= (card-games-get game :bidder) 0))
-            (progn (card-games-put game :message "Not your turn to bid.")
-                   (card-games-bid--redisplay))
-          (card-games-net-send-move '(pass))
-          (card-games-put game :message "Pass sent — waiting…")
-          (card-games-bid--redisplay)))
-    (funcall orig)))
-(advice-add 'card-games-bid-pass :around #'card-games-bid--net-client-pass-advice)
-
-(defun card-games-bid--net-client-select-advice (orig)
-  "Around advice on `card-games-bid-select' (ORIG): send a play, or mark locally."
-  (if (eq card-games-bid--net-role 'client)
-      (let* ((game card-games-bid--game)
-             (phase (card-games-get game :phase))
-             (card (card-games-bid--current-card)))
-        (pcase phase
-          ('kitty
-           (when (eql (card-games-get game :contractor) 0)
-             (let ((marks (card-games-get game :marks)))
-               (card-games-put game :marks (if (member card marks)
-                                       (remove card marks)
-                                     (cons card marks)))
-               (card-games-put game :message
-                       (format "%d of 5 marked for discard."
-                               (length (card-games-get game :marks))))
-               (card-games-bid--redisplay))))
-          ('play
-           (cond
-            ((/= (card-games-get game :turn) 0)
-             (card-games-put game :message "Not your turn.") (card-games-bid--redisplay))
-            ((null card) (card-games-bid--redisplay))
-            (t (card-games-net-send-move (list 'play card))
-               (card-games-put game :message "Card sent — waiting…")
-               (card-games-bid--redisplay))))
-          (_ (card-games-bid--redisplay))))
-    (funcall orig)))
-(advice-add 'card-games-bid-select :around #'card-games-bid--net-client-select-advice)
-
-(defun card-games-bid--net-client-discard-advice (orig)
-  "Around advice on `card-games-bid-discard-marked' (ORIG): send the discard intent."
-  (if (eq card-games-bid--net-role 'client)
-      (let* ((game card-games-bid--game) (marks (card-games-get game :marks)))
-        (cond
-         ((not (eq (card-games-get game :phase) 'kitty))
-          (card-games-put game :message "Nothing to discard now.") (card-games-bid--redisplay))
-         ((/= (length marks) 5)
-          (card-games-put game :message
-                  (format "Mark exactly 5 (have %d)." (length marks)))
-          (card-games-bid--redisplay))
-         (t (card-games-net-send-move (cons 'discard marks))
-            (card-games-put game :marks nil)
-            (card-games-put game :message "Discard sent — waiting…")
-            (card-games-bid--redisplay))))
-    (funcall orig)))
-(advice-add 'card-games-bid-discard-marked :around #'card-games-bid--net-client-discard-advice)
+(cl-defmethod card-games-bid-submit ((game card-games-bid-client-game) action)
+  "Send ACTION to the host and note in GAME that a reply is pending.
+The shared validation has already run in the calling command; the host
+remains authoritative and validates again before applying."
+  (card-games-net-send-move action)
+  (when (eq (car action) 'discard)
+    (card-games-put game :marks nil))
+  (card-games-put game :message
+          (format "%s sent — waiting…"
+                  (pcase (car action)
+                    ('bid "Bid") ('pass "Pass")
+                    ('discard "Discard") ('play "Card"))))
+  (card-games-bid--redisplay))
 
 ;;;; Commands
 
+;;;###autoload
 (defun card-games-bid-start-now ()
-  "Start a hosted game immediately, AI filling any empty seats."
+  "Start a hosted game immediately, AI filling any empty seats.
+Bound to \`s' in `card-games-bid-mode-map'; outside a hosted lobby it
+only explains itself."
   (interactive)
   (if (and (eq card-games-bid--net-role 'host)
            (eq (card-games-get card-games-bid--game :phase) 'lobby))
       (card-games-bid--net-start)
     (message "Not hosting a lobby.")))
-(define-key card-games-bid-mode-map "s" #'card-games-bid-start-now)
 
 ;;;###autoload
 (defun card-games-bid-host (port)
@@ -400,6 +315,7 @@ The host keeps South (seat 0)."
       (card-games-net-host-start card-games-bid--game port)
       (setf (card-games-net-host-next-seat card-games-net--host) 1)
       (add-hook 'card-games-net-connect-functions #'card-games-bid--net-on-connect)
+      (add-hook 'card-games-bid-after-refresh-hook #'card-games-bid--net-broadcast)
       (card-games-bid--net-lobby-display))
     (switch-to-buffer buf)
     (message "Hosting 500 on port %d — waiting for players (press s to start)."
@@ -414,7 +330,7 @@ The host keeps South (seat 0)."
   (let ((buf (get-buffer-create "*500 Bid*")))
     (with-current-buffer buf
       (card-games-bid-mode)
-      (setq card-games-bid--game (make-instance 'card-games-bid-game)
+      (setq card-games-bid--game (make-instance 'card-games-bid-client-game)
             card-games-bid--net-role 'client
             card-games-bid--human-seats '(0))
       (card-games-put card-games-bid--game :phase 'lobby)

@@ -1837,3 +1837,70 @@ left a 15-card hand in play."
           (should card-games-sol-svg-cards) (should-not card-games-bid-svg-ui))
       (dolist (pr saved) (set (car pr) (cdr pr)))
       (setq card-games-treatment savedt))))
+
+;;;; Live 500: dispatch seam replaces advice (MELPA review, PR #10147)
+
+(defun cgt--advised-p (symbol)
+  "Return non-nil when SYMBOL carries any advice."
+  (let (found)
+    (advice-mapc (lambda (&rest _) (setq found t)) symbol)
+    found))
+
+(ert-deftest cgt-bid-net-no-advice ()
+  "Loading the net layer must not install advice on bid functions."
+  (require 'card-games-bid-net)
+  (dolist (sym '(card-games-bid--nominate-suit card-games-bid--refresh
+                 card-games-bid-make-bid card-games-bid-pass
+                 card-games-bid-select card-games-bid-discard-marked))
+    (should-not (cgt--advised-p sym))))
+
+(ert-deftest cgt-bid-submit-local ()
+  "`card-games-bid-submit' applies an action locally on a base game."
+  (let ((game (make-instance 'card-games-bid-game)) calls)
+    (cl-letf (((symbol-function 'card-games-bid--auction-act)
+               (lambda (_g seat bid) (push (list 'act seat bid) calls)))
+              ((symbol-function 'card-games-bid--refresh)
+               (lambda () (push 'refresh calls))))
+      (card-games-bid-submit game '(pass)))
+    (should (equal (reverse calls) '((act 0 nil) refresh)))))
+
+(ert-deftest cgt-bid-submit-client ()
+  "`card-games-bid-submit' on a client game sends and never applies."
+  (require 'card-games-bid-net)
+  (let ((game (make-instance 'card-games-bid-client-game)) sent applied)
+    (cl-letf (((symbol-function 'card-games-net-send-move)
+               (lambda (move) (push move sent)))
+              ((symbol-function 'card-games-bid--auction-act)
+               (lambda (&rest _) (setq applied t)))
+              ((symbol-function 'card-games-bid--redisplay) #'ignore))
+      (card-games-bid-submit game '(pass)))
+    (should (equal sent '((pass))))
+    (should-not applied)
+    (should (equal (card-games-get game :message) "Pass sent — waiting…"))))
+
+(ert-deftest cgt-bid-nominate-inhibit ()
+  "Inhibited prompts fall back to the AI pick for a human seat."
+  (require 'card-games-bid-net)
+  (let ((game (make-instance 'card-games-bid-game)))
+    (card-games-put game :hands (vector '((2 . 5) (2 . 6) (0 . 14)) nil nil nil))
+    (cl-letf (((symbol-function 'read-char-choice)
+               (lambda (&rest _) (error "Prompted despite inhibit"))))
+      (let ((card-games-bid-inhibit-prompts t)
+            (card-games-bid--human-seats '(0)))
+        (should (= (card-games-bid--nominate-suit game 0) 2))))))
+
+(ert-deftest cgt-bid-after-refresh-hook ()
+  "`card-games-bid--refresh' runs `card-games-bid-after-refresh-hook'."
+  (let ((game (make-instance 'card-games-bid-game)) ran)
+    (cl-letf (((symbol-function 'card-games-bid--run) #'ignore)
+              ((symbol-function 'card-games-bid--redisplay) #'ignore)
+              ((symbol-function 'card-games-bid--announce) #'ignore))
+      (let ((card-games-bid--game game)
+            (card-games-bid-animate nil)
+            (card-games-bid-after-refresh-hook (list (lambda () (setq ran t)))))
+        (card-games-bid--refresh)))
+    (should ran)))
+
+(ert-deftest cgt-bid-start-now-key ()
+  "The lobby start key lives in the owner keymap, not a load-time patch."
+  (should (eq (lookup-key card-games-bid-mode-map "s") 'card-games-bid-start-now)))

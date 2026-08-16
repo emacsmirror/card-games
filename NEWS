@@ -1,6 +1,25 @@
 card-games NEWS  -- user-visible changes
 ========================================
 
+* Version 1.0.92 (pretest3: MELPA review)
+
+** Packaging and internals
+  - The networked 500 client no longer patches game commands with
+    advice.  Player commands submit their action through the new
+    ~card-games-bid-submit~ generic; a joining Emacs plays a
+    ~card-games-bid-client-game~, whose method forwards each intent to
+    the host.  Behaviour is unchanged, and the client now shares the
+    solo game's turn and legality checks exactly.
+  - The host broadcasts from the new ~card-games-bid-after-refresh-hook~
+    instead of advising the refresh loop, and prompts that cannot reach
+    a remote player are suppressed with ~card-games-bid-inhibit-prompts~.
+  - The lobby start key ~s~ is defined in ~card-games-bid-mode-map~
+    itself rather than pushed in when the network layer loads.
+  - Byte-compile and checkdoc are warning-clean across the package
+    (docstring widths, ambiguous doc references, ~derived-mode-p~, a
+    sharp-quoted ~defalias~, and ~require~'s NOERROR argument), from
+    MELPA review feedback (thanks riscy).
+
 * Version 1.0.91 (pretest2: playtest)
 
 ** Documentation

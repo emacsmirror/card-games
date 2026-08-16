@@ -4,7 +4,7 @@
 
 ;; Author: Corwin Brust <corwin@bru.st>
 ;; Maintainer: Corwin Brust <corwin@bru.st>
-;; Version: 1.0.91
+;; Version: 1.0.92
 ;; Keywords: games
 ;; URL: https://code.bru.st/corwin/card-game.el
 
@@ -88,7 +88,7 @@ Set to nil to force the plain-text board everywhere."
   "Two-player Russian Bank (Crapette): you (South) versus one AI opponent.")
 
 (defvar-local card-games-crap--game nil
-  "The `card-games-crapette-game' played in the current buffer.")
+  "The Crapette game object played in the current buffer.")
 
 (defvar card-games-crap--recording t
   "When nil, `card-games-crap--snapshot' does not record (used during the AI turn).")

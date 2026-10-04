@@ -48,6 +48,7 @@
 
 ;;; Code:
 
+(require 'subr-x)
 (require 'card-games-core)
 
 (defgroup card-games-net nil

@@ -4,6 +4,11 @@ card-games NEWS  -- user-visible changes
 * Version 1.0.92 (pretest3: MELPA review)
 
 ** Packaging and internals
+  - card-games-net requires subr-x.  It calls ~string-empty-p~, which
+    lives in subr-x before Emacs 29, so a fresh Emacs 27 failed every
+    networked test with a void function; the header promises 26.1.
+  - The SVG smoke and region tests skip, rather than fail, in an Emacs
+    built without SVG support.  An Emacs with SVG runs them as before.
   - The networked 500 client no longer patches game commands with
     advice.  Player commands submit their action through the new
     ~card-games-bid-submit~ generic; a joining Emacs plays a

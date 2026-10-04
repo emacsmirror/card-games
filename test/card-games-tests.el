@@ -470,6 +470,7 @@ the unseeded shuffle keeps its system-random behaviour.  Opening #4."
                                        geom))))))
 
 (ert-deftest cgt-classic-folds-controls ()
+  (skip-unless (image-type-available-p 'svg))
   ;; graphical classic UI: one action-button row, no textual key-help
   (with-temp-buffer
     (card-games-bid-mode)
@@ -1029,12 +1030,14 @@ left a 15-card hand in play."
     (should (member '(2 . 5) (card-games-crap--reserve g 0)))))     ; loaded onto you
 
 (ert-deftest cgt-svg-logo-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (dolist (choice '(modern classic gnu splash drawn none nonexistent))
     (let ((card-games-svg-emacs-logo choice) (svg (svg-create 200 120)))
       (card-games-svg-draw-logo svg 100 60 1.0)
       (should (imagep (svg-image svg))))))
 
 (ert-deftest cgt-svg-card-back-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (dolist (b '(dots rings solid lattice waves diamond
                emacs emacs-classic gnu splash random))
     (let ((card-games-svg-card-back b) (svg (svg-create 80 100)))
@@ -1105,6 +1108,7 @@ left a 15-card hand in play."
     (should (= 1 (length (card-games-crap--house g 1))))))
 
 (ert-deftest cgt-crap-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-crap--deal (card-games-crapette-game))))
     (aset (card-games-get g :houses) 0 (list '(2 . 8) '(0 . 7) '(3 . 6)))  ; a run to draw
     (aset (card-games-get g :reserve) 0 (list '(3 . 0)))                   ; a forced foundation
@@ -1118,6 +1122,7 @@ left a 15-card hand in play."
       (should (rassoc '(house . 0) (cdr res))))))
 
 (ert-deftest cgt-trick-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-hearts-game)))
     (card-games-trick--deal g)
     (card-games-put g :cursor 0) (card-games-put g :phase 'play) (card-games-put g :turn 0) (card-games-put g :message "x")
@@ -1132,6 +1137,7 @@ left a 15-card hand in play."
         (should (cl-every (lambda (r) (= 4 (length (car r)))) regs))))))
 
 (ert-deftest cgt-trick-svg-bidding ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-spades-game)))
     (card-games-trick--deal g)
     (card-games-put g :cursor 2) (card-games-put g :phase 'bid) (card-games-put g :turn 0) (card-games-put g :message "bid")
@@ -1139,6 +1145,7 @@ left a 15-card hand in play."
     (should (stringp (card-games-trick--svg g)))))
 
 (ert-deftest cgt-gin-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-gin-game)))
     (card-games-gin--deal g)
     (card-games-put g :cursor 0) (card-games-put g :message "x") (card-games-put g :scores (vector 0 0))
@@ -1148,6 +1155,7 @@ left a 15-card hand in play."
       (should (rassoc '(hand . 0) (get-text-property 0 'card-games-regions sres))))))
 
 (ert-deftest cgt-tm-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-rum500-game)))
     (card-games-tm--deal g)
     (card-games-put g :cursor 1) (card-games-put g :message "x")
@@ -1160,6 +1168,7 @@ left a 15-card hand in play."
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs)))))
 
 (ert-deftest cgt-hf-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-handfoot-game)))
     (card-games-put g :nplayers 4) (card-games-put g :nteams 2) (card-games-put g :scores (make-vector 2 0))
     (card-games-hf--deal g)
@@ -1170,6 +1179,7 @@ left a 15-card hand in play."
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs)))))
 
 (ert-deftest cgt-fish-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-scopa-game)))
     (card-games-fish--deal-round g)
     (card-games-put g :cursor 0) (card-games-put g :message "x")
@@ -1178,6 +1188,7 @@ left a 15-card hand in play."
                     (get-text-property 0 'card-games-regions (card-games-fish--svg g))))))
 
 (ert-deftest cgt-eights-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-eights-game)))
     (card-games-put g :nplayers 3) (card-games-put g :scores (make-vector 3 0))
     (card-games-eights--deal g) (card-games-put g :cursor 0) (card-games-put g :message "x")
@@ -1187,6 +1198,7 @@ left a 15-card hand in play."
       (should (cl-every (lambda (r) (= 4 (length (car r)))) regs)))))
 
 (ert-deftest cgt-spite-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-spite-game)))
     (card-games-put g :nplayers 2) (card-games-put g :scores (make-vector 2 0))
     (card-games-spite--deal g) (card-games-put g :cursor 0) (card-games-put g :message "x")
@@ -1196,6 +1208,7 @@ left a 15-card hand in play."
                     (get-text-property 0 'card-games-regions (card-games-spite--board-svg g))))))
 
 (ert-deftest cgt-om-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-old-maid-game)))
     (card-games-om--deal g)
     (card-games-put g :phase 'play) (card-games-put g :turn 0) (card-games-put g :message "x")
@@ -1203,6 +1216,7 @@ left a 15-card hand in play."
     (should (stringp (card-games-om--svg g)))))
 
 (ert-deftest cgt-crib-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-cribbage-game)))
     (card-games-put g :scores (make-vector 2 0))
     (card-games-crib--deal g)
@@ -1220,6 +1234,7 @@ left a 15-card hand in play."
     (should (stringp (card-games-crib--svg g)))))
 
 (ert-deftest cgt-bridge-svg-smoke ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((g (card-games-bridge-game)))
     (card-games-bridge--deal g)
     (card-games-put g :cursor 0) (card-games-put g :turn 0) (card-games-put g :bid-level 1) (card-games-put g :bid-strain 0)
@@ -1555,6 +1570,7 @@ left a 15-card hand in play."
                                   (setq s (+ s (card-games-bris--points (cons su r)))))) s))))
 
 (ert-deftest cgt-trick-ext-full ()
+  (skip-unless (image-type-available-p 'svg))
   (dolist (class '(card-games-briscola-game card-games-pitch-game card-games-euchre-game))
     (let ((g (make-instance class)) (guard 0))
       (card-games-trick--new g)
@@ -1602,6 +1618,7 @@ left a 15-card hand in play."
                 '((0 . (0 . 12)) (1 . (3 . 0)) (2 . (0 . 2)) (3 . (0 . 5))) 3))))
 
 (ert-deftest cgt-bridge-full ()
+  (skip-unless (image-type-available-p 'svg))
   (let ((scored 0) (passed 0))
     (dotimes (i 12)
       (let ((g (card-games-bridge-game)) (guard 0))
@@ -1627,6 +1644,7 @@ left a 15-card hand in play."
 ;;;; Renderer registry / region keystone
 
 (ert-deftest cgt-keystone-regions ()
+  (skip-unless (image-type-available-p 'svg))
   (let* ((g (card-games-sol--deal (make-instance 'card-games-klondike-game)))
          (res (card-games-render-svg g)))
     (should (stringp (car res)))
@@ -1649,6 +1667,7 @@ left a 15-card hand in play."
 ;;;; Hand-cluster click regions + card-size slider
 
 (ert-deftest cgt-hand-regions ()
+  (skip-unless (image-type-available-p 'svg))
   (let* ((cards '((0 . 0) (0 . 1) (1 . 5)))
          (str (card-games-rummy--svg-row cards 0 nil nil 'hand))
          (regs (get-text-property 0 'card-games-regions str)))
@@ -1731,6 +1750,7 @@ left a 15-card hand in play."
 
 (ert-deftest cgt-mouse-regions ()
   "The newly clickable games attach a `card-games-regions' map to their SVG."
+  (skip-unless (image-type-available-p 'svg))
   (let* ((g (card-games-pat--deal (card-games-golf-game)))
          (regs (get-text-property 0 'card-games-regions (card-games-pat--svg g))))
     (should regs)

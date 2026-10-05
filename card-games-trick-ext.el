@@ -98,9 +98,9 @@ POWERFN, LEDFN rank cards; VALUEFN gives a card's point worth."
                                      trump powerfn ledfn))
               (push c winners) (push c losers)))
         (if winners
-            (car (sort winners (lambda (a b) (< (funcall powerfn a trump led)
+            (car (sort (copy-sequence winners) (lambda (a b) (< (funcall powerfn a trump led)
                                                 (funcall powerfn b trump led)))))
-          (car (sort (or losers legal)
+          (car (sort (copy-sequence (or losers legal))
                      (lambda (a b) (< (funcall valuefn a) (funcall valuefn b))))))))))
 
 (defun card-games-tx--plain-led (card _trump) "Return CARD's suit (the plain led suit)." (car card))
@@ -236,8 +236,8 @@ SEAT plays CARD as usual once trump is fixed."
         (dotimes (s 4)
           (let ((v (card-games-pitch--suit-strength game seat s)))
             (when (> v bestv) (setq bestv v best s))))
-        (car (sort (cl-remove-if-not (lambda (c) (= (car c) best))
-                                     (card-games-trick--hand game seat))
+        (car (sort (copy-sequence (cl-remove-if-not (lambda (c) (= (car c) best))
+                                     (card-games-trick--hand game seat)))
                    (lambda (a b) (> (cdr a) (cdr b))))))
     (card-games-tx--ai game seat #'card-games-pitch--power #'card-games-tx--plain-led
                (lambda (c) (card-games-pitch--pip (cdr c))))))

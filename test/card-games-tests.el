@@ -1570,7 +1570,6 @@ left a 15-card hand in play."
                                   (setq s (+ s (card-games-bris--points (cons su r)))))) s))))
 
 (ert-deftest cgt-trick-ext-full ()
-  (skip-unless (image-type-available-p 'svg))
   (dolist (class '(card-games-briscola-game card-games-pitch-game card-games-euchre-game))
     (let ((g (make-instance class)) (guard 0))
       (card-games-trick--new g)
@@ -1618,7 +1617,6 @@ left a 15-card hand in play."
                 '((0 . (0 . 12)) (1 . (3 . 0)) (2 . (0 . 2)) (3 . (0 . 5))) 3))))
 
 (ert-deftest cgt-bridge-full ()
-  (skip-unless (image-type-available-p 'svg))
   (let ((scored 0) (passed 0))
     (dotimes (i 12)
       (let ((g (card-games-bridge-game)) (guard 0))
@@ -1641,6 +1639,48 @@ left a 15-card hand in play."
         (should (memq (card-games-get g :phase) '(scored passed-out)))
         (should (stringp (card-games-render g)))))
     (should (> scored 0))))
+;;;; AI choice leaves the hands alone
+
+(defun cgt--hands-snapshot (g)
+  "Return a deep copy of G's :hands, for comparing before and after."
+  (mapcar #'copy-sequence (append (card-games-get g :hands) nil)))
+
+(ert-deftest cgt-ai-play-leaves-hands-alone ()
+  "Choosing a card must neither reorder nor shorten any hand.
+A destructive `sort' on a list that shares structure with a hand
+drops cards from it under Emacs 28 and earlier, and reorders it in
+place under Emacs 29 and later; this catches both."
+  ;; Bridge
+  (dotimes (i 4)
+    (let ((g (card-games-bridge-game)) (guard 0))
+      (card-games-put g :dealer i)
+      (card-games-bridge--deal g)
+      (while (and (eq (card-games-get g :phase) 'auction) (< guard 60))
+        (cl-incf guard)
+        (let* ((s (card-games-get g :bidder)) (call (card-games-bridge--ai-call g s)))
+          (unless (card-games-bridge--legal-call-p g call) (setq call 'pass))
+          (card-games-bridge--apply-call g s call)
+          (card-games-bridge--auction-done-p g)))
+      (let ((p 0))
+        (while (and (eq (card-games-get g :phase) 'play) (< p 60))
+          (cl-incf p)
+          (let* ((s (card-games-get g :turn)) (before (cgt--hands-snapshot g))
+                 (c (card-games-bridge--ai-play g s)))
+            (should (equal before (cgt--hands-snapshot g)))
+            (card-games-bridge--play-card g s c))))))
+  ;; Briscola, Pitch, Euchre
+  (dolist (class '(card-games-briscola-game card-games-pitch-game card-games-euchre-game))
+    (let ((g (make-instance class)) (guard 0))
+      (card-games-trick--new g)
+      (while (and (not (eq (card-games-get g :phase) 'game-over)) (< guard 400))
+        (cl-incf guard)
+        (if (card-games-trick--hand-over-p g)
+            (card-games-trick--finish-hand g)
+          (let* ((s (card-games-get g :turn)) (before (cgt--hands-snapshot g))
+                 (c (card-games-trick--ai-play g s)))
+            (should (equal before (cgt--hands-snapshot g)))
+            (card-games-trick--play g s c)))))))
+
 ;;;; Renderer registry / region keystone
 
 (ert-deftest cgt-keystone-regions ()

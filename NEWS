@@ -3,6 +3,16 @@ card-games NEWS  -- user-visible changes
 
 * Version 1.0.92 (pretest3: MELPA review)
 
+** Bug fixes
+  - Bridge, Briscola, Pitch and Euchre no longer lose cards from a
+    hand part-way through a deal under Emacs 28 and earlier.  The
+    computer players sorted a list that shared structure with the
+    hand; ~sort~ before Emacs 29 relinks the list, which cut cards
+    out of the hand and later stopped play with a type error.  Emacs
+    29 and later were unaffected.  The full-game Bridge and trick
+    tests no longer skip without SVG, and a new test checks that a
+    computer player's choice leaves every hand unchanged.
+
 ** Packaging and internals
   - card-games-net requires subr-x.  It calls ~string-empty-p~, which
     lives in subr-x before Emacs 29, so a fresh Emacs 27 failed every

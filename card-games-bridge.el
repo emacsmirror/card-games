@@ -417,7 +417,7 @@ vulnerability, and TRICKS the declarer side's trick count.  Keys:
          ((and partner (>= (length trick) 1))
           (car (sort (copy-sequence legal) (lambda (a b) (< (cdr a) (cdr b))))))
          ;; can win: take it with the cheapest winner
-         (winners (car (sort winners (lambda (a b) (< (cdr a) (cdr b))))))
+         (winners (car (sort (copy-sequence winners) (lambda (a b) (< (cdr a) (cdr b))))))
          ;; cannot win: discard lowest
          (t (car (sort (copy-sequence legal) (lambda (a b) (< (cdr a) (cdr b)))))))))))
 

@@ -21,7 +21,7 @@ README   = README.md
 EXTRA    = README.org $(README) $(PKGDESC) $(MANUAL) $(VERTEXI) $(IMAGES)
 
 .PHONY: all compile test clean distclean checkdoc lint check package tarball elpa release help \
-        info info-emacs html pdf docclean version readme hooks
+        info info-emacs html pdf docclean version readme hooks test-hooks
 
 help:
 	@echo "card-games $(VERSION) -- make targets:"
@@ -32,7 +32,8 @@ help:
 	@echo "  check      compile + checkdoc + lint + test (the full gate)"
 	@echo "  version    regenerate $(VERTEXI) from VERSION"
 	@echo "  readme     export README.org -> README.md (Emacs batch)"
-	@echo "  hooks      install the git pre-commit hook"
+	@echo "  hooks      install the git hooks (pre-commit, commit-msg, applypatch-msg)"
+	@echo "  test-hooks test the commit-msg hook"
 	@echo "  info       build the Info manual ($(INFO)) with makeinfo"
 	@echo "  info-emacs build the Info manual with Emacs alone (fallback)"
 	@echo "  html       build the one-file HTML manual"
@@ -51,9 +52,13 @@ compile:
 test:
 	$(BATCH) -L test -l test/$(PKG)-tests.el -f ert-run-tests-batch-and-exit
 
+# The commit-msg hook is sh; its tests are ERT, so each checks the other.
+test-hooks:
+	$(EMACS) -Q --batch -l test/commit-msg-tests.el -f ert-run-tests-batch-and-exit
+
 # One gate a contributor (or CI) can run: the same quality tools MELPA
 # asks for -- byte-compile, checkdoc, package-lint -- plus the ERT suite.
-check: compile checkdoc lint test
+check: compile checkdoc lint test test-hooks
 	@echo "card-games $(VERSION): compile + checkdoc + lint + tests all green"
 
 checkdoc:
@@ -111,12 +116,15 @@ readme: $(README)
 $(README): README.org build.el
 	$(BATCH) -l build.el
 
-# Install the pre-commit hook into this checkout's .git/hooks.
+# Install the git hooks into this checkout's .git/hooks.
+GITHOOKS = pre-commit commit-msg applypatch-msg
 hooks:
 	@if [ -d .git ]; then \
-	  cp hooks/pre-commit .git/hooks/pre-commit && \
-	  chmod +x .git/hooks/pre-commit && \
-	  echo "Installed .git/hooks/pre-commit"; \
+	  for h in $(GITHOOKS); do \
+	    cp hooks/$$h .git/hooks/$$h && \
+	    chmod +x .git/hooks/$$h && \
+	    echo "Installed .git/hooks/$$h" || exit 1; \
+	  done; \
 	else \
 	  echo "No .git directory here; skipping hook install."; \
 	fi

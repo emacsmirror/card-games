@@ -1,0 +1,11 @@
+#!/bin/sh
+# hooks/applypatch-msg -- give patches applied with `git am' the same
+# trailer check as an ordinary commit, by running hooks/commit-msg.
+#
+# Install:  make hooks
+
+hook=$(git rev-parse --git-path hooks/commit-msg)
+if [ -x "$hook" ]; then
+    exec "$hook" "$@"
+fi
+exit 0

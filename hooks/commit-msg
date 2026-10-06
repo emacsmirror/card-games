@@ -1,0 +1,59 @@
+#!/bin/sh
+# hooks/commit-msg -- keep commit trailers in this project's attribution form.
+#
+# card-games is published (MELPA, and bound for GNU ELPA), so every commit
+# message is a permanent public record.  This hook refuses two trailers the
+# project has not agreed to and checks the one form it has:
+#
+#   refused  a session-link trailer (Claude-Session and the like)
+#   refused  Co-Authored-By naming Claude or anthropic.com
+#   checked  Assisted-by: NAME (for PERSON; MODEL)
+#            e.g.  Assisted-by: Mentat (for Corwin; claude-opus-5-5)
+#            A comma in place of the semicolon is accepted too.
+#
+# Attribution is the author's call: a message with no Assisted-by line
+# passes.  Comment lines, and everything after the scissors line that
+# `git commit -v' adds, are not checked.
+#
+# Install:  make hooks  (also installs applypatch-msg, so `git am' is checked)
+# Bypass:   git commit --no-verify  -- a hook is a check, not a lock.
+# Tests:    make test-hooks
+#
+# Usage: commit-msg MESSAGE-FILE    Exit 0 accepts, 1 refuses.
+
+set -u
+
+msg=${1:?usage: commit-msg MESSAGE-FILE}
+cr=$(printf '\r')
+status=0
+
+refuse () {
+    printf 'commit-msg: %s\n    %s\n' "$1" "$2" >&2
+    status=1
+}
+
+while IFS= read -r line || [ -n "$line" ]; do
+    line=${line%"$cr"}
+    case $line in
+        '# ------------------------ >8 ------------------------'*) break ;;
+        '#'*) continue ;;
+    esac
+    lower=$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')
+    case $lower in
+        claude-session:*)
+            refuse 'session links are not used in this project:' "$line" ;;
+        co-authored-by:*claude*|co-authored-by:*anthropic.com*)
+            refuse 'credit AI help as Assisted-by: NAME (for PERSON; MODEL), not:' "$line" ;;
+        assisted-by:*)
+            if ! printf '%s\n' "$line" |
+                 grep -Eq '^[Aa]ssisted-[Bb]y: [^ (][^(]* \(for [^;,()]+[;,] [^ ;,()]+\)$'
+            then
+                refuse 'expected Assisted-by: NAME (for PERSON; MODEL), got:' "$line"
+            fi ;;
+    esac
+done < "$msg"
+
+if [ "$status" -ne 0 ]; then
+    echo 'commit-msg: refused; fix the message and try again.' >&2
+fi
+exit "$status"

@@ -1,6 +1,27 @@
 card-games NEWS  -- user-visible changes
 ========================================
 
+* Version 1.0.93 (first NonGNU ELPA release)
+
+** Documentation
+  - The manual may now be used under the GNU Free Documentation License,
+    version 1.3 or later, or under CC BY 4.0, at your choice; the GFDL
+    text is included as an appendix.  NonGNU ELPA asks for manuals under
+    a license compatible with the GFDL.
+  - Every nontrivial file in the repository now states its copyright and
+    license, including the Makefile, the git hooks, the tests and the
+    screenshots (doc/images/README).
+
+** Packaging
+  - An .elpaignore keeps development files (tests, hooks, Makefile,
+    build.el, research notes) out of ELPA tarballs.
+  - card-games-pkg.el is no longer kept in git.  Package archives write
+    their own from card-games.el; ~make package~ generates one from the
+    Makefile.
+  - Removed stray files committed by mistake (a saved web page named
+    BE16.png, a local session log) and the C4 working notes (LIFT.md)
+    from the repository.
+
 * Version 1.0.92 (pretest3: MELPA review)
 
 ** Bug fixes

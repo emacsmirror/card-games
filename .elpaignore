@@ -1,0 +1,9 @@
+.elpaignore
+.gitignore
+Makefile
+build.el
+experiments
+hooks
+known-games.org
+runemacs.sh
+test

@@ -1,7 +1,23 @@
 # Makefile for card-games -- byte-compile, test, and package.
+
+# Copyright (C) 2026  Corwin Brust
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 EMACS   ?= emacs
 PKG      = card-games
-VERSION  = 1.0.92
+VERSION  = 1.0.93
 # Source files in dependency order (card-games-core first).
 EL       = card-games-core.el card-games-svg.el card-games-render.el card-games-net.el card-games-bid.el card-games-gaps.el card-games-bid-ui.el card-games-bid-net.el card-games-solitaire.el card-games-trick.el card-games-eights.el card-games-patience.el card-games-president.el card-games-rummy.el card-games-rum500.el card-games-handfoot.el card-games-match.el card-games-cribbage.el card-games-scopa.el card-games-trick-ext.el card-games-spite.el card-games-bridge.el card-games-crapette.el card-games.el
 ELC      = $(EL:.el=.elc)
@@ -129,6 +145,22 @@ hooks:
 	  echo "No .git directory here; skipping hook install."; \
 	fi
 
+# The package descriptor is generated, not kept in git: package archives
+# (MELPA, NonGNU ELPA) write their own from card-games.el's headers.  This
+# one is only for `make package' / `make elpa'.
+$(PKGDESC): Makefile
+	@printf '%s\n' \
+	  ';;; $(PKGDESC) --- Package metadata  -*- no-byte-compile: t; -*-' \
+	  '(define-package "$(PKG)" "$(VERSION)"' \
+	  '  "Play card games (console UNICODE and graphical SVG)."' \
+	  "  '((emacs \"26.1\"))" \
+	  "  :keywords '(\"games\")" \
+	  '  :url "https://code.bru.st/corwin/card-game.el"' \
+	  "  :authors '((\"Corwin Brust\" . \"corwin@bru.st\"))" \
+	  "  :maintainer '(\"Corwin Brust\" . \"corwin@bru.st\"))" \
+	  ';;; $(PKGDESC) ends here' > $@
+	@echo "Wrote $@"
+
 info: $(INFO)
 $(INFO): $(MANUAL) $(VERTEXI)
 	$(MAKEINFO) -o $@ $(MANUAL)
@@ -158,4 +190,4 @@ clean:
 	rm -f $(ELC)
 
 distclean: clean docclean
-	rm -rf $(DIST) $(TARDIR) $(TAR) $(SRCTAR)
+	rm -rf $(DIST) $(TARDIR) $(TAR) $(SRCTAR) $(PKGDESC)

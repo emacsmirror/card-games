@@ -1,6 +1,21 @@
 #!/bin/sh
 # hooks/commit-msg -- keep commit trailers in this project's attribution form.
 #
+# Copyright (C) 2026  Corwin Brust
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 # card-games is published (MELPA, and bound for GNU ELPA), so every commit
 # message is a permanent public record.  This hook refuses two trailers the
 # project has not agreed to and checks the one form it has:

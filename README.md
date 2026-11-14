@@ -175,9 +175,9 @@ with its command.  From the menu you can also switch the card treatment
 
 ## From the package tarball
 
-    make package           # builds card-games-1.0.92.tar
+    make package           # builds card-games-1.0.93.tar
 
-Then in Emacs: `M-x package-install-file RET card-games-1.0.92.tar`.
+Then in Emacs: `M-x package-install-file RET card-games-1.0.93.tar`.
 
 
 ## With `use-package`
@@ -215,7 +215,8 @@ source checkout:
 
     make info              # builds doc/card-games.info with makeinfo
 
-The manual text is licensed CC-BY-4.0; the code is GPL-3.0-or-later.
+The manual may be used under the GNU FDL 1.3-or-later or CC-BY-4.0, at
+your choice; the code is GPL-3.0-or-later.
 
 
 # Playing
@@ -246,7 +247,7 @@ mouse: click cards, board slots, buttons, and the slider.
 
 # Testing
 
-This is a 1.0.92 pre-test snapshot.  To try it:
+This is a 1.0.93 pre-test snapshot.  To try it:
 
 1.  `make compile && make test` &ndash; should be warning-free and all green.
 2.  `M-x card-games` opens the menu, or jump straight in, e.g.
@@ -301,6 +302,14 @@ finds confusing or unreachable, rules bugs, and rendering glitches.
 
 # License
 
-GPL-3.0-or-later.  See the file headers; add a COPYING file with the
-full GPLv3 text for distribution.
+Copyright (C) 2026 Corwin Brust.
+
+The code is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License, version 3 or (at
+your option) any later version.  See the file COPYING.
+
+The manual (doc/card-games.texi) may be used, at your choice, under the
+GNU Free Documentation License, version 1.3 or any later version, with
+no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts, or
+under the Creative Commons Attribution 4.0 International License.
 

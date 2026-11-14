@@ -1,6 +1,21 @@
 #!/usr/bin/env sh
 # hooks/pre-commit -- regenerate README.md from README.org on commit.
 #
+# Copyright (C) 2026  Corwin Brust
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 # When README.org (or build.el) is part of the commit, re-run the batch
 # Org -> Markdown export and stage the refreshed README.md so it travels
 # in the same commit.  GitHub and MELPA render Markdown better than Org.
